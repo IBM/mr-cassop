@@ -1,0 +1,24 @@
+# permissions for end users to edit cassandraclusters.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cassandracluster-editor-role
+rules:
+- apiGroups:
+  - db.ibm.com
+  resources:
+  - cassandraclusters
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db.ibm.com
+  resources:
+  - cassandraclusters/status
+  verbs:
+  - get
