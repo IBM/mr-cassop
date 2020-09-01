@@ -1,7 +1,16 @@
 apiVersion: db.ibm.com/v1alpha1
 kind: CassandraCluster
 metadata:
-  name: cassandracluster-sample
+  name: c-tomash-cassandra-cassandra-cluster
 spec:
-  # Add fields here
-  foo: bar
+  cqlConfigMapLabelKey: cql-scripts
+  proberHost: http://localhost:8888
+  cassandraUser: cassandra
+  cassandraPassword: cassandra
+  dcs:
+    - name:
+      replicas: 2
+  systemKeyspaces:
+    dcs:
+      - name: dc1
+        rf: 2

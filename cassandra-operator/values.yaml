@@ -1,0 +1,14 @@
+replicas: 1
+container:
+  image: us.icr.io/icm-cassandra/cassandra-operator:0.1.0
+  # imagePullSecret: docker-reg-secret
+  imagePullPolicy: Always
+  restartPolicy: Always
+  resources:
+    limits:
+      cpu: 500m
+      memory: 200Mi
+    requests:
+      cpu: 500m
+      memory: 200Mi
+

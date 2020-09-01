@@ -28,8 +28,26 @@ type CassandraClusterSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of CassandraCluster. Edit CassandraCluster_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	CQLConfigMapLabelKey string          `json:"cqlConfigMapLabelKey,omitempty"`
+	ProberHost           string          `json:"proberHost,omitempty"`
+	CassandraUser        string          `json:"cassandraUser"`
+	CassandraPassword    string          `json:"cassandraPassword"`
+	SystemKeyspaces      SystemKeyspaces `json:"systemKeyspaces,omitempty"`
+	DCs                  []DC            `json:"dcs"`
+}
+
+type DC struct {
+	Name     string `json:"name"`
+	Replicas int32  `json:"replicas"`
+}
+
+type SystemKeyspaces struct {
+	DCs []SystemKeyspaceDC `json:"dcs"`
+}
+
+type SystemKeyspaceDC struct {
+	Name string `json:"name"`
+	RF   int32  `json:"rf"`
 }
 
 // CassandraClusterStatus defines the observed state of CassandraCluster

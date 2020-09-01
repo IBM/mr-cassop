@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cassandra-operator
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      operator: cassandra-operator
+  template:
+    metadata:
+      labels:
+        operator: cassandra-operator
+    spec:
+    {{- with .Values.container.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      serviceAccountName: cassandra-operator
+      containers:
+        - name: cassandra-operator
+          image: "{{ .Values.container.image }}"
+          imagePullPolicy: {{ .Values.container.imagePullPolicy }}
+          resources:
+            {{- toYaml .Values.container.resources | nindent 12 }}
+          env:
+            - name: NAMESPACE
+              value: {{ .Release.Namespace | quote }}
+            - name: LEADERELECTION_ENABLED
+              value: {{ if gt .Values.replicas 1.0 }}"true"{{ else }}"false"{{ end }}
+            - name: LOGLEVEL
+              value: {{ .Values.logLevel | quote }}
+            - name: LOGFORMAT
+              value: {{ .Values.logFormat | quote }}
+

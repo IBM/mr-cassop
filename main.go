@@ -18,7 +18,10 @@ package main
 
 import (
 	"flag"
-	"github.com/ibm/cassandra-operator/config"
+	"fmt"
+	operatorCfg "github.com/ibm/cassandra-operator/controllers/config"
+	"github.com/ibm/cassandra-operator/controllers/logger"
+	"k8s.io/client-go/kubernetes"
 	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,9 +37,12 @@ import (
 )
 
 var (
+	Version  = "undefined"
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 )
+
+const leaderElectionID = "cassandra-operator-leader-election-lock"
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
@@ -54,18 +60,34 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.Parse()
 
-	cfg, err := config.LoadConfig()
+	operatorConfig, err := operatorCfg.LoadConfig()
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+		setupLog.Error(err, "unable to load operator config")
 	}
+
+	logr := logger.NewLogger(operatorConfig.LogFormat, operatorConfig.LogLevel)
+
+	logr.Infof("Version: %s", Version)
+	logr.Infof("Leader election enabled: %t", operatorConfig.LeaderElectionEnabled)
+	logr.Infof("Log level: %s", operatorConfig.LogLevel.String())
+	logr.Infof("Prometheus metrics exporter port: %d", operatorConfig.MetricsPort)
+
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:             scheme,
-		MetricsBindAddress: metricsAddr,
-		Port:               9443,
-		LeaderElection:     enableLeaderElection,
-		LeaderElectionID:   "22420054.ibm.com",
+	restCfg := ctrl.GetConfigOrDie()
+
+	clientset, err := kubernetes.NewForConfig(restCfg)
+	if err != nil {
+		setupLog.Error(err, "unable to create client")
+		os.Exit(1)
+	}
+
+	mgr, err := ctrl.NewManager(restCfg, ctrl.Options{
+		Scheme:                  scheme,
+		MetricsBindAddress:      fmt.Sprintf(":%d", operatorConfig.MetricsPort),
+		LeaderElection:          enableLeaderElection,
+		LeaderElectionID:        leaderElectionID,
+		LeaderElectionNamespace: operatorConfig.Namespace,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -73,15 +95,16 @@ func main() {
 	}
 
 	if err = (&controllers.CassandraClusterReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("CassandraCluster"),
-		Scheme: mgr.GetScheme(),
-		Config: cfg,
+		Client:     mgr.GetClient(),
+		Log:        ctrl.Log.WithName("controllers").WithName("CassandraCluster"),
+		Scheme:     mgr.GetScheme(),
+		Config:     operatorConfig,
+		Clientset:  clientset,
+		RESTConfig: restCfg,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "CassandraCluster")
 		os.Exit(1)
 	}
-	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
