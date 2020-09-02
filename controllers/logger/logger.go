@@ -9,6 +9,10 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	FieldOperatorVersion = "operator_version"
+)
+
 func NewLogger(format string, level zapcore.Level) *zap.SugaredLogger {
 	var loggerConfig zap.Config
 

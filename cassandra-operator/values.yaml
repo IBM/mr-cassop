@@ -11,4 +11,6 @@ container:
     requests:
       cpu: 500m
       memory: 200Mi
+logLevel: info
+logFormat: json
 

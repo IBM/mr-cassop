@@ -72,6 +72,8 @@ func main() {
 	logr.Infof("Log level: %s", operatorConfig.LogLevel.String())
 	logr.Infof("Prometheus metrics exporter port: %d", operatorConfig.MetricsPort)
 
+	logr = logr.With(logger.FieldOperatorVersion, Version)
+
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	restCfg := ctrl.GetConfigOrDie()
@@ -96,9 +98,8 @@ func main() {
 
 	if err = (&controllers.CassandraClusterReconciler{
 		Client:     mgr.GetClient(),
-		Log:        ctrl.Log.WithName("controllers").WithName("CassandraCluster"),
+		Log:        logr,
 		Scheme:     mgr.GetScheme(),
-		Config:     operatorConfig,
 		Clientset:  clientset,
 		RESTConfig: restCfg,
 	}).SetupWithManager(mgr); err != nil {

@@ -8,7 +8,7 @@ spec:
   cassandraUser: cassandra
   cassandraPassword: cassandra
   dcs:
-    - name:
+    - name: dc1
       replicas: 2
   systemKeyspaces:
     dcs:

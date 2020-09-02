@@ -15,7 +15,7 @@ ARG VERSION=undefined
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on \
     go build \
     -ldflags "-X main.Version=$VERSION" \
-    -a
+    -a \
     -o bin/cassandra-operator main.go
 
 FROM debian:buster-slim

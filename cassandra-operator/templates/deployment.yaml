@@ -13,10 +13,10 @@ spec:
       labels:
         operator: cassandra-operator
     spec:
-    {{- with .Values.container.imagePullSecrets }}
+      {{- with .Values.container.imagePullSecret }}
       imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-    {{- end }}
+      - name:  {{ . | quote }}
+      {{- end }}
       serviceAccountName: cassandra-operator
       containers:
         - name: cassandra-operator

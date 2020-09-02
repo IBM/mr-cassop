@@ -36,14 +36,25 @@ spec:
           spec:
             description: CassandraClusterSpec defines the desired state of CassandraCluster
             properties:
-              cassandraHost:
-                type: string
               cassandraPassword:
                 type: string
               cassandraUser:
                 type: string
               cqlConfigMapLabelKey:
                 type: string
+              dcs:
+                items:
+                  properties:
+                    name:
+                      type: string
+                    replicas:
+                      format: int32
+                      type: integer
+                  required:
+                  - name
+                  - replicas
+                  type: object
+                type: array
               proberHost:
                 type: string
               systemKeyspaces:
@@ -67,6 +78,7 @@ spec:
             required:
             - cassandraPassword
             - cassandraUser
+            - dcs
             type: object
           status:
             description: CassandraClusterStatus defines the observed state of CassandraCluster
