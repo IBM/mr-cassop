@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"github.com/gocql/gocql"
 	"github.com/pkg/errors"
@@ -56,6 +57,7 @@ type CassandraClusterReconciler struct {
 // +kubebuilder:rbac:groups=db.ibm.com,resources=cassandraclusters,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=db.ibm.com,resources=cassandraclusters/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;update
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=pods/exec,verbs=create
 
 func (r *CassandraClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
@@ -79,13 +81,17 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	cc := &dbv1alpha1.CassandraCluster{}
 	err := r.Get(ctx, types.NamespacedName{Name: req.Name, Namespace: req.Namespace}, cc)
 	if err != nil {
+		if apierrors.IsNotFound(err) { //do not react to CRD delete events
+			return ctrl.Result{}, nil
+		}
 		r.Log.With(zap.Error(err)).Error("Can't get cassandracluster")
 		return ctrl.Result{}, err
 	}
 
 	readyAllDCs, err := r.proberReadyAllDCs(ctx, cc)
 	if err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Prober request failed.")
+		r.Log.Warnf("Prober request failed: %s. Trying again in 5 seconds...", err.Error())
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 	}
 
 	if !readyAllDCs {
@@ -117,6 +123,20 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, err
 	}
 
+	if cc.Spec.InternalAuth && cc.Spec.KwatcherEnabled {
+		r.Log.Debug("Internal auth and kwatcher are enabled. Checking if all users are created.")
+		created, err := r.usersCreated(ctx, cc, cassSession)
+		if err != nil {
+			return ctrl.Result{}, errors.Wrapf(err, "Can't get created users info")
+		}
+
+		if !created {
+			r.Log.Info("Users hasn't been created yet. Checking again in 10 seconds...")
+			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+		}
+		r.Log.Info("Users has been created")
+	}
+
 	r.Log.Debug("Executing queries from CQL ConfigMaps")
 	if err = r.reconcileCQLConfigMaps(ctx, cc, cassSession); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile CQL config maps")
@@ -126,7 +146,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 }
 
 func getFirstPodName(cc *dbv1alpha1.CassandraCluster) string {
-	return fmt.Sprintf("%s-%s-0", cc.Name, cc.Spec.DCs[0].Name)
+	return fmt.Sprintf("%s-cassandra-%s-0", cc.Name, cc.Spec.DCs[0].Name)
 }
 
 func (r *CassandraClusterReconciler) reconcileCQLConfigMaps(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cassSession *gocql.Session) error {
@@ -238,7 +258,7 @@ func (r *CassandraClusterReconciler) execOnPod(cc *dbv1alpha1.CassandraCluster, 
 }
 
 func newCassandraSession(cluster *dbv1alpha1.CassandraCluster) (*gocql.Session, error) {
-	cassCfg := gocql.NewCluster(cluster.Name + "-" + cluster.Spec.DCs[0].Name)
+	cassCfg := gocql.NewCluster(cluster.Name + "-cassandra-" + cluster.Spec.DCs[0].Name)
 	cassCfg.Authenticator = &gocql.PasswordAuthenticator{
 		Username: cluster.Spec.CassandraUser,
 		Password: cluster.Spec.CassandraPassword,
@@ -268,4 +288,70 @@ func (r *CassandraClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&dbv1alpha1.CassandraCluster{}).
 		Complete(r)
+}
+
+func (r *CassandraClusterReconciler) usersCreated(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cassSession *gocql.Session) (bool, error) {
+	iter := cassSession.Query("SELECT role,is_superuser FROM system_auth.roles").Iter()
+	type cassUser struct {
+		role        string
+		isSuperuser bool
+	}
+	cassUsers := make([]cassUser, 0, iter.NumRows())
+	var role string
+	var isSuperuser bool
+	for iter.Scan(&role, &isSuperuser) {
+		cassUsers = append(cassUsers, cassUser{role: role, isSuperuser: isSuperuser})
+	}
+
+	if err := iter.Close(); err != nil {
+		return false, errors.Wrapf(err, "Can't close iterator: %s")
+	}
+
+	usersSecret := &v1.Secret{}
+	usersSecretName := types.NamespacedName{
+		Namespace: cc.Namespace,
+		Name:      cc.Name + "-users-secret",
+	}
+
+	err := r.Get(ctx, usersSecretName, usersSecret)
+	if err != nil {
+		return false, errors.Wrapf(err, "Can't get users secret")
+	}
+
+	type user struct {
+		NodetoolUser bool   `json:"nodetoolUser"`
+		Password     string `json:"password"`
+		Super        bool   `json:"super"`
+		Username     string `json:"username"`
+	}
+
+	usersFromSecret := make([]user, 0, len(usersSecret.Data))
+	for _, userFromSecretData := range usersSecret.Data {
+		user := user{}
+		err := json.Unmarshal(userFromSecretData, &user)
+		if err != nil {
+			return false, errors.Wrapf(err, "Can't unmarshal user data")
+		}
+		usersFromSecret = append(usersFromSecret, user)
+	}
+
+	if len(usersFromSecret) != len(cassUsers) {
+		return false, nil
+	}
+
+	for _, userFromSecret := range usersFromSecret {
+		found := false
+		for _, cassandraUser := range cassUsers {
+			if userFromSecret.Username == cassandraUser.role {
+				found = true
+				break
+			}
+		}
+		if !found {
+			r.Log.Debugf("Didn't find user %s", userFromSecret.Username)
+			return false, nil
+		}
+	}
+
+	return true, nil
 }

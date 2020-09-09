@@ -53,6 +53,10 @@ spec:
                   - replicas
                   type: object
                 type: array
+              internalAuth:
+                type: boolean
+              kwatcherEnabled:
+                type: boolean
               proberHost:
                 type: string
               systemKeyspaces:
@@ -77,6 +81,8 @@ spec:
             - cassandraPassword
             - cassandraUser
             - dcs
+            - internalAuth
+            - kwatcherEnabled
             type: object
           status:
             description: CassandraClusterStatus defines the observed state of CassandraCluster

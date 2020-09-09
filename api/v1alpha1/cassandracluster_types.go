@@ -32,6 +32,8 @@ type CassandraClusterSpec struct {
 	ProberHost           string          `json:"proberHost,omitempty"`
 	CassandraUser        string          `json:"cassandraUser"`
 	CassandraPassword    string          `json:"cassandraPassword"`
+	InternalAuth         bool            `json:"internalAuth"`
+	KwatcherEnabled      bool            `json:"kwatcherEnabled"`
 	SystemKeyspaces      SystemKeyspaces `json:"systemKeyspaces,omitempty"`
 	DCs                  []DC            `json:"dcs"`
 }

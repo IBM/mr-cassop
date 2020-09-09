@@ -22,6 +22,14 @@ rules:
   verbs:
   - create
 - apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - db.ibm.com
   resources:
   - cassandraclusters
