@@ -17,27 +17,22 @@ limitations under the License.
 package controllers
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"github.com/gocql/gocql"
+	"github.com/ibm/cassandra-operator/controllers/cql"
+	"github.com/ibm/cassandra-operator/controllers/nodetool"
+	"github.com/ibm/cassandra-operator/controllers/prober"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/remotecommand"
-	"net/http"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"time"
@@ -88,7 +83,8 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, err
 	}
 
-	readyAllDCs, err := r.proberReadyAllDCs(ctx, cc)
+	proberClient := prober.NewProberClient(cc.Spec.ProberHost)
+	readyAllDCs, err := proberClient.ReadyAllDCs(ctx)
 	if err != nil {
 		r.Log.Warnf("Prober request failed: %s. Trying again in 5 seconds...", err.Error())
 		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
@@ -101,31 +97,19 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 
 	r.Log.Debug("All DCs are ready")
 
-	cassSession, err := newCassandraSession(cc)
+	ntClient := nodetool.NewNodetoolClient(r.Clientset, r.RESTConfig)
+	cqlClient, err := cql.NewCQLClient(cc)
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Can't create cassandra session")
 	}
 
-	r.Log.Debug("Executing query to update RF info")
-	if err = cassSession.Query(updateRFQuery(cc)).Exec(); err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Can't update RF info")
-	}
-
-	cmd := []string{
-		"sh",
-		"-c",
-		"nodetool -h " + getFirstPodName(cc) + " repair -full -dcpar -- system_auth",
-	}
-
-	r.Log.Debug("Repairing system_auth keyspace")
-	err = r.execOnPod(cc, cmd)
-	if err != nil {
-		return ctrl.Result{}, err
+	if err = r.reconcileRFSettings(ctx, cc, cqlClient, ntClient); err != nil {
+		return ctrl.Result{}, errors.Wrapf(err, "failed to reconcile RF settings")
 	}
 
 	if cc.Spec.InternalAuth && cc.Spec.KwatcherEnabled {
 		r.Log.Debug("Internal auth and kwatcher are enabled. Checking if all users are created.")
-		created, err := r.usersCreated(ctx, cc, cassSession)
+		created, err := r.usersCreated(ctx, cc, cqlClient)
 		if err != nil {
 			return ctrl.Result{}, errors.Wrapf(err, "Can't get created users info")
 		}
@@ -138,18 +122,29 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	}
 
 	r.Log.Debug("Executing queries from CQL ConfigMaps")
-	if err = r.reconcileCQLConfigMaps(ctx, cc, cassSession); err != nil {
+	if err = r.reconcileCQLConfigMaps(ctx, cc, cqlClient, ntClient); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile CQL config maps")
 	}
 
 	return ctrl.Result{}, nil
 }
 
-func getFirstPodName(cc *dbv1alpha1.CassandraCluster) string {
-	return fmt.Sprintf("%s-cassandra-%s-0", cc.Name, cc.Spec.DCs[0].Name)
+func (r *CassandraClusterReconciler) reconcileRFSettings(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cqlClient *cql.CQLClient, ntClient *nodetool.NodetoolCLient) error {
+	//TODO implement a check if the RF settings need to be updated
+	r.Log.Debug("Executing query to update RF info")
+	if err := cqlClient.UpdateRF(cc); err != nil {
+		return errors.Wrap(err, "Can't update RF info")
+	}
+
+	r.Log.Debug("Repairing system_auth keyspace")
+	if err := ntClient.RepairKeyspace(cc, "system_auth"); err != nil {
+		return errors.Wrapf(err, "Failed to repair %q keyspace", "system_auth")
+	}
+
+	return nil
 }
 
-func (r *CassandraClusterReconciler) reconcileCQLConfigMaps(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cassSession *gocql.Session) error {
+func (r *CassandraClusterReconciler) reconcileCQLConfigMaps(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cqlClient *cql.CQLClient, ntClient *nodetool.NodetoolCLient) error {
 	cmList := &v1.ConfigMapList{}
 	err := r.List(ctx, cmList, client.HasLabels{cc.Spec.CQLConfigMapLabelKey}, client.InNamespace(cc.Namespace))
 	if err != nil {
@@ -170,22 +165,17 @@ func (r *CassandraClusterReconciler) reconcileCQLConfigMaps(ctx context.Context,
 
 		for queryKey, cqlQuery := range cm.Data {
 			r.Log.Debugf("Executing query with queryKey %q from ConfigMap %q", queryKey, cm.Name)
-			if err = cassSession.Query(cqlQuery).Exec(); err != nil {
+			if err = cqlClient.Query(cqlQuery).Exec(); err != nil {
 				return errors.Wrapf(err, "Query with queryKey %q failed", queryKey)
 			}
 		}
 
 		keyspaceToRepair := cm.Annotations["cql-repairKeyspace"]
 		if len(keyspaceToRepair) > 0 {
-			cmd := []string{
-				"sh",
-				"-c",
-				"nodetool -h " + getFirstPodName(cc) + " repair -full -dcpar -- reaper_db",
-			}
-
 			r.Log.Debugf("Repairing %q keyspace", keyspaceToRepair)
-			if err = r.execOnPod(cc, cmd); err != nil {
-				return errors.Wrapf(err, "Failed to repair 'reaper_db' keyspace")
+
+			if err = ntClient.RepairKeyspace(cc, keyspaceToRepair); err != nil {
+				return errors.Wrapf(err, "Failed to repair %q keyspace", keyspaceToRepair)
 			}
 		} else {
 			r.Log.Warnf("Keyspace for ConfigMap %q is not set. Skipping repair.", cm.Name)
@@ -200,158 +190,9 @@ func (r *CassandraClusterReconciler) reconcileCQLConfigMaps(ctx context.Context,
 	return nil
 }
 
-func (r *CassandraClusterReconciler) proberReadyAllDCs(ctx context.Context, cc *dbv1alpha1.CassandraCluster) (bool, error) {
-	proberReq, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://"+cc.Spec.ProberHost+"/readyalldcs", nil)
-	if err != nil {
-		return false, errors.Wrap(err, "Can't create request")
-	}
-
-	resp, err := http.DefaultClient.Do(proberReq)
-	if err != nil {
-		return false, errors.Wrap(err, "Request to prober failed")
-	}
-
-	_, err = ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return false, errors.Wrap(err, "Can't read body")
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return false, nil
-	}
-
-	return true, nil
-}
-
-func (r *CassandraClusterReconciler) execOnPod(cc *dbv1alpha1.CassandraCluster, cmd []string) error {
-	nodetoolReq := r.Clientset.CoreV1().RESTClient().Post().Resource("pods").Name(getFirstPodName(cc)).
-		Namespace(cc.Namespace).SubResource("exec")
-	option := &v1.PodExecOptions{
-		Command: cmd,
-		Stdin:   false,
-		Stdout:  true,
-		Stderr:  true,
-		TTY:     false,
-	}
-
-	nodetoolReq.VersionedParams(
-		option,
-		scheme.ParameterCodec,
-	)
-
-	exec, err := remotecommand.NewSPDYExecutor(r.RESTConfig, "POST", nodetoolReq.URL())
-	if err != nil {
-		return err
-	}
-	stdout := &bytes.Buffer{}
-	stderr := &bytes.Buffer{}
-	err = exec.Stream(remotecommand.StreamOptions{
-		Stdout: stdout,
-		Stderr: stderr,
-		Tty:    false,
-	})
-	if err != nil {
-		return errors.Wrapf(err, "Exec failed.\n stdout: %s\n, stderr: %s\n", stdout, stderr)
-	}
-
-	return err
-}
-
-func newCassandraSession(cluster *dbv1alpha1.CassandraCluster) (*gocql.Session, error) {
-	cassCfg := gocql.NewCluster(cluster.Name + "-cassandra-" + cluster.Spec.DCs[0].Name)
-	cassCfg.Authenticator = &gocql.PasswordAuthenticator{
-		Username: cluster.Spec.CassandraUser,
-		Password: cluster.Spec.CassandraPassword,
-	}
-
-	cassCfg.Timeout = 6 * time.Second
-	cassCfg.ConnectTimeout = 6 * time.Second
-	cassCfg.ProtoVersion = 4
-	cassCfg.Consistency = gocql.LocalQuorum
-
-	cassSession, err := cassCfg.CreateSession()
-	return cassSession, err
-}
-
-func updateRFQuery(cc *dbv1alpha1.CassandraCluster) string {
-	queryDCs := ""
-	for _, dc := range cc.Spec.SystemKeyspaces.DCs {
-		if queryDCs != "" {
-			queryDCs = queryDCs + ","
-		}
-		queryDCs = queryDCs + fmt.Sprintf("'%s': %d", dc.Name, dc.RF)
-	}
-	return fmt.Sprintf("ALTER KEYSPACE system_auth WITH replication = { 'class': 'NetworkTopologyStrategy' , %s  } ;", queryDCs)
-}
-
 func (r *CassandraClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&dbv1alpha1.CassandraCluster{}).
+		// how to watch and map resources
 		Complete(r)
-}
-
-func (r *CassandraClusterReconciler) usersCreated(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cassSession *gocql.Session) (bool, error) {
-	iter := cassSession.Query("SELECT role,is_superuser FROM system_auth.roles").Iter()
-	type cassUser struct {
-		role        string
-		isSuperuser bool
-	}
-	cassUsers := make([]cassUser, 0, iter.NumRows())
-	var role string
-	var isSuperuser bool
-	for iter.Scan(&role, &isSuperuser) {
-		cassUsers = append(cassUsers, cassUser{role: role, isSuperuser: isSuperuser})
-	}
-
-	if err := iter.Close(); err != nil {
-		return false, errors.Wrapf(err, "Can't close iterator: %s")
-	}
-
-	usersSecret := &v1.Secret{}
-	usersSecretName := types.NamespacedName{
-		Namespace: cc.Namespace,
-		Name:      cc.Name + "-users-secret",
-	}
-
-	err := r.Get(ctx, usersSecretName, usersSecret)
-	if err != nil {
-		return false, errors.Wrapf(err, "Can't get users secret")
-	}
-
-	type user struct {
-		NodetoolUser bool   `json:"nodetoolUser"`
-		Password     string `json:"password"`
-		Super        bool   `json:"super"`
-		Username     string `json:"username"`
-	}
-
-	usersFromSecret := make([]user, 0, len(usersSecret.Data))
-	for _, userFromSecretData := range usersSecret.Data {
-		user := user{}
-		err := json.Unmarshal(userFromSecretData, &user)
-		if err != nil {
-			return false, errors.Wrapf(err, "Can't unmarshal user data")
-		}
-		usersFromSecret = append(usersFromSecret, user)
-	}
-
-	if len(usersFromSecret) != len(cassUsers) {
-		return false, nil
-	}
-
-	for _, userFromSecret := range usersFromSecret {
-		found := false
-		for _, cassandraUser := range cassUsers {
-			if userFromSecret.Username == cassandraUser.role {
-				found = true
-				break
-			}
-		}
-		if !found {
-			r.Log.Debugf("Didn't find user %s", userFromSecret.Username)
-			return false, nil
-		}
-	}
-
-	return true, nil
 }
