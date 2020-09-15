@@ -103,7 +103,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Can't create cassandra session")
 	}
 
-	if err = r.reconcileRFSettings(ctx, cc, cqlClient, ntClient); err != nil {
+	if err = r.reconcileRFSettings(cc, cqlClient, ntClient); err != nil {
 		return ctrl.Result{}, errors.Wrapf(err, "failed to reconcile RF settings")
 	}
 
@@ -129,7 +129,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	return ctrl.Result{}, nil
 }
 
-func (r *CassandraClusterReconciler) reconcileRFSettings(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cqlClient *cql.CQLClient, ntClient *nodetool.NodetoolCLient) error {
+func (r *CassandraClusterReconciler) reconcileRFSettings(cc *dbv1alpha1.CassandraCluster, cqlClient *cql.CQLClient, ntClient *nodetool.NodetoolCLient) error {
 	//TODO implement a check if the RF settings need to be updated
 	r.Log.Debug("Executing query to update RF info")
 	if err := cqlClient.UpdateRF(cc); err != nil {
