@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+const (
+	ReplicationClassNetworkTopologyStrategy = "org.apache.cassandra.locator.NetworkTopologyStrategy"
+)
+
 type CQLClient struct {
 	*gocql.Session
 }
@@ -37,6 +41,30 @@ func NewCQLClient(cluster *v1alpha1.CassandraCluster) (*CQLClient, error) {
 	return &CQLClient{Session: cassSession}, nil
 }
 
+type Keyspace struct {
+	Name        string
+	Replication map[string]string
+}
+
+func (c CQLClient) GetKeyspacesInfo() ([]Keyspace, error) {
+	iter := c.Query("SELECT keyspace_name,replication FROM system_schema.keyspaces").Iter()
+
+	var keyspaceName string
+	replication := make(map[string]string)
+	keyspaces := make([]Keyspace, 0, iter.NumRows())
+	for iter.Scan(&keyspaceName, &replication) {
+		keyspace := Keyspace{Name: keyspaceName, Replication: replication}
+
+		keyspaces = append(keyspaces, keyspace)
+	}
+
+	err := iter.Close()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to close iterator")
+	}
+	return keyspaces, nil
+}
+
 func (c CQLClient) UpdateRF(cc *v1alpha1.CassandraCluster) error {
 	queryDCs := ""
 	for _, dc := range cc.Spec.SystemKeyspaces.DCs {
@@ -46,7 +74,7 @@ func (c CQLClient) UpdateRF(cc *v1alpha1.CassandraCluster) error {
 		queryDCs = queryDCs + fmt.Sprintf("'%s': %d", dc.Name, dc.RF)
 	}
 
-	query := fmt.Sprintf("ALTER KEYSPACE system_auth WITH replication = { 'class': 'NetworkTopologyStrategy' , %s  } ;", queryDCs)
+	query := fmt.Sprintf("ALTER KEYSPACE system_auth WITH replication = { 'class': '%s' , %s  } ;", ReplicationClassNetworkTopologyStrategy, queryDCs)
 
 	return c.Query(query).Exec()
 }

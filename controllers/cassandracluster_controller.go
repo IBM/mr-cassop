@@ -18,14 +18,11 @@ package controllers
 
 import (
 	"context"
-	"encoding/base64"
-	"fmt"
 	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/ibm/cassandra-operator/controllers/nodetool"
 	"github.com/ibm/cassandra-operator/controllers/prober"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -121,73 +118,11 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		r.Log.Info("Users has been created")
 	}
 
-	r.Log.Debug("Executing queries from CQL ConfigMaps")
 	if err = r.reconcileCQLConfigMaps(ctx, cc, cqlClient, ntClient); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile CQL config maps")
 	}
 
 	return ctrl.Result{}, nil
-}
-
-func (r *CassandraClusterReconciler) reconcileRFSettings(cc *dbv1alpha1.CassandraCluster, cqlClient *cql.CQLClient, ntClient *nodetool.NodetoolCLient) error {
-	//TODO implement a check if the RF settings need to be updated
-	r.Log.Debug("Executing query to update RF info")
-	if err := cqlClient.UpdateRF(cc); err != nil {
-		return errors.Wrap(err, "Can't update RF info")
-	}
-
-	r.Log.Debug("Repairing system_auth keyspace")
-	if err := ntClient.RepairKeyspace(cc, "system_auth"); err != nil {
-		return errors.Wrapf(err, "Failed to repair %q keyspace", "system_auth")
-	}
-
-	return nil
-}
-
-func (r *CassandraClusterReconciler) reconcileCQLConfigMaps(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cqlClient *cql.CQLClient, ntClient *nodetool.NodetoolCLient) error {
-	cmList := &v1.ConfigMapList{}
-	err := r.List(ctx, cmList, client.HasLabels{cc.Spec.CQLConfigMapLabelKey}, client.InNamespace(cc.Namespace))
-	if err != nil {
-		return errors.Wrap(err, "Can't get list of config maps")
-	}
-
-	if len(cmList.Items) == 0 {
-		r.Log.Debug(fmt.Sprintf("No configmaps found with label %q", cc.Spec.CQLConfigMapLabelKey))
-		return nil
-	}
-
-	for _, cm := range cmList.Items {
-		lastChecksum := cm.Annotations["cql-checksum"]
-		checksum := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%v", cm.Data)))
-		if lastChecksum == checksum {
-			continue
-		}
-
-		for queryKey, cqlQuery := range cm.Data {
-			r.Log.Debugf("Executing query with queryKey %q from ConfigMap %q", queryKey, cm.Name)
-			if err = cqlClient.Query(cqlQuery).Exec(); err != nil {
-				return errors.Wrapf(err, "Query with queryKey %q failed", queryKey)
-			}
-		}
-
-		keyspaceToRepair := cm.Annotations["cql-repairKeyspace"]
-		if len(keyspaceToRepair) > 0 {
-			r.Log.Debugf("Repairing %q keyspace", keyspaceToRepair)
-
-			if err = ntClient.RepairKeyspace(cc, keyspaceToRepair); err != nil {
-				return errors.Wrapf(err, "Failed to repair %q keyspace", keyspaceToRepair)
-			}
-		} else {
-			r.Log.Warnf("Keyspace for ConfigMap %q is not set. Skipping repair.", cm.Name)
-		}
-
-		r.Log.Debugf("Updating checksum for ConfigMap %q", cm.Name)
-		if err := r.Update(ctx, &cm); err != nil {
-			return errors.Wrapf(err, "Failed to update CM %q", cm.Name)
-		}
-	}
-
-	return nil
 }
 
 func (r *CassandraClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
