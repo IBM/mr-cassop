@@ -1,0 +1,41 @@
+apiVersion: db.ibm.com/v1alpha1
+kind: CassandraCluster
+metadata:
+  name: example
+spec:
+  cassandra:
+    auth:
+      password: cassandra
+      user: cassandra
+    image: us.icr.io/icm-cassandra/cassandra:3.11.8-0.18.3
+    imagePullPolicy: IfNotPresent
+    jmxPort: 7199
+    numSeeds: 2
+    usersDir: /etc/cassandra-users
+  cqlConfigMapLabelKey: cql-scripts
+  dcs:
+    - name: dc1
+      replicas: 3
+  hostPortEnabled: false
+  imagePullSecretName: icm-coreeng-pull-secret
+  internalAuth: true
+  kwatcher:
+    enabled: true
+    image: us.icr.io/icm-cassandra/cassandra-kwatcher:0.18.3
+    imagePullPolicy: IfNotPresent
+  prober:
+    debug: true
+    image: us.icr.io/icm-cassandra/cassandra-prober:0.18.3
+    imagePullPolicy: IfNotPresent
+    jolokia:
+      image: us.icr.io/icm-docker-images/jolokia-proxy:1.6.2
+      imagePullPolicy: IfNotPresent
+    serverPort: 8888
+  systemKeyspaces:
+    dcs:
+      - name: dc1
+        rf: 2
+    names:
+      - system_auth
+      - system_distributed
+      - system_traces

@@ -36,10 +36,40 @@ spec:
           spec:
             description: CassandraClusterSpec defines the desired state of CassandraCluster
             properties:
-              cassandraPassword:
-                type: string
-              cassandraUser:
-                type: string
+              cassandra:
+                properties:
+                  auth:
+                    properties:
+                      password:
+                        type: string
+                      user:
+                        type: string
+                    required:
+                    - password
+                    - user
+                    type: object
+                  image:
+                    type: string
+                  imagePullPolicy:
+                    description: PullPolicy describes a policy for if/when to pull
+                      a container image
+                    type: string
+                  jmxPort:
+                    format: int32
+                    type: integer
+                  numSeeds:
+                    format: int32
+                    type: integer
+                  usersDir:
+                    type: string
+                required:
+                - auth
+                - image
+                - imagePullPolicy
+                - jmxPort
+                - numSeeds
+                - usersDir
+                type: object
               cqlConfigMapLabelKey:
                 type: string
               dcs:
@@ -55,12 +85,61 @@ spec:
                   - replicas
                   type: object
                 type: array
+              hostPortEnabled:
+                type: boolean
+              imagePullSecretName:
+                description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
+                  Important: Run "make" to regenerate code after modifying this file'
+                type: string
               internalAuth:
                 type: boolean
-              kwatcherEnabled:
-                type: boolean
-              proberHost:
-                type: string
+              kwatcher:
+                properties:
+                  enabled:
+                    type: boolean
+                  image:
+                    type: string
+                  imagePullPolicy:
+                    description: PullPolicy describes a policy for if/when to pull
+                      a container image
+                    type: string
+                required:
+                - enabled
+                - image
+                - imagePullPolicy
+                type: object
+              prober:
+                properties:
+                  debug:
+                    type: boolean
+                  image:
+                    type: string
+                  imagePullPolicy:
+                    description: PullPolicy describes a policy for if/when to pull
+                      a container image
+                    type: string
+                  jolokia:
+                    properties:
+                      image:
+                        type: string
+                      imagePullPolicy:
+                        description: PullPolicy describes a policy for if/when to
+                          pull a container image
+                        type: string
+                    required:
+                    - image
+                    - imagePullPolicy
+                    type: object
+                  serverPort:
+                    format: int32
+                    type: integer
+                required:
+                - debug
+                - image
+                - imagePullPolicy
+                - jolokia
+                - serverPort
+                type: object
               systemKeyspaces:
                 properties:
                   dcs:
@@ -76,15 +155,21 @@ spec:
                       - rf
                       type: object
                     type: array
+                  names:
+                    items:
+                      type: string
+                    type: array
                 required:
                 - dcs
+                - names
                 type: object
             required:
-            - cassandraPassword
-            - cassandraUser
+            - cassandra
             - dcs
+            - hostPortEnabled
+            - imagePullSecretName
             - internalAuth
-            - kwatcherEnabled
+            - kwatcher
             type: object
           status:
             description: CassandraClusterStatus defines the observed state of CassandraCluster

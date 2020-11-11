@@ -19,8 +19,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/go-logr/zapr"
 	operatorCfg "github.com/ibm/cassandra-operator/controllers/config"
 	"github.com/ibm/cassandra-operator/controllers/logger"
+	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes"
 	"os"
 
@@ -29,7 +31,6 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers"
@@ -37,9 +38,8 @@ import (
 )
 
 var (
-	Version  = "undefined"
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	Version = "undefined"
+	scheme  = runtime.NewScheme()
 )
 
 const leaderElectionID = "cassandra-operator-leader-election-lock"
@@ -62,7 +62,8 @@ func main() {
 
 	operatorConfig, err := operatorCfg.LoadConfig()
 	if err != nil {
-		setupLog.Error(err, "unable to load operator config")
+		fmt.Printf("unable to load operator config: %s", err.Error())
+		os.Exit(1)
 	}
 
 	logr := logger.NewLogger(operatorConfig.LogFormat, operatorConfig.LogLevel)
@@ -74,13 +75,13 @@ func main() {
 
 	logr = logr.With(logger.FieldOperatorVersion, Version)
 
-	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	ctrl.SetLogger(zapr.NewLogger(logr.Desugar()))
 
 	restCfg := ctrl.GetConfigOrDie()
 
 	clientset, err := kubernetes.NewForConfig(restCfg)
 	if err != nil {
-		setupLog.Error(err, "unable to create client")
+		logr.With(zap.Error(err), "unable to create client")
 		os.Exit(1)
 	}
 
@@ -92,7 +93,7 @@ func main() {
 		LeaderElectionNamespace: operatorConfig.Namespace,
 	})
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+		logr.With(zap.Error(err)).Error("unable to start manager")
 		os.Exit(1)
 	}
 
@@ -100,16 +101,17 @@ func main() {
 		Client:     mgr.GetClient(),
 		Log:        logr,
 		Scheme:     mgr.GetScheme(),
+		Cfg:        *operatorConfig,
 		Clientset:  clientset,
 		RESTConfig: restCfg,
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "CassandraCluster")
+		logr.With(zap.Error(err)).Error("unable to create controller", "controller", "CassandraCluster")
 		os.Exit(1)
 	}
 
-	setupLog.Info("starting manager")
+	logr.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
+		logr.With(zap.Error(err)).Error("problem running manager")
 		os.Exit(1)
 	}
 }

@@ -18,11 +18,16 @@ package controllers
 
 import (
 	"context"
+	"github.com/ibm/cassandra-operator/controllers/config"
 	"github.com/ibm/cassandra-operator/controllers/cql"
+	"github.com/ibm/cassandra-operator/controllers/names"
 	"github.com/ibm/cassandra-operator/controllers/nodetool"
 	"github.com/ibm/cassandra-operator/controllers/prober"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
+	rbac "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -42,6 +47,7 @@ type CassandraClusterReconciler struct {
 	client.Client
 	Log        *zap.SugaredLogger
 	Scheme     *runtime.Scheme
+	Cfg        config.Config
 	Clientset  *kubernetes.Clientset
 	RESTConfig *rest.Config
 }
@@ -49,8 +55,14 @@ type CassandraClusterReconciler struct {
 // +kubebuilder:rbac:groups=db.ibm.com,resources=cassandraclusters,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=db.ibm.com,resources=cassandraclusters/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;update
-// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;
 // +kubebuilder:rbac:groups="",resources=pods/exec,verbs=create
+// +kubebuilder:rbac:groups=apps,resources=deployments;statefulsets,verbs=list;get;watch;create;update;delete
+// +kubebuilder:rbac:groups="",resources=services;serviceaccounts,verbs=list;watch;create;update;delete
+// +kubebuilder:rbac:groups="",resources=endpoints,verbs=list;watch
+// +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
+// +kubebuilder:rbac:groups="batch",resources=jobs,verbs=get;list;watch;create;update;delete;patch
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings;roles;rolebindings,verbs=list;watch;get;create;update;delete
 
 func (r *CassandraClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
@@ -80,7 +92,41 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, err
 	}
 
-	proberClient := prober.NewProberClient(cc.Spec.ProberHost)
+	if err := r.reconcileScriptsConfigMap(ctx, cc); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error reconciling scripts configmap")
+	}
+
+	if err := r.reconcileUsersSecret(ctx, cc); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error reconciling users secret")
+	}
+
+	if err := r.reconcileJMXSecret(ctx, cc); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error reconciling jxm secret")
+	}
+
+	if err := r.reconcileProber(ctx, cc); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error reconciling prober")
+	}
+
+	proberClient := prober.NewProberClient(names.ProberService(cc))
+	proberReady, err := r.proberReady(ctx, cc)
+	if err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "can't get prober's status")
+	}
+
+	if !proberReady {
+		r.Log.Warnf("Prober is not ready. Trying again in 5 seconds...")
+		return ctrl.Result{RequeueAfter: time.Second * 5}, nil
+	}
+
+	if err := r.reconcileCassandraConfigConfigMap(ctx, cc); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error reconciling cassandra config configmaps")
+	}
+
+	if err := r.reconcileCassandra(ctx, cc); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error reconciling statefulsets")
+	}
+
 	readyAllDCs, err := proberClient.ReadyAllDCs(ctx)
 	if err != nil {
 		r.Log.Warnf("Prober request failed: %s. Trying again in 5 seconds...", err.Error())
@@ -94,6 +140,12 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 
 	r.Log.Debug("All DCs are ready")
 
+	if cc.Spec.Kwatcher.Enabled {
+		if err := r.reconcileKwatcher(ctx, cc); err != nil {
+			return ctrl.Result{}, errors.Wrap(err, "Error reconciling kwatcher")
+		}
+	}
+
 	ntClient := nodetool.NewNodetoolClient(r.Clientset, r.RESTConfig)
 	cqlClient, err := cql.NewCQLClient(cc)
 	if err != nil {
@@ -104,7 +156,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrapf(err, "failed to reconcile RF settings")
 	}
 
-	if cc.Spec.InternalAuth && cc.Spec.KwatcherEnabled {
+	if cc.Spec.InternalAuth && cc.Spec.Kwatcher.Enabled {
 		r.Log.Debug("Internal auth and kwatcher are enabled. Checking if all users are created.")
 		created, err := r.usersCreated(ctx, cc, cqlClient)
 		if err != nil {
@@ -128,6 +180,12 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 func (r *CassandraClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&dbv1alpha1.CassandraCluster{}).
-		// how to watch and map resources
+		Owns(&appsv1.Deployment{}).
+		Owns(&v1.Service{}).
+		Owns(&appsv1.StatefulSet{}).
+		Owns(&v1.Secret{}).
+		Owns(&v1.ConfigMap{}).
+		Owns(&rbac.ClusterRole{}).
+		Owns(&rbac.ClusterRoleBinding{}).
 		Complete(r)
 }

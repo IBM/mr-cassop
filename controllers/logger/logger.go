@@ -23,6 +23,7 @@ func NewLogger(format string, level zapcore.Level) *zap.SugaredLogger {
 	}
 	loggerConfig.DisableStacktrace = true
 	loggerConfig.Level = zap.NewAtomicLevelAt(level)
+	loggerConfig.OutputPaths = []string{"stdout"}
 
 	zaplog, err := loggerConfig.Build()
 	if err != nil {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/gocql/gocql"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
+	"github.com/ibm/cassandra-operator/controllers/names"
 	"github.com/pkg/errors"
 	"time"
 )
@@ -22,10 +23,10 @@ type CassandraUser struct {
 }
 
 func NewCQLClient(cluster *v1alpha1.CassandraCluster) (*CQLClient, error) {
-	cassCfg := gocql.NewCluster(cluster.Name + "-cassandra-" + cluster.Spec.DCs[0].Name)
+	cassCfg := gocql.NewCluster(names.DCService(cluster, cluster.Spec.DCs[0].Name))
 	cassCfg.Authenticator = &gocql.PasswordAuthenticator{
-		Username: cluster.Spec.CassandraUser,
-		Password: cluster.Spec.CassandraPassword,
+		Username: cluster.Spec.Cassandra.Auth.User,
+		Password: cluster.Spec.Cassandra.Auth.Password,
 	}
 
 	cassCfg.Timeout = 6 * time.Second

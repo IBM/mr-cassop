@@ -17,7 +17,17 @@ limitations under the License.
 package v1alpha1
 
 import (
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	CassandraClusterInstance  = "cassandra-cluster-instance"
+	CassandraClusterComponent = "cassandra-cluster-component"
+
+	CassandraClusterComponentProber    = "prober"
+	CassandraClusterComponentKwatcher  = "kwatcher"
+	CassandraClusterComponentCassandra = "cassandra"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -27,24 +37,58 @@ import (
 type CassandraClusterSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-
+	ImagePullSecretName  string          `json:"imagePullSecretName"`
 	CQLConfigMapLabelKey string          `json:"cqlConfigMapLabelKey,omitempty"`
-	ProberHost           string          `json:"proberHost,omitempty"`
-	CassandraUser        string          `json:"cassandraUser"`
-	CassandraPassword    string          `json:"cassandraPassword"`
+	Cassandra            Cassandra       `json:"cassandra"`
 	InternalAuth         bool            `json:"internalAuth"`
-	KwatcherEnabled      bool            `json:"kwatcherEnabled"`
+	HostPortEnabled      bool            `json:"hostPortEnabled"`
 	SystemKeyspaces      SystemKeyspaces `json:"systemKeyspaces,omitempty"`
 	DCs                  []DC            `json:"dcs"`
+	Prober               Prober          `json:"prober,omitempty"`
+	Kwatcher             Kwatcher        `json:"kwatcher"`
+}
+
+type Cassandra struct {
+	NumSeeds        int32         `json:"numSeeds"`
+	UsersDir        string        `json:"usersDir"`
+	JMXPort         int32         `json:"jmxPort"`
+	Auth            CassandraAuth `json:"auth"`
+	Image           string        `json:"image"`
+	ImagePullPolicy v1.PullPolicy `json:"imagePullPolicy"`
+}
+
+type CassandraAuth struct {
+	User     string `json:"user"`
+	Password string `json:"password"`
+}
+
+type Prober struct {
+	Image           string        `json:"image"`
+	ImagePullPolicy v1.PullPolicy `json:"imagePullPolicy"`
+	ServerPort      int32         `json:"serverPort"`
+	Debug           bool          `json:"debug"`
+	Jolokia         Jolokia       `json:"jolokia"`
+}
+
+type Kwatcher struct {
+	Enabled         bool          `json:"enabled"`
+	Image           string        `json:"image"`
+	ImagePullPolicy v1.PullPolicy `json:"imagePullPolicy"`
+}
+
+type Jolokia struct {
+	Image           string        `json:"image"`
+	ImagePullPolicy v1.PullPolicy `json:"imagePullPolicy"`
 }
 
 type DC struct {
 	Name     string `json:"name"`
-	Replicas int32  `json:"replicas"`
+	Replicas *int32 `json:"replicas"`
 }
 
 type SystemKeyspaces struct {
-	DCs []SystemKeyspaceDC `json:"dcs"`
+	Names []string           `json:"names"`
+	DCs   []SystemKeyspaceDC `json:"dcs"`
 }
 
 type SystemKeyspaceDC struct {

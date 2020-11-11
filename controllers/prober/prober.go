@@ -3,7 +3,6 @@ package prober
 import (
 	"context"
 	"github.com/pkg/errors"
-	"io/ioutil"
 	"net/http"
 )
 
@@ -24,11 +23,6 @@ func (p ProberClient) ReadyAllDCs(ctx context.Context) (bool, error) {
 	resp, err := http.DefaultClient.Do(proberReq)
 	if err != nil {
 		return false, errors.Wrap(err, "Request to prober failed")
-	}
-
-	_, err = ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return false, errors.Wrap(err, "Can't read body")
 	}
 
 	if resp.StatusCode != http.StatusOK {

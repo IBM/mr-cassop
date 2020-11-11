@@ -1,0 +1,5 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cassandra-operator-cassandra-config-configmap
+data: {{ (.Files.Glob "config/*").AsConfig | nindent 2 }}
