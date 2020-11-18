@@ -23,7 +23,7 @@ type CassandraUser struct {
 }
 
 func NewCQLClient(cluster *v1alpha1.CassandraCluster) (*CQLClient, error) {
-	cassCfg := gocql.NewCluster(names.DCService(cluster, cluster.Spec.DCs[0].Name))
+	cassCfg := gocql.NewCluster(fmt.Sprintf("%s.%s.svc.cluster.local", names.DCService(cluster, cluster.Spec.DCs[0].Name), cluster.Namespace))
 	cassCfg.Authenticator = &gocql.PasswordAuthenticator{
 		Username: cluster.Spec.Cassandra.Auth.User,
 		Password: cluster.Spec.Cassandra.Auth.Password,

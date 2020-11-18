@@ -28,7 +28,7 @@ func (r *CassandraClusterReconciler) reconcileProberSourcesConfigMap(ctx context
 	desiredCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      names.ProberSources(cc),
-			Labels:    labels.CombinedComponentLabels(cc, v1alpha1.CassandraClusterComponentCassandra),
+			Labels:    labels.CombinedComponentLabels(cc, v1alpha1.CassandraClusterComponentProber),
 			Namespace: cc.Namespace,
 		},
 		Data: operatorCM.Data,

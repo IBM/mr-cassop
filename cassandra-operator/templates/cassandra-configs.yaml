@@ -2,4 +2,5 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: cassandra-operator-cassandra-config-configmap
+  namespace: {{ .Release.Namespace }}
 data: {{ (.Files.Glob "config/*").AsConfig | nindent 2 }}

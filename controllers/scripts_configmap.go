@@ -21,9 +21,9 @@ func (r *CassandraClusterReconciler) reconcileScriptsConfigMap(ctx context.Conte
 	operatorCM := &v1.ConfigMap{}
 	if err := r.Get(ctx, types.NamespacedName{Name: names.OperatorScriptsCM(), Namespace: r.Cfg.Namespace}, operatorCM); err != nil {
 		if kerrors.IsNotFound(err) {
-			return errors.Wrap(err, "operator prober sources configmap doesn't exist")
+			return errors.Wrap(err, "operator scripts configmap doesn't exist")
 		}
-		return errors.Wrap(err, "can't get operator prober sources configmap")
+		return errors.Wrap(err, "can't get operator scripts configmap")
 	}
 
 	desiredCM := &v1.ConfigMap{
@@ -42,22 +42,22 @@ func (r *CassandraClusterReconciler) reconcileScriptsConfigMap(ctx context.Conte
 	actualCM := &v1.ConfigMap{}
 	err := r.Get(ctx, types.NamespacedName{Name: desiredCM.Name, Namespace: desiredCM.Namespace}, actualCM)
 	if err != nil && kerrors.IsNotFound(err) {
-		r.Log.Info("Creating prober sources ConfigMap")
+		r.Log.Info("Creating scripts ConfigMap")
 		if err = r.Create(ctx, desiredCM); err != nil {
-			return errors.Wrap(err, "Unable to create prober sources ConfigMap")
+			return errors.Wrap(err, "Unable to create scripts ConfigMap")
 		}
 	} else if err != nil {
-		return errors.Wrap(err, "Could not Get prober sources ConfigMap")
+		return errors.Wrap(err, "Could not Get scripts ConfigMap")
 	} else if !compare.EqualConfigMap(actualCM, desiredCM) {
-		r.Log.Info("Updating prober sources ConfigMap")
+		r.Log.Info("Updating scripts ConfigMap")
 		r.Log.Debug(compare.DiffConfigMap(actualCM, desiredCM))
 		actualCM.Labels = desiredCM.Labels
 		actualCM.Data = desiredCM.Data
 		if err = r.Update(ctx, actualCM); err != nil {
-			return errors.Wrap(err, "Could not Update prober sources ConfigMap")
+			return errors.Wrap(err, "Could not Update scripts ConfigMap")
 		}
 	} else {
-		r.Log.Debug("No updates for prober sources ConfigMap")
+		r.Log.Debug("No updates for scripts ConfigMap")
 
 	}
 	return nil
