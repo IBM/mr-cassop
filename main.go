@@ -21,9 +21,13 @@ import (
 	"fmt"
 	"github.com/go-logr/zapr"
 	operatorCfg "github.com/ibm/cassandra-operator/controllers/config"
+	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/ibm/cassandra-operator/controllers/logger"
+	"github.com/ibm/cassandra-operator/controllers/nodetool"
+	"github.com/ibm/cassandra-operator/controllers/prober"
 	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -97,14 +101,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.CassandraClusterReconciler{
-		Client:     mgr.GetClient(),
-		Log:        logr,
-		Scheme:     mgr.GetScheme(),
-		Cfg:        *operatorConfig,
-		Clientset:  clientset,
-		RESTConfig: restCfg,
-	}).SetupWithManager(mgr); err != nil {
+	cassandaReconciler := &controllers.CassandraClusterReconciler{
+		Client:       mgr.GetClient(),
+		Log:          logr,
+		Scheme:       mgr.GetScheme(),
+		Cfg:          *operatorConfig,
+		Clientset:    clientset,
+		RESTConfig:   restCfg,
+		ProberClient: func(host string) prober.Client { return prober.NewProberClient(host) },
+		CqlClient:    func(cluster *dbv1alpha1.CassandraCluster) (cql.Client, error) { return cql.NewCQLClient(cluster) },
+		NodetoolClient: func(clientset *kubernetes.Clientset, config *rest.Config) nodetool.Client {
+			return nodetool.NewNodetoolClient(clientset, config)
+		},
+	}
+
+	err = controllers.SetupCassandraReconciler(cassandaReconciler, mgr)
+	if err != nil {
 		logr.With(zap.Error(err)).Error("unable to create controller", "controller", "CassandraCluster")
 		os.Exit(1)
 	}

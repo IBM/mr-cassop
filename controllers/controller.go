@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"fmt"
 	"github.com/ibm/cassandra-operator/controllers/config"
 	"github.com/ibm/cassandra-operator/controllers/cql"
@@ -38,19 +39,21 @@ import (
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
-
-	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // CassandraClusterReconciler reconciles a CassandraCluster object
 type CassandraClusterReconciler struct {
 	client.Client
-	Log        *zap.SugaredLogger
-	Scheme     *runtime.Scheme
-	Cfg        config.Config
-	Clientset  *kubernetes.Clientset
-	RESTConfig *rest.Config
+	Log            *zap.SugaredLogger
+	Scheme         *runtime.Scheme
+	Cfg            config.Config
+	Clientset      *kubernetes.Clientset
+	RESTConfig     *rest.Config
+	ProberClient   func(host string) prober.Client
+	NodetoolClient func(clientset *kubernetes.Clientset, config *rest.Config) nodetool.Client
+	CqlClient      func(cluster *dbv1alpha1.CassandraCluster) (cql.Client, error)
 }
 
 // +kubebuilder:rbac:groups=db.ibm.com,resources=cassandraclusters,verbs=get;list;watch;create;update;patch;delete
@@ -111,15 +114,15 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling prober")
 	}
 
-	proberClient := prober.NewProberClient(fmt.Sprintf("%s.%s.svc.cluster.local", names.ProberService(cc), cc.Namespace))
-	proberReady, err := r.proberReady(ctx, cc)
+	proberClient := r.ProberClient(fmt.Sprintf("%s.%s.svc.cluster.local", names.ProberService(cc), cc.Namespace))
+	proberReady, err := proberClient.Ready(ctx)
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "can't get prober's status")
 	}
 
 	if !proberReady {
-		r.Log.Warnf("Prober is not ready. Trying again in 5 seconds...")
-		return ctrl.Result{RequeueAfter: time.Second * 5}, nil
+		r.Log.Warnf("Prober is not ready. Trying again in %s...", r.Cfg.RetryDelay)
+		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 	}
 
 	if err := r.reconcileCassandraConfigConfigMap(ctx, cc); err != nil {
@@ -132,13 +135,13 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 
 	readyAllDCs, err := proberClient.ReadyAllDCs(ctx)
 	if err != nil {
-		r.Log.Warnf("Prober request failed: %s. Trying again in 5 seconds...", err.Error())
-		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+		r.Log.Warnf("Prober request failed: %s. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
+		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 	}
 
 	if !readyAllDCs {
-		r.Log.Info("Not all DCs are ready. Trying again in 10 seconds...")
-		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+		r.Log.Infof("Not all DCs are ready. Trying again in %s...", r.Cfg.RetryDelay)
+		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 	}
 
 	r.Log.Debug("All DCs are ready")
@@ -149,8 +152,8 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		}
 	}
 
-	ntClient := nodetool.NewNodetoolClient(r.Clientset, r.RESTConfig)
-	cqlClient, err := cql.NewCQLClient(cc)
+	ntClient := r.NodetoolClient(r.Clientset, r.RESTConfig)
+	cqlClient, err := r.CqlClient(cc)
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Can't create cassandra session")
 	}
@@ -167,8 +170,8 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		}
 
 		if !created {
-			r.Log.Info("Users hasn't been created yet. Checking again in 10 seconds...")
-			return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+			r.Log.Infof("Users hasn't been created yet. Checking again in %s...", r.Cfg.RetryDelay)
+			return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 		}
 		r.Log.Info("Users has been created")
 	}
@@ -180,7 +183,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	return ctrl.Result{}, nil
 }
 
-func (r *CassandraClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func SetupCassandraReconciler(r reconcile.Reconciler, mgr manager.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&dbv1alpha1.CassandraCluster{}).
 		Owns(&appsv1.Deployment{}).

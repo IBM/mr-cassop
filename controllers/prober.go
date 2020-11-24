@@ -197,20 +197,6 @@ func (r *CassandraClusterReconciler) reconcileProberService(ctx context.Context,
 	return nil
 }
 
-func (r *CassandraClusterReconciler) proberReady(ctx context.Context, cc *dbv1alpha1.CassandraCluster) (bool, error) {
-	ep := &v1.Endpoints{}
-	err := r.Get(ctx, types.NamespacedName{Name: names.ProberService(cc), Namespace: cc.Namespace}, ep)
-	if err != nil {
-		return false, errors.Wrap(err, "can't get prober service")
-	}
-
-	if len(ep.Subsets) > 0 && len(ep.Subsets[0].Addresses) > 0 {
-		return true, nil
-	}
-
-	return false, nil
-}
-
 func proberContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 	return v1.Container{
 		Name:            "prober",

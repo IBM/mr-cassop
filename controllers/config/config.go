@@ -5,6 +5,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap/zapcore"
 	"reflect"
+	"time"
 )
 
 var (
@@ -22,6 +23,7 @@ type Config struct {
 	LogFormat             string        `env:"LOGFORMAT" envDefault:"json"`
 	WebhooksEnabled       bool          `env:"WEBHOOKS_ENABLED" envDefault:"true"`
 	MetricsPort           int32         `env:"METRICS_PORT" envDefault:"8329"`
+	RetryDelay            time.Duration `env:"RETRY_DELAY" envDefault:"10s"`
 }
 
 func LoadConfig() (*Config, error) {

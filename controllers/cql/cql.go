@@ -13,7 +13,14 @@ const (
 	ReplicationClassNetworkTopologyStrategy = "org.apache.cassandra.locator.NetworkTopologyStrategy"
 )
 
-type CQLClient struct {
+type Client interface {
+	GetKeyspacesInfo() ([]Keyspace, error)
+	UpdateRF(cc *v1alpha1.CassandraCluster) error
+	GetUsers() ([]CassandraUser, error)
+	Query(stmt string, values ...interface{}) error
+}
+
+type cassandraClient struct {
 	*gocql.Session
 }
 
@@ -22,7 +29,7 @@ type CassandraUser struct {
 	IsSuperuser bool
 }
 
-func NewCQLClient(cluster *v1alpha1.CassandraCluster) (*CQLClient, error) {
+func NewCQLClient(cluster *v1alpha1.CassandraCluster) (Client, error) {
 	cassCfg := gocql.NewCluster(fmt.Sprintf("%s.%s.svc.cluster.local", names.DCService(cluster, cluster.Spec.DCs[0].Name), cluster.Namespace))
 	cassCfg.Authenticator = &gocql.PasswordAuthenticator{
 		Username: cluster.Spec.Cassandra.Auth.User,
@@ -39,7 +46,7 @@ func NewCQLClient(cluster *v1alpha1.CassandraCluster) (*CQLClient, error) {
 		return nil, err
 	}
 
-	return &CQLClient{Session: cassSession}, nil
+	return &cassandraClient{Session: cassSession}, nil
 }
 
 type Keyspace struct {
@@ -47,9 +54,12 @@ type Keyspace struct {
 	Replication map[string]string
 }
 
-func (c CQLClient) GetKeyspacesInfo() ([]Keyspace, error) {
-	iter := c.Query("SELECT keyspace_name,replication FROM system_schema.keyspaces").Iter()
+func (c cassandraClient) Query(stmt string, values ...interface{}) error {
+	return c.Session.Query(stmt, values).Exec()
+}
 
+func (c cassandraClient) GetKeyspacesInfo() ([]Keyspace, error) {
+	iter := c.Session.Query("SELECT keyspace_name,replication FROM system_schema.keyspaces").Iter()
 	var keyspaceName string
 	replication := make(map[string]string)
 	keyspaces := make([]Keyspace, 0, iter.NumRows())
@@ -66,7 +76,7 @@ func (c CQLClient) GetKeyspacesInfo() ([]Keyspace, error) {
 	return keyspaces, nil
 }
 
-func (c CQLClient) UpdateRF(cc *v1alpha1.CassandraCluster) error {
+func (c cassandraClient) UpdateRF(cc *v1alpha1.CassandraCluster) error {
 	queryDCs := ""
 	for _, dc := range cc.Spec.SystemKeyspaces.DCs {
 		if queryDCs != "" {
@@ -77,11 +87,11 @@ func (c CQLClient) UpdateRF(cc *v1alpha1.CassandraCluster) error {
 
 	query := fmt.Sprintf("ALTER KEYSPACE system_auth WITH replication = { 'class': '%s' , %s  } ;", ReplicationClassNetworkTopologyStrategy, queryDCs)
 
-	return c.Query(query).Exec()
+	return c.Session.Query(query).Exec()
 }
 
-func (c *CQLClient) GetUsers() ([]CassandraUser, error) {
-	iter := c.Query("SELECT role,is_superuser FROM system_auth.roles").Iter()
+func (c *cassandraClient) GetUsers() ([]CassandraUser, error) {
+	iter := c.Session.Query("SELECT role,is_superuser FROM system_auth.roles").Iter()
 
 	cassUsers := make([]CassandraUser, 0, iter.NumRows())
 	var role string

@@ -12,19 +12,23 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 )
 
-type NodetoolCLient struct {
+type Client interface {
+	RepairKeyspace(cc *v1alpha1.CassandraCluster, keyspace string) error
+}
+
+type nodetoolClient struct {
 	clientset  *kubernetes.Clientset
 	restConfig *rest.Config
 }
 
-func NewNodetoolClient(clientset *kubernetes.Clientset, config *rest.Config) *NodetoolCLient {
-	return &NodetoolCLient{
+func NewNodetoolClient(clientset *kubernetes.Clientset, config *rest.Config) Client {
+	return &nodetoolClient{
 		clientset:  clientset,
 		restConfig: config,
 	}
 }
 
-func (n *NodetoolCLient) RepairKeyspace(cc *v1alpha1.CassandraCluster, keyspace string) error {
+func (n *nodetoolClient) RepairKeyspace(cc *v1alpha1.CassandraCluster, keyspace string) error {
 	cmd := []string{
 		"sh",
 		"-c",
@@ -34,7 +38,7 @@ func (n *NodetoolCLient) RepairKeyspace(cc *v1alpha1.CassandraCluster, keyspace 
 	return n.execOnPod(cc, cmd)
 }
 
-func (n *NodetoolCLient) execOnPod(cc *v1alpha1.CassandraCluster, cmd []string) error {
+func (n *nodetoolClient) execOnPod(cc *v1alpha1.CassandraCluster, cmd []string) error {
 	nodetoolReq := n.clientset.CoreV1().RESTClient().Post().Resource("pods").Name(getFirstPodName(cc)).
 		Namespace(cc.Namespace).SubResource("exec")
 	option := &v1.PodExecOptions{

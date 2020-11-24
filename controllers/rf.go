@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (r *CassandraClusterReconciler) reconcileRFSettings(cc *dbv1alpha1.CassandraCluster, cqlClient *cql.CQLClient, ntClient *nodetool.NodetoolCLient) error {
+func (r *CassandraClusterReconciler) reconcileRFSettings(cc *dbv1alpha1.CassandraCluster, cqlClient cql.Client, ntClient nodetool.Client) error {
 	rfSettingsChanged, err := r.rfSettingsChanged(cc, cqlClient)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get info if rf settings changed")
@@ -32,7 +32,7 @@ func (r *CassandraClusterReconciler) reconcileRFSettings(cc *dbv1alpha1.Cassandr
 	return nil
 }
 
-func (r CassandraClusterReconciler) rfSettingsChanged(cc *dbv1alpha1.CassandraCluster, cqlClient *cql.CQLClient) (bool, error) {
+func (r CassandraClusterReconciler) rfSettingsChanged(cc *dbv1alpha1.CassandraCluster, cqlClient cql.Client) (bool, error) {
 	keyspaces, err := cqlClient.GetKeyspacesInfo()
 	if err != nil {
 		return false, errors.Wrapf(err, "can't get keyspaces info")

@@ -78,10 +78,6 @@ func ConfigMap(cc *v1alpha1.CassandraCluster, dcName string) string {
 	return DC(cc, dcName) + "-configmap"
 }
 
-func EnvConfigMap(cc *v1alpha1.CassandraCluster) string {
-	return cc.Name + "-env-configmap"
-}
-
 func OperatorScriptsCM() string {
 	return "cassandra-operator-scripts-configmap"
 }

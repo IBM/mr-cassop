@@ -12,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r *CassandraClusterReconciler) reconcileCQLConfigMaps(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cqlClient *cql.CQLClient, ntClient *nodetool.NodetoolCLient) error {
+func (r *CassandraClusterReconciler) reconcileCQLConfigMaps(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cqlClient cql.Client, ntClient nodetool.Client) error {
 	cmList := &v1.ConfigMapList{}
 	err := r.List(ctx, cmList, client.HasLabels{cc.Spec.CQLConfigMapLabelKey}, client.InNamespace(cc.Namespace))
 	if err != nil {
@@ -33,7 +33,7 @@ func (r *CassandraClusterReconciler) reconcileCQLConfigMaps(ctx context.Context,
 
 		for queryKey, cqlQuery := range cm.Data {
 			r.Log.Debugf("Executing query with queryKey %q from ConfigMap %q", queryKey, cm.Name)
-			if err = cqlClient.Query(cqlQuery).Exec(); err != nil {
+			if err = cqlClient.Query(cqlQuery); err != nil {
 				return errors.Wrapf(err, "Query with queryKey %q failed", queryKey)
 			}
 		}

@@ -7,6 +7,7 @@ require (
 	github.com/go-logr/zapr v0.1.0
 	github.com/gocql/gocql v0.0.0-20200815110948-5378c8f664e9
 	github.com/gogo/protobuf v1.3.1
+	github.com/golang/mock v1.2.0
 	github.com/google/go-cmp v0.3.0
 	github.com/onsi/ginkgo v1.11.0
 	github.com/onsi/gomega v1.8.1
