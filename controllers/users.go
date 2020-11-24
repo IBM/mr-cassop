@@ -75,20 +75,6 @@ func (r *CassandraClusterReconciler) reconcileUsersSecret(ctx context.Context, c
 	return nil
 }
 
-func (r *CassandraClusterReconciler) controllerOwns(cc *dbv1alpha1.CassandraCluster, obj metav1.Object) bool {
-	if len(obj.GetOwnerReferences()) == 0 {
-		return false
-	}
-
-	for _, ref := range obj.GetOwnerReferences() {
-		if ref.APIVersion == cc.GroupVersionKind().String() && ref.Name == cc.Name && ref.UID == cc.UID {
-			return true
-		}
-	}
-
-	return false
-}
-
 func (r *CassandraClusterReconciler) usersCreated(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cqlClient *cql.CQLClient) (bool, error) {
 	cassUsers, err := cqlClient.GetUsers()
 	if err != nil {

@@ -1,0 +1,34 @@
+{
+  "name": "cassandra-operator",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "swizzle": "docusaurus swizzle",
+    "build": "docusaurus build",
+    "serve": "npm run build && docusaurus serve",
+    "dev": "docusaurus start",
+    "deploy": "docusaurus deploy"
+  },
+  "dependencies": {
+    "@docusaurus/core": "^2.0.0-alpha.66",
+    "@docusaurus/plugin-client-redirects": "^2.0.0-alpha.66",
+    "@docusaurus/preset-classic": "^2.0.0-alpha.66",
+    "@mdx-js/react": "^1.5.8",
+    "docusaurus-lunr-search": "^2.1.7",
+    "react": "^16.8.4",
+    "react-dom": "^16.8.4",
+    "remark-toc": "^7.0.0"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

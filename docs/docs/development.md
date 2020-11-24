@@ -1,6 +1,12 @@
+---
+title: Development
+hide_title: true
+slug: /development
+---
+
 # Development
 
-###Requirements:
+### Requirements:
 
 * Kubernetes 1.16 or newer. You can use [minikube](https://kubernetes.io/docs/setup/minikube/) or [kind](https://github.com/kubernetes-sigs/kind) for local development.
 * Go 1.12+ with enabled go modules
@@ -35,3 +41,35 @@ Once the cluster is up and running, use the sample in `config/samples/cassandrac
 `kubectl apply -f config/samples/cassandracluster.yaml`
 
 If all set correctly, you should see the components getting created.
+
+## Docs
+
+To download and run docs locally, clone the repo and then go to the docs directory:
+
+```console
+cd ./cassandra-operator/docs
+```
+
+If `npm` is not already installed it can be installed with:
+
+```console
+brew install npm
+```
+
+Then install the dependencies:
+
+```console
+npm install
+```
+
+Now, there are actually 2 ways to built and serve the documentation locally (use either the first _OR_ the second option):
+
+1. If you just want to view/read documentation:
+   ```console
+   npm run serve
+   ```
+
+1. If you develop the documentation and want to watch the changes:
+   ```console
+   npm run dev
+   ```
