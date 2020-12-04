@@ -3,16 +3,17 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "swizzle": "docusaurus swizzle",
+    "docusaurus": "docusaurus",
+    "start": "docusaurus start",
     "build": "docusaurus build",
-    "serve": "npm run build && docusaurus serve",
-    "dev": "docusaurus start",
-    "deploy": "docusaurus deploy"
+    "swizzle": "docusaurus swizzle",
+    "deploy": "docusaurus deploy",
+    "serve": "docusaurus serve"
   },
   "dependencies": {
-    "@docusaurus/core": "^2.0.0-alpha.66",
-    "@docusaurus/plugin-client-redirects": "^2.0.0-alpha.66",
-    "@docusaurus/preset-classic": "^2.0.0-alpha.66",
+    "@docusaurus/core": "2.0.0-alpha.69",
+    "@docusaurus/plugin-client-redirects": "^2.0.0-alpha.69",
+    "@docusaurus/preset-classic": "^2.0.0-alpha.69",
     "@mdx-js/react": "^1.5.8",
     "docusaurus-lunr-search": "^2.1.7",
     "react": "^16.8.4",

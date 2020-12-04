@@ -1,0 +1,130 @@
+name: Build, Push, Deploy, E2E
+
+on:
+  pull_request:
+  release:
+    types:
+      - created
+  push:
+    branches:
+      - main
+
+env:
+  IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
+  IBM_CLOUD_REGION: us-south
+  IBM_CLOUD_RG: icm
+  IKS_CLUSTER: icm-cassandra-ci
+  DOCKER_PROXY_REGISTRY: ${{ secrets.DOCKER_PROXY_REGISTRY }}
+  DOCKER_PROXY_USER: ${{ secrets.ARTIFACTORY_USER }}
+  DOCKER_PROXY_PASS: ${{ secrets.ARTIFACTORY_PASS }}
+
+jobs:
+  docker_images:
+    name: Docker Images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ckeckout
+        uses: actions/checkout@v2
+      - name: Inject slug/short variables
+        uses: rlespinasse/github-slug-action@v3.x
+      # We have below variable value replacement to prevent re-push of the image within branch during parallel workflows run
+      - name: Modify GITHUB_REF_SLUG
+        if: ${{ github.event_name != 'release' }}
+        run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
+      - name: Install IBM Cloud CLI
+        run: |
+          curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
+          ibmcloud --version
+          ibmcloud config --check-version=false
+          ibmcloud plugin install -f container-registry
+      - name: Authenticate with IBM Cloud CLI
+        run: |
+          ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RG"
+          ibmcloud cr region-set "$IBM_CLOUD_REGION"
+          ibmcloud cr login
+      - name: Authenticate to Docker Proxy Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ env.DOCKER_PROXY_REGISTRY }}
+          username: ${{ env.DOCKER_PROXY_USER }}
+          password: ${{ env.DOCKER_PROXY_PASS }}
+      - uses: satackey/action-docker-layer-caching@v0.0.8
+        continue-on-error: true
+        with:
+          key: docker-layer-caching-${{ env.GITHUB_REF_SLUG }}-{hash}
+          restore-keys: |
+            docker-layer-caching-${{ env.GITHUB_REF_SLUG }}-
+      - name: Build Image
+        run: |
+          docker build -t "us.icr.io/icm-cassandra/cassandra-operator:$GITHUB_REF_SLUG" \
+            --build-arg "VERSION=$GITHUB_REF_SLUG" \
+            --build-arg "DOCKER_PROXY_REGISTRY=$DOCKER_PROXY_REGISTRY/" \
+            -f Dockerfile .
+      - name: Push Image to ICR
+        run: docker push "us.icr.io/icm-cassandra/cassandra-operator:$GITHUB_REF_SLUG"
+  e2e_tests:
+    name: E2e Tests
+    needs: [docker_images]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ckeckout
+        uses: actions/checkout@v2
+      - name: Inject slug/short variables
+        uses: rlespinasse/github-slug-action@v3.x
+      - name: Modify GITHUB_REF_SLUG
+        if: ${{ github.event_name != 'release' }}
+        run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
+      - name: Install IBM Cloud CLI
+        run: |
+          curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
+          ibmcloud --version
+          ibmcloud config --check-version=false
+          ibmcloud plugin install -f kubernetes-service
+          ibmcloud plugin install -f container-registry
+      - name: Authenticate with IBM Cloud CLI
+        run: |
+          ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RG"
+          ibmcloud cr region-set "$IBM_CLOUD_REGION"
+          ibmcloud cr login
+          ibmcloud ks cluster config --cluster $IKS_CLUSTER
+          kubectl config current-context
+          kubectl config set-context --current --namespace cassandra-operator-ci
+      - name: Block Concurrent Executions for the Deployment
+        uses: softprops/turnstyle@v1
+        with:
+          poll-interval-seconds: 10
+          abort-after-seconds: 3600
+          same-branch-only: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Deploy to IKS
+        timeout-minutes: 15
+        run: |
+          helm install cassandra-operator-ci-e2e cassandra-operator \
+            --set "container.image=us.icr.io/icm-cassandra/cassandra-operator:$GITHUB_REF_SLUG" \
+            --set "container.imagePullSecret=icm-coreeng-pull-secret"
+          kubectl rollout status deployment cassandra-operator
+          kubectl apply -f config/samples/cassandracluster.yaml && sleep 30
+          kubectl rollout status deployment example-cassandra-prober
+          kubectl rollout status statefulset example-cassandra-dc1 && sleep 30
+          kubectl rollout status deployment example-cassandra-dc1-kwatcher
+      - name: Cleanup Deployment
+        if: ${{ always() }}
+        run: |
+          kubectl delete -f config/samples/cassandracluster.yaml && sleep 60
+          helm uninstall cassandra-operator-ci-e2e
+          kubectl get job --no-headers=true | awk "/example/{print \$1}" | xargs kubectl delete job --ignore-not-found -
+      # We have below logic bc when multiple tags exist for the same image digest within a repository, the ibmcloud cr image-rm command removes the underlying image and all its tags. See details: https://cloud.ibm.com/docs/container-registry-cli-plugin?topic=container-registry-cli-plugin-containerregcli#bx_cr_image_rm
+      - name: Cleanup Image
+        if: ${{ always() }}
+        run: |
+          image_digest=$(ibmcloud cr image-list --restrict icm-cassandra --format "{{if and (eq .Repository \"us.icr.io/icm-cassandra/cassandra-operator\") (eq .Tag \"$GITHUB_REF_SLUG\")}}{{.Digest}}{{end}}" --no-trunc)
+          image_tags=$(ibmcloud cr image-digests --restrict icm-cassandra --format "{{if and (eq .Digest \"$image_digest\")}}{{.Tags}}{{end}}" | sed -e 's/\[//g' -e 's/\]//g')
+          image_tags_arr=($image_tags)
+          echo "image tags: ${image_tags_arr[@]}, number: ${#image_tags_arr[@]}"
+          if (( ${#image_tags_arr[@]} > 1 )); then
+            ibmcloud cr image-untag "us.icr.io/icm-cassandra/cassandra-operator:$GITHUB_REF_SLUG"
+          else
+            ibmcloud cr image-rm "us.icr.io/icm-cassandra/cassandra-operator:$GITHUB_REF_SLUG"
+          fi
+#     Maybe later add a slack notification about successful or failed release

@@ -1,0 +1,39 @@
+name: Realease Helm Chart
+
+on:
+  release:
+    types:
+      - created
+
+env:
+  HELM_BIN_VERSION: "v3.4.1"
+  HELM_REPO_USER: ${{ secrets.ARTIFACTORY_USER }}
+  HELM_REPO_PASS: ${{ secrets.ARTIFACTORY_PASS }}
+  HELM_REPO: ${{ secrets.ARTIFACTORY_HELM_REPO }}
+
+jobs:
+  helm_chart:
+    name: Realease Helm Chart
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+      - name: Inject slug/short variables
+        uses: rlespinasse/github-slug-action@v3.x
+      - name: Install Helm
+        run: |
+          curl -Lo ./helm.tar.gz https://get.helm.sh/helm-$HELM_BIN_VERSION-linux-amd64.tar.gz
+          mkdir -p bin
+          tar -zxvf ./helm.tar.gz
+          sudo mv linux-amd64/helm /usr/local/bin/helm
+          sudo chmod +x /usr/local/bin/helm
+          rm -rf helm.tar.gz linux-amd64/
+      - name: Helm lint
+        run: helm lint cassandra-operator
+      - name: Package chart
+        run: helm package cassandra-operator --app-version "$GITHUB_REF_SLUG" --version "$GITHUB_REF_SLUG" --destination helm-releases
+      - name: Publish chart
+        run: |
+          md5sum_var=$(md5sum ./helm-releases/cassandra-operator-$GITHUB_REF_SLUG.tgz | awk '{ print $1 }')
+          sha1sum_var=$(sha1sum ./helm-releases/cassandra-operator-$GITHUB_REF_SLUG.tgz | awk '{ print $1 }')
+          curl -s -o /dev/null -w '%{http_code}' -u$HELM_REPO_USER:$HELM_REPO_PASS -T ./helm-releases/cassandra-operator-$GITHUB_REF_SLUG.tgz --header X-Checksum-MD5:$md5sum_var --header X-Checksum-Sha1:$sha1sum_var $HELM_REPO/cassandra-operator-$GITHUB_REF_SLUG.tgz

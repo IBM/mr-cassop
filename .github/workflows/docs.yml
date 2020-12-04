@@ -1,27 +1,47 @@
 name: Docs
 
 on:
+  pull_request:
+  release:
+    types:
+      - created
   push:
     branches:
       - main
 
 jobs:
   docs:
+    name: Docs
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
         uses: actions/checkout@v2
-      - name: Use Node.js 15.x
+      - name: Preapre ssh key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -t rsa github.ibm.com >> ~/.ssh/known_hosts
+          echo "$SSH_RSA_KEY" | base64 -d > ~/.ssh/id_rsa
+          chmod 0600 ~/.ssh/id_rsa
+        env:
+          SSH_RSA_KEY: ${{ secrets.GH_ACTIONS_SSH_BASE64 }}
+      - name: Install Node
         uses: actions/setup-node@v1
         with:
           node-version: 15.x
-      - run: |
+      - name: Build docs
+        run: |
+          npm -v
+          node -v
           cd docs
-          npm install
+          npm ci
           npm run build
-          cd ./build
+      - name: Publish docs
+        if: ${{ github.event_name == 'release' }}
+        run: |
+          cd ./docs/build
           git init
           git add .
           git config --local user.name \"Github Actions\"
           git commit -m "Deploy Docs from Actions"
-          git push --quiet --force https://x-access-token:${{ secrets.DOCS_REPO_ACCESS_TOKEN }}@github.ibm.com/TheWeatherCompany/cassandra-operator.git HEAD:master
+          git remote add origin git@github.ibm.com:TheWeatherCompany/cassandra-operator.git
+          git push -u origin master -f
