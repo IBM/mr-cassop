@@ -116,7 +116,7 @@ jobs:
           kubectl get job --no-headers=true | awk "/example/{print \$1}" | xargs kubectl delete job --ignore-not-found -
       # We have below logic bc when multiple tags exist for the same image digest within a repository, the ibmcloud cr image-rm command removes the underlying image and all its tags. See details: https://cloud.ibm.com/docs/container-registry-cli-plugin?topic=container-registry-cli-plugin-containerregcli#bx_cr_image_rm
       - name: Cleanup Image
-        if: ${{ always() }}
+        if: ${{ always() && github.event_name != 'release' }}
         run: |
           image_digest=$(ibmcloud cr image-list --restrict icm-cassandra --format "{{if and (eq .Repository \"us.icr.io/icm-cassandra/cassandra-operator\") (eq .Tag \"$GITHUB_REF_SLUG\")}}{{.Digest}}{{end}}" --no-trunc)
           image_tags=$(ibmcloud cr image-digests --restrict icm-cassandra --format "{{if and (eq .Digest \"$image_digest\")}}{{.Tags}}{{end}}" | sed -e 's/\[//g' -e 's/\]//g')
@@ -127,4 +127,4 @@ jobs:
           else
             ibmcloud cr image-rm "us.icr.io/icm-cassandra/cassandra-operator:$GITHUB_REF_SLUG"
           fi
-#     Maybe later add a slack notification about successful or failed release
+#     Add a slack notification about successful or failed releases
