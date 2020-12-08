@@ -26,7 +26,7 @@ jobs:
       - name: Ckeckout
         uses: actions/checkout@v2
       - name: Inject slug/short variables
-        uses: rlespinasse/github-slug-action@v3.x
+        uses: rlespinasse/github-slug-action@e4699e49fcf890a3172a02c56ba78d867dbb9fd5 # 3.1.0
       # We have below variable value replacement to prevent re-push of the image within branch during parallel workflows run
       - name: Modify GITHUB_REF_SLUG
         if: ${{ github.event_name != 'release' }}
@@ -43,12 +43,12 @@ jobs:
           ibmcloud cr region-set "$IBM_CLOUD_REGION"
           ibmcloud cr login
       - name: Authenticate to Docker Proxy Registry
-        uses: docker/login-action@v1
+        uses: docker/login-action@adb73476b6e06caddec5db0bc1deacbec8cdd947 #v1.6.0
         with:
           registry: ${{ env.DOCKER_PROXY_REGISTRY }}
           username: ${{ env.DOCKER_PROXY_USER }}
           password: ${{ env.DOCKER_PROXY_PASS }}
-      - uses: satackey/action-docker-layer-caching@v0.0.8
+      - uses: satackey/action-docker-layer-caching@b983974a88fdf77424203b546b8f0e818f426420 # v0.0.10
         continue-on-error: true
         with:
           key: docker-layer-caching-${{ env.GITHUB_REF_SLUG }}-{hash}
@@ -70,7 +70,7 @@ jobs:
       - name: Ckeckout
         uses: actions/checkout@v2
       - name: Inject slug/short variables
-        uses: rlespinasse/github-slug-action@v3.x
+        uses: rlespinasse/github-slug-action@e4699e49fcf890a3172a02c56ba78d867dbb9fd5 # 3.1.0
       - name: Modify GITHUB_REF_SLUG
         if: ${{ github.event_name != 'release' }}
         run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
@@ -90,7 +90,7 @@ jobs:
           kubectl config current-context
           kubectl config set-context --current --namespace cassandra-operator-ci
       - name: Block Concurrent Executions for the Deployment
-        uses: softprops/turnstyle@v1
+        uses: softprops/turnstyle@2da824432fd1b605d097378101a35779dc3cd35a # v1
         with:
           poll-interval-seconds: 10
           abort-after-seconds: 3600
@@ -105,7 +105,7 @@ jobs:
             --set "container.imagePullSecret=icm-coreeng-pull-secret"
           kubectl rollout status deployment cassandra-operator
           kubectl apply -f config/samples/cassandracluster.yaml && sleep 30
-          kubectl rollout status deployment example-cassandra-prober
+          kubectl rollout status deployment example-cassandra-prober && sleep 30
           kubectl rollout status statefulset example-cassandra-dc1 && sleep 30
           kubectl rollout status deployment example-cassandra-dc1-kwatcher
       - name: Cleanup Deployment

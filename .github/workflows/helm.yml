@@ -19,7 +19,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v2
       - name: Inject slug/short variables
-        uses: rlespinasse/github-slug-action@v3.x
+        uses: rlespinasse/github-slug-action@e4699e49fcf890a3172a02c56ba78d867dbb9fd5 # 3.1.0
       - name: Install Helm
         run: |
           curl -Lo ./helm.tar.gz https://get.helm.sh/helm-$HELM_BIN_VERSION-linux-amd64.tar.gz

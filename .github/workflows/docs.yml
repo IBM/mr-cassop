@@ -20,10 +20,10 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan -t rsa github.ibm.com >> ~/.ssh/known_hosts
-          echo "$SSH_RSA_KEY" | base64 -d > ~/.ssh/id_rsa
+          echo "$SSH_RSA_KEY" > ~/.ssh/id_rsa
           chmod 0600 ~/.ssh/id_rsa
         env:
-          SSH_RSA_KEY: ${{ secrets.GH_ACTIONS_SSH_BASE64 }}
+          SSH_RSA_KEY: ${{ secrets.DOCS_REPO_KEY }}
       - name: Install Node
         uses: actions/setup-node@v1
         with:
