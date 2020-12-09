@@ -20,9 +20,7 @@ var _ = Describe("rf settings", func() {
 				},
 			},
 			Cassandra: v1alpha1.Cassandra{
-				NumSeeds: 2,
 				UsersDir: "/etc/cassandra-users",
-				JMXPort:  3200,
 				Auth: v1alpha1.CassandraAuth{
 					User:     "cassandra",
 					Password: "cassandra",
@@ -30,10 +28,9 @@ var _ = Describe("rf settings", func() {
 				Image:           "cassandra/image",
 				ImagePullPolicy: "Never",
 			},
-			InternalAuth: true,
 			Kwatcher: v1alpha1.Kwatcher{
 				Enabled:         true,
-				Image:           "kwather/image",
+				Image:           "kwatcher/image",
 				ImagePullPolicy: "Never",
 			},
 			Prober: v1alpha1.Prober{
@@ -46,8 +43,25 @@ var _ = Describe("rf settings", func() {
 					ImagePullPolicy: "Never",
 				},
 			},
+			Reaper: v1alpha1.Reaper{
+				Image:           "reaper/image",
+				ImagePullPolicy: "Never",
+				Keyspace:        "test",
+				DCs: []v1alpha1.DC{
+					{
+						Name:     "dc1",
+						Replicas: proto.Int32(2),
+					},
+				},
+			},
+			Config: v1alpha1.Config{
+				NumSeeds:     2,
+				InternalAuth: true,
+			},
+			HostPort: v1alpha1.HostPort{
+				Enabled: false,
+			},
 			CQLConfigMapLabelKey: "cql-cm",
-			HostPortEnabled:      false,
 			ImagePullSecretName:  "pull-secret-name",
 			SystemKeyspaces: v1alpha1.SystemKeyspaces{
 				Names: []string{"system_auth"},

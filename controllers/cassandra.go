@@ -75,7 +75,7 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 							Args: []string{
 								"bash",
 								"-c",
-								getCassandraRunCommand(cc),
+								getCassandraRunCommand(),
 							},
 							LivenessProbe: &v1.Probe{
 								Handler: v1.Handler{
@@ -144,17 +144,17 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 								},
 								{
 									Name:          "jmx",
-									ContainerPort: cc.Spec.Cassandra.JMXPort,
+									ContainerPort: jmxPort,
 									Protocol:      v1.ProtocolTCP,
 								},
 								{
 									Name:          "cql",
-									ContainerPort: 9042,
+									ContainerPort: cqlPort,
 									Protocol:      v1.ProtocolTCP,
 								},
 								{
 									Name:          "thrift",
-									ContainerPort: 9160,
+									ContainerPort: thriftPort,
 									Protocol:      v1.ProtocolTCP,
 								},
 							},
@@ -242,22 +242,22 @@ func (r *CassandraClusterReconciler) reconcileDCService(ctx context.Context, cc 
 				{
 					Name:       "jmx",
 					Protocol:   v1.ProtocolTCP,
-					Port:       cc.Spec.Cassandra.JMXPort,
-					TargetPort: intstr.FromInt(int(cc.Spec.Cassandra.JMXPort)),
+					Port:       jmxPort,
+					TargetPort: intstr.FromInt(jmxPort),
 					NodePort:   0,
 				},
 				{
 					Name:       "cql",
 					Protocol:   v1.ProtocolTCP,
-					Port:       9042,
-					TargetPort: intstr.FromInt(9042),
+					Port:       cqlPort,
+					TargetPort: intstr.FromInt(cqlPort),
 					NodePort:   0,
 				},
 				{
 					Name:       "thrift",
 					Protocol:   v1.ProtocolTCP,
-					Port:       9160,
-					TargetPort: intstr.FromInt(9160),
+					Port:       thriftPort,
+					TargetPort: intstr.FromInt(thriftPort),
 					NodePort:   0,
 				},
 			},
@@ -303,36 +303,32 @@ func getSeedsList(cc *dbv1alpha1.CassandraCluster) []string {
 	seedsList := make([]string, 0)
 	for _, dc := range cc.Spec.DCs {
 		seedsCount := *dc.Replicas
-		if seedsCount > cc.Spec.Cassandra.NumSeeds {
-			seedsCount = cc.Spec.Cassandra.NumSeeds
+		if seedsCount > cc.Spec.Config.NumSeeds {
+			seedsCount = cc.Spec.Config.NumSeeds
 		}
 
 		for i := int32(0); i < seedsCount; i++ {
-			seedsList = append(seedsList, fmt.Sprintf(
-				"%s-%d.%s.%s.svc.cluster.local",
-				names.DC(cc, dc.Name), i, names.DCService(cc, dc.Name), cc.Namespace),
-			)
+			seedsList = append(seedsList, getSeed(cc, dc.Name, i))
 		}
 	}
 
 	return seedsList
 }
 
-func getCassandraRunCommand(cc *dbv1alpha1.CassandraCluster) string {
+func getSeed(cc *dbv1alpha1.CassandraCluster, dcName string, replicaNum int32) string {
+	return fmt.Sprintf(
+		"%s-%d.%s.%s.svc.cluster.local",
+		names.DC(cc, dcName), replicaNum, names.DCService(cc, dcName), cc.Namespace)
+}
+
+func getCassandraRunCommand() string {
 	commands := make([]string, 0)
 	commands = append(commands, "cp /etc/cassandra-configmaps/* $CASSANDRA_CONF")
 	commands = append(commands, "cp /etc/cassandra-configmaps/jvm.options $CASSANDRA_HOME")
 	commands = append(commands, "until stat $CASSANDRA_CONF/cassandra.yaml; do sleep 5; done")
 	commands = append(commands, "echo \"broadcast_address: $POD_IP\" >> $CASSANDRA_CONF/cassandra.yaml")
 	commands = append(commands, "echo \"broadcast_rpc_address: $POD_IP\" >> $CASSANDRA_CONF/cassandra.yaml")
-	commands = append(commands, fmt.Sprintf(
-		"exec cassandra -R -f "+
-			"-Dcassandra.jmx.remote.port=%d "+
-			"-Dcom.sun.management.jmxremote.rmi.port=%d "+
-			"-Dcom.sun.management.jmxremote.authenticate=internal"+
-			"-Djava.rmi.server.hostname=$POD_IP",
-		cc.Spec.Cassandra.JMXPort, cc.Spec.Cassandra.JMXPort))
-
+	commands = append(commands, fmt.Sprintf("exec cassandra -R -f -Dcassandra.jmx.remote.port=%d -Dcom.sun.management.jmxremote.rmi.port=%d -Dcom.sun.management.jmxremote.authenticate=internal -Djava.rmi.server.hostname=$POD_IP", jmxPort, jmxPort))
 	return strings.Join(commands, "\n") + "\n"
 }
 

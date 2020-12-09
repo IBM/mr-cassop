@@ -18,13 +18,14 @@ package controllers
 
 import (
 	"context"
-	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"fmt"
+	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/config"
 	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/ibm/cassandra-operator/controllers/names"
 	"github.com/ibm/cassandra-operator/controllers/nodetool"
 	"github.com/ibm/cassandra-operator/controllers/prober"
+	"github.com/ibm/cassandra-operator/controllers/reaper"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	appsv1 "k8s.io/api/apps/v1"
@@ -41,6 +42,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+)
+
+const (
+	cqlPort    = 9042
+	jmxPort    = 7199
+	thriftPort = 9160
 )
 
 // CassandraClusterReconciler reconciles a CassandraCluster object
@@ -117,7 +124,8 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	proberClient := r.ProberClient(fmt.Sprintf("%s.%s.svc.cluster.local", names.ProberService(cc), cc.Namespace))
 	proberReady, err := proberClient.Ready(ctx)
 	if err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "can't get prober's status")
+		r.Log.Warnf("Prober ping request failed: %s. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
+		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 	}
 
 	if !proberReady {
@@ -125,7 +133,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 	}
 
-	if err := r.reconcileCassandraConfigConfigMap(ctx, cc); err != nil {
+	if err := r.reconcileCassandraConfigMap(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling cassandra config configmaps")
 	}
 
@@ -159,10 +167,10 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	}
 
 	if err = r.reconcileRFSettings(cc, cqlClient, ntClient); err != nil {
-		return ctrl.Result{}, errors.Wrapf(err, "failed to reconcile RF settings")
+		return ctrl.Result{}, errors.Wrapf(err, "Error reconciling RF settings")
 	}
 
-	if cc.Spec.InternalAuth && cc.Spec.Kwatcher.Enabled {
+	if (cc.Spec.Config.InternalAuth || cc.Spec.Jmx.Authentication == "internal") && cc.Spec.Kwatcher.Enabled {
 		r.Log.Debug("Internal auth and kwatcher are enabled. Checking if all users are created.")
 		created, err := r.usersCreated(ctx, cc, cqlClient)
 		if err != nil {
@@ -176,8 +184,35 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		r.Log.Info("Users has been created")
 	}
 
-	if err = r.reconcileCQLConfigMaps(ctx, cc, cqlClient, ntClient); err != nil {
+	if err := r.reconcileCQLConfigMaps(ctx, cc, cqlClient, ntClient); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile CQL config maps")
+	}
+
+	if err = r.reconcileReaper(ctx, cc); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error reconciling reaper")
+	}
+	reaperServiceUrl := fmt.Sprintf("http://%s.%s.svc.cluster.local:8080", names.ReaperService(cc), cc.Namespace)
+	reaperClient, err := reaper.NewReaperClient(reaperServiceUrl)
+	if err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error creating reaper client")
+	}
+	isRunning, err := reaperClient.IsRunning(ctx)
+	if err != nil {
+		r.Log.Warnf("Reaper ping request failed: %s. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
+		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
+	}
+	if !isRunning {
+		r.Log.Infof("Reaper is not ready. Trying again in %s...", r.Cfg.RetryDelay)
+		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
+	}
+	if err := r.reaperInitialization(ctx, cc, reaperClient); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Failed to initialize reaper")
+	}
+
+	if cc.Spec.Reaper.ScheduleRepairs.Enabled {
+		if err := r.reconcileScheduleRepairs(ctx, cc, reaperClient); err != nil {
+			return ctrl.Result{}, errors.Wrap(err, "Failed to schedule reaper reapairs")
+		}
 	}
 
 	return ctrl.Result{}, nil

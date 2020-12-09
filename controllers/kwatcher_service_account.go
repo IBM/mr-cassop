@@ -34,21 +34,21 @@ func (r *CassandraClusterReconciler) reconcileKwatcherServiceAccount(ctx context
 
 	err := r.Get(ctx, types.NamespacedName{Name: desiredServiceAccound.Name, Namespace: desiredServiceAccound.Namespace}, actualServiceAccount)
 	if err != nil && kerrors.IsNotFound(err) {
-		r.Log.Info("Creating kwatcher serviceaccount")
+		r.Log.Info("Creating kwatcher service account")
 		if err = r.Create(ctx, desiredServiceAccound); err != nil {
-			return errors.Wrap(err, "Unable to create kwatcher serviceaccount")
+			return errors.Wrap(err, "Unable to create kwatcher service account")
 		}
 	} else if err != nil {
-		return errors.Wrap(err, "Could not get kwatcher serviceaccount")
+		return errors.Wrap(err, "Could not get kwatcher service account")
 	} else if !compare.EqualServiceAccount(actualServiceAccount, desiredServiceAccound) {
-		r.Log.Info("Updating kwatcher Service account")
+		r.Log.Info("Updating kwatcher service account")
 		r.Log.Debugf(compare.DiffServiceAccount(actualServiceAccount, desiredServiceAccound))
 		actualServiceAccount.Labels = desiredServiceAccound.Labels
 		if err = r.Update(ctx, actualServiceAccount); err != nil {
-			return errors.Wrap(err, "Unable to update kwatcher serviceaccount")
+			return errors.Wrap(err, "Unable to update kwatcher service account")
 		}
 	} else {
-		r.Log.Debug("No updates for kwatcher serviceaccount")
+		r.Log.Debug("No updates for kwatcher service account")
 	}
 	return nil
 }

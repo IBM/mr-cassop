@@ -72,7 +72,7 @@ generate: controller-gen
 	mockgen -package=prober -source=./controllers/prober/prober.go -destination=./controllers/prober/mock.go
 
 # Build the docker image
-docker-build: test
+docker-build:
 	docker build . -t ${IMG}
 
 # Push the docker image

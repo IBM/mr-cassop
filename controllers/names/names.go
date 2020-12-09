@@ -2,6 +2,10 @@ package names
 
 import "github.com/ibm/cassandra-operator/api/v1alpha1"
 
+const (
+	cassandraOperator = "cassandra-operator"
+)
+
 func ProberService(cc *v1alpha1.CassandraCluster) string {
 	return cc.Name + "-cassandra-prober"
 }
@@ -50,6 +54,30 @@ func KwatcherServiceAccount(cc *v1alpha1.CassandraCluster) string {
 	return cc.Name + "-kwatcher-serviceaccount"
 }
 
+func ReaperDeployment(cc *v1alpha1.CassandraCluster, dcName string) string {
+	return DC(cc, dcName) + "-reaper"
+}
+
+func ReaperService(cc *v1alpha1.CassandraCluster) string {
+	return cc.Name + "-reaper"
+}
+
+func ReaperConfigMap(cc *v1alpha1.CassandraCluster, dcName string) string {
+	return DC(cc, dcName) + "-reaper-configmap"
+}
+
+func ReaperCqlConfigMap(cc *v1alpha1.CassandraCluster) string {
+	return ReaperService(cc) + "-cql-configmap"
+}
+
+func RepairsConfigMap(cc *v1alpha1.CassandraCluster) string {
+	return cc.Name + "-repairs-configmap"
+}
+
+func ShiroConfigMap(cc *v1alpha1.CassandraCluster) string {
+	return cc.Name + "-shiro-configmap"
+}
+
 func KeyspaceConfigMap(cc *v1alpha1.CassandraCluster) string {
 	return cc.Name + "-keyspace-configmap"
 }
@@ -79,13 +107,17 @@ func ConfigMap(cc *v1alpha1.CassandraCluster, dcName string) string {
 }
 
 func OperatorScriptsCM() string {
-	return "cassandra-operator-scripts-configmap"
+	return cassandraOperator + "-scripts-configmap"
 }
 
 func OperatorProberSourcesCM() string {
-	return "cassandra-operator-prober-sources-configmap"
+	return cassandraOperator + "-prober-sources-configmap"
 }
 
 func OperatorCassandraConfigCM() string {
-	return "cassandra-operator-cassandra-config-configmap"
+	return cassandraOperator + "-cassandra-config-configmap"
+}
+
+func OperatorShiroCM() string {
+	return cassandraOperator + "-shiro-configmap"
 }

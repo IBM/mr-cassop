@@ -18,7 +18,7 @@ import (
 var _ = Describe("operator configmaps", func() {
 	Context("when tests start", func() {
 		It("should exist", func() {
-			for _, cmName := range []string{names.OperatorCassandraConfigCM(), names.OperatorProberSourcesCM(), names.OperatorScriptsCM()} {
+			for _, cmName := range []string{names.OperatorCassandraConfigCM(), names.OperatorProberSourcesCM(), names.OperatorScriptsCM(), names.OperatorShiroCM()} {
 				cm := &v1.ConfigMap{}
 				err := k8sClient.Get(context.Background(), types.NamespacedName{Name: cmName, Namespace: operatorConfig.Namespace}, cm)
 				Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("ConfigMap %q should exist", cmName))
@@ -27,7 +27,7 @@ var _ = Describe("operator configmaps", func() {
 	})
 })
 
-var _ = Describe("prober, statefulsets and kwatcher", func() {
+var _ = Describe("prober, statefulsets, kwatcher and reaper", func() {
 	cc := &v1alpha1.CassandraCluster{
 		ObjectMeta: cassandraObjectMeta,
 		Spec: v1alpha1.CassandraClusterSpec{
@@ -42,9 +42,7 @@ var _ = Describe("prober, statefulsets and kwatcher", func() {
 				},
 			},
 			Cassandra: v1alpha1.Cassandra{
-				NumSeeds: 2,
 				UsersDir: "/etc/cassandra-users",
-				JMXPort:  3200,
 				Auth: v1alpha1.CassandraAuth{
 					User:     "cassandra",
 					Password: "cassandra",
@@ -52,10 +50,9 @@ var _ = Describe("prober, statefulsets and kwatcher", func() {
 				Image:           "cassandra/image",
 				ImagePullPolicy: "Never",
 			},
-			InternalAuth: true,
 			Kwatcher: v1alpha1.Kwatcher{
 				Enabled:         true,
-				Image:           "kwather/image",
+				Image:           "kwatcher/image",
 				ImagePullPolicy: "Never",
 			},
 			Prober: v1alpha1.Prober{
@@ -68,8 +65,29 @@ var _ = Describe("prober, statefulsets and kwatcher", func() {
 					ImagePullPolicy: "Never",
 				},
 			},
+			Reaper: v1alpha1.Reaper{
+				Image:           "reaper/image",
+				ImagePullPolicy: "Never",
+				Keyspace:        "test",
+				DCs: []v1alpha1.DC{
+					{
+						Name:     "dc1",
+						Replicas: proto.Int32(2),
+					},
+					{
+						Name:     "dc2",
+						Replicas: proto.Int32(2),
+					},
+				},
+			},
+			Config: v1alpha1.Config{
+				InternalAuth: true,
+				NumSeeds:     2,
+			},
+			HostPort: v1alpha1.HostPort{
+				Enabled: false,
+			},
 			CQLConfigMapLabelKey: "cql-cm",
-			HostPortEnabled:      false,
 			ImagePullSecretName:  "pull-secret-name",
 			SystemKeyspaces: v1alpha1.SystemKeyspaces{
 				Names: []string{"system_auth"},
@@ -119,7 +137,7 @@ var _ = Describe("prober, statefulsets and kwatcher", func() {
 				{Name: "PROBER_SUBDOMAIN", Value: "default-test-cassandra-cluster-cassandra-prober"},
 				{Name: "SERVER_PORT", Value: "8888"},
 				{Name: "JMX_POLL_PERIOD_SECONDS", Value: "10"},
-				{Name: "JMX_PORT", Value: "3200"},
+				{Name: "JMX_PORT", Value: "7199"},
 				{Name: "USERS_DIR", Value: "/etc/cassandra-users"},
 			}))
 
@@ -147,7 +165,7 @@ cp /etc/cassandra-configmaps/jvm.options $CASSANDRA_HOME
 until stat $CASSANDRA_CONF/cassandra.yaml; do sleep 5; done
 echo "broadcast_address: $POD_IP" >> $CASSANDRA_CONF/cassandra.yaml
 echo "broadcast_rpc_address: $POD_IP" >> $CASSANDRA_CONF/cassandra.yaml
-exec cassandra -R -f -Dcassandra.jmx.remote.port=3200 -Dcom.sun.management.jmxremote.rmi.port=3200 -Dcom.sun.management.jmxremote.authenticate=internal-Djava.rmi.server.hostname=$POD_IP
+exec cassandra -R -f -Dcassandra.jmx.remote.port=7199 -Dcom.sun.management.jmxremote.rmi.port=7199 -Dcom.sun.management.jmxremote.authenticate=internal -Djava.rmi.server.hostname=$POD_IP
 `,
 				}))
 			}
@@ -163,7 +181,7 @@ exec cassandra -R -f -Dcassandra.jmx.remote.port=3200 -Dcom.sun.management.jmxre
 				kwatcherDeploy := &appsv1.Deployment{}
 				Eventually(func() error {
 					return k8sClient.Get(context.Background(), types.NamespacedName{Name: names.KwatcherDeployment(cc, dc.Name), Namespace: cc.Namespace}, kwatcherDeploy)
-				}, time.Second*5, time.Millisecond*100).Should(Succeed())
+				}, time.Second*10, time.Millisecond*100).Should(Succeed())
 
 				Expect(kwatcherDeploy.Spec.Template.Spec.Containers[0].Command).Should(Equal([]string{
 					"./kwatcher",
@@ -177,6 +195,7 @@ exec cassandra -R -f -Dcassandra.jmx.remote.port=3200 -Dcom.sun.management.jmxre
 					"-port", "9042",
 				}))
 			}
+			// TODO: test kwatcher users and reaper deployment
 		})
 	})
 })

@@ -44,14 +44,14 @@ func (r *CassandraClusterReconciler) reconcileKwatcherRoleBinding(ctx context.Co
 
 	err := r.Get(ctx, types.NamespacedName{Name: desiredRoleBinding.Name, Namespace: desiredRoleBinding.Namespace}, actualRoleBinding)
 	if err != nil && kerrors.IsNotFound(err) {
-		r.Log.Info("Creating kwatcher RoleBinding")
+		r.Log.Info("Creating kwatcher role binding")
 		if err = r.Create(ctx, desiredRoleBinding); err != nil {
-			return errors.Wrap(err, "Unable to create kwatcher roleBinding")
+			return errors.Wrap(err, "Unable to create kwatcher role binding")
 		}
 	} else if err != nil {
-		return errors.Wrap(err, "Could not Get kwatcher roleBinding")
+		return errors.Wrap(err, "Could not Get kwatcher role binding")
 	} else if !compare.EqualRoleBinding(actualRoleBinding, desiredRoleBinding) {
-		r.Log.Info("Updating kwatcher RoleBinding")
+		r.Log.Info("Updating kwatcher role binding")
 		r.Log.Debug(compare.DiffRoleBinding(actualRoleBinding, desiredRoleBinding))
 		actualRoleBinding.Subjects = desiredRoleBinding.Subjects
 		actualRoleBinding.RoleRef = desiredRoleBinding.RoleRef
@@ -60,7 +60,7 @@ func (r *CassandraClusterReconciler) reconcileKwatcherRoleBinding(ctx context.Co
 			return errors.Wrap(err, "Could not Update kwatcher roleBinding")
 		}
 	} else {
-		r.Log.Debugw("No updates for kwatcher Rolebinding")
+		r.Log.Debugw("No updates for kwatcher role binding")
 	}
 	return nil
 }

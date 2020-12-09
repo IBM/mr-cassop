@@ -156,7 +156,7 @@ func (r *CassandraClusterReconciler) reconcileKwatcherDeployment(ctx context.Con
 	return nil
 }
 
-//sets contoller reference for created jobs so that they get deleted when cassandracluster is deleted
+// sets contoller reference for created jobs so that they get deleted when cassandracluster is deleted
 func (r *CassandraClusterReconciler) reconcileKwatcherRepairJobs(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
 	for _, keyspaceName := range cc.Spec.SystemKeyspaces.Names {
 		job := &batch.Job{}

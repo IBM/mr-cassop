@@ -27,6 +27,7 @@ const (
 
 	CassandraClusterComponentProber    = "prober"
 	CassandraClusterComponentKwatcher  = "kwatcher"
+	CassandraClusterComponentReaper    = "reaper"
 	CassandraClusterComponentCassandra = "cassandra"
 )
 
@@ -39,35 +40,56 @@ type CassandraClusterSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 	ImagePullSecretName  string          `json:"imagePullSecretName"`
 	CQLConfigMapLabelKey string          `json:"cqlConfigMapLabelKey,omitempty"`
-	Cassandra            Cassandra       `json:"cassandra"`
-	InternalAuth         bool            `json:"internalAuth"`
-	HostPortEnabled      bool            `json:"hostPortEnabled"`
+	Cassandra            Cassandra       `json:"cassandra,omitempty"`
+	CassandraYaml        string          `json:"cassandraYaml,omitempty"`
+	NodetoolUser         string          `json:"nodetoolUser,omitempty"`
+	HostPort             HostPort        `json:"hostPort,omitempty"`
 	SystemKeyspaces      SystemKeyspaces `json:"systemKeyspaces,omitempty"`
 	DCs                  []DC            `json:"dcs"`
 	Prober               Prober          `json:"prober,omitempty"`
-	Kwatcher             Kwatcher        `json:"kwatcher"`
+	Kwatcher             Kwatcher        `json:"kwatcher,omitempty"`
+	Jmx                  Jmx             `json:"jmx,omitempty"`
+	Reaper               Reaper          `json:"reaper,omitempty"`
+	Monitoring           Monitoring      `json:"monitoring,omitempty"`
+	Config               Config          `json:"config,omitempty"`
 }
 
 type Cassandra struct {
-	NumSeeds        int32         `json:"numSeeds"`
-	UsersDir        string        `json:"usersDir"`
-	JMXPort         int32         `json:"jmxPort"`
-	Auth            CassandraAuth `json:"auth"`
-	Image           string        `json:"image"`
-	ImagePullPolicy v1.PullPolicy `json:"imagePullPolicy"`
+	Image           string        `json:"image,omitempty"`
+	ImagePullPolicy v1.PullPolicy `json:"imagePullPolicy,omitempty"`
+	UsersDir        string        `json:"usersDir,omitempty"`
+	Auth            CassandraAuth `json:"auth,omitempty"`
 }
 
 type CassandraAuth struct {
-	User     string `json:"user"`
-	Password string `json:"password"`
+	User     string `json:"user,omitempty"`
+	Password string `json:"password,omitempty"`
 }
 
 type Prober struct {
-	Image           string        `json:"image"`
-	ImagePullPolicy v1.PullPolicy `json:"imagePullPolicy"`
-	ServerPort      int32         `json:"serverPort"`
-	Debug           bool          `json:"debug"`
-	Jolokia         Jolokia       `json:"jolokia"`
+	Image           string        `json:"image,omitempty"`
+	ImagePullPolicy v1.PullPolicy `json:"imagePullPolicy,omitempty"`
+	ServerPort      int32         `json:"serverPort,omitempty"`
+	Debug           bool          `json:"debug,omitempty"`
+	Jolokia         Jolokia       `json:"jolokia,omitempty"`
+}
+
+// TODO: choose which fields will go into the Reaper ConfigMap
+type Reaper struct {
+	Image                                  string                  `json:"image,omitempty"`
+	ImagePullPolicy                        v1.PullPolicy           `json:"imagePullPolicy,omitempty"`
+	Keyspace                               string                  `json:"keyspace"`
+	DCs                                    []DC                    `json:"dcs"`
+	DatacenterAvailability                 string                  `json:"datacenterAvailability"`
+	Tolerations                            []v1.Toleration         `json:"tolerations,omitempty"`
+	NodeSelector                           map[string]string       `json:"nodeSelector,omitempty"`
+	IncrementalRepair                      bool                    `json:"incrementalRepair,omitempty"`
+	RepairIntensity                        string                  `json:"repairIntensity,omitempty"` // value between 0.0 and 1.0, but must never be 0.0.
+	RepairManagerSchedulingIntervalSeconds int32                   `json:"repairManagerSchedulingIntervalSeconds,omitempty"`
+	BlacklistTWCS                          bool                    `json:"blacklistTWCS,omitempty"`
+	Resources                              v1.ResourceRequirements `json:"resources,omitempty"`
+	ScheduleRepairs                        ScheduleRepairs         `json:"scheduleRepairs,omitempty"`
+	AutoScheduling                         AutoScheduling          `json:"autoScheduling,omitempty"`
 }
 
 type Kwatcher struct {
@@ -81,9 +103,78 @@ type Jolokia struct {
 	ImagePullPolicy v1.PullPolicy `json:"imagePullPolicy"`
 }
 
+type HostPort struct {
+	Enabled   bool `json:"enabled"`
+	UseHostIP bool `json:"useHostIP,omitempty"`
+}
+
+type Monitoring struct {
+	Enabled bool  `json:"enabled"`
+	Port    int32 `json:"port"`
+}
+
+type Jmx struct {
+	// Authentication available options: false, local_files, internal
+	// If internals is selected for C* <3.6, authentication will default to local_files
+	Authentication string `json:"authentication"`
+	SSL            bool   `json:"ssl"`
+}
+
+type ScheduleRepairs struct {
+	Enabled        bool     `json:"enabled,omitempty"`
+	StartRepairsIn string   `json:"startRepairsIn,omitempty"`
+	Repairs        []Repair `json:"repairs,omitempty"`
+}
+
+type Repair struct {
+	Keyspace            string   `json:"keyspace" url:"keyspace"`
+	Owner               string   `json:"owner,omitempty" url:"owner"`
+	Tables              []string `json:"tables,omitempty" url:"tables"`
+	ScheduleDaysBetween int32    `json:"scheduleDaysBetween,omitempty" url:"scheduleDaysBetween"`
+	ScheduleTriggerTime string   `json:"scheduleTriggerTime,omitempty" url:"scheduleTriggerTime"`
+	Datacenters         []string `json:"datacenters,omitempty" url:"datacenters"`
+	IncrementalRepair   bool     `json:"incrementalRepair,omitempty" url:"incrementalRepair"`
+	RepairThreadCount   int32    `json:"repairThreadCount" url:"repairThreadCount"`
+	Intensity           string   `json:"intensity" url:"intensity"` // value between 0.0 and 1.0, but must never be 0.0.
+	RepairParallelism   string   `json:"repairParallelism" url:"repairParallelism"`
+}
+
+type AutoScheduling struct {
+	Enabled                 bool     `json:"enabled,omitempty"`
+	InitialDelayPeriod      string   `json:"initialDelayPeriod,omitempty"`
+	PeriodBetweenPolls      string   `json:"periodBetweenPolls,omitempty"`
+	TimeBeforeFirstSchedule string   `json:"timeBeforeFirstSchedule,omitempty"`
+	ScheduleSpreadPeriod    string   `json:"scheduleSpreadPeriod,omitempty"`
+	ExcludedKeyspaces       []string `json:"excludedKeyspaces,omitempty"`
+}
+
 type DC struct {
 	Name     string `json:"name"`
 	Replicas *int32 `json:"replicas"`
+}
+
+// Change cassandra configuration parameters below:
+// ref: http://docs.datastax.com/en/cassandra/3.0/cassandra/configuration/configCassandra_yaml.html
+// Recommended max heap size is 1/2 of system memory
+// Recommended heap new size is 1/4 of max heap size
+// ref: http://docs.datastax.com/en/cassandra/3.0/cassandra/operations/opsTuneJVM.html
+type Config struct {
+	NumSeeds                       int32    `json:"numSeeds,omitempty"`
+	Seeds                          []string `json:"seeds,omitempty"`
+	RackName                       string   `json:"rackName,omitempty"`
+	PreferLocal                    bool     `json:"preferLocal,omitempty"`
+	MaxHeapSize                    string   `json:"maxHeapSize,omitempty"`
+	HeapNewSize                    string   `json:"heapNewSize,omitempty"`
+	MigrationTaskWaitSeconds       int32    `json:"migrationTaskWaitSeconds,omitempty"`
+	RingDelayMS                    int32    `json:"ringDelayMS,omitempty"`
+	LogLevel                       string   `json:"logLevel,omitempty"`
+	MaxGCPauseMillis               int32    `json:"maxGCPauseMillis,omitempty"`
+	G1RSetUpdatingPauseTimePercent int32    `json:"g1RSetUpdatingPauseTimePercent,omitempty"`
+	InitiatingHeapOccupancyPercent int32    `json:"initiatingHeapOccupancyPercent,omitempty"`
+	// internalAuth: (true|false), configures Cassandra to use internal authentication
+	// https://docs.datastax.com/en/archived/cassandra/2.1/cassandra/security/security_config_native_authenticate_t.html
+	// https://docs.datastax.com/en/cassandra/3.0/cassandra/configuration/secureConfigNativeAuth.html
+	InternalAuth bool `json:"internalAuth,omitempty"`
 }
 
 type SystemKeyspaces struct {
