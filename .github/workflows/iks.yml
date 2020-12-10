@@ -39,7 +39,7 @@ jobs:
           ibmcloud plugin install -f container-registry
       - name: Authenticate with IBM Cloud CLI
         run: |
-          ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RG"
+          ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RG" --quiet
           ibmcloud cr region-set "$IBM_CLOUD_REGION"
           ibmcloud cr login
       - name: Authenticate to Docker Proxy Registry
@@ -83,7 +83,7 @@ jobs:
           ibmcloud plugin install -f container-registry
       - name: Authenticate with IBM Cloud CLI
         run: |
-          ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RG"
+          ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RG" --quiet
           ibmcloud cr region-set "$IBM_CLOUD_REGION"
           ibmcloud cr login
           ibmcloud ks cluster config --cluster $IKS_CLUSTER
@@ -104,16 +104,28 @@ jobs:
             --set "container.image=us.icr.io/icm-cassandra/cassandra-operator:$GITHUB_REF_SLUG" \
             --set "container.imagePullSecret=icm-coreeng-pull-secret"
           kubectl rollout status deployment cassandra-operator
-          kubectl apply -f config/samples/cassandracluster.yaml && sleep 30
-          kubectl rollout status deployment example-cassandra-prober && sleep 30
-          kubectl rollout status statefulset example-cassandra-dc1 && sleep 30
-          kubectl rollout status deployment example-cassandra-dc1-kwatcher
+          kubectl apply -f config/samples/cassandracluster-e2e.yaml && sleep 30
+          kubectl rollout status deployment ci-e2e-cassandra-prober && sleep 30
+          kubectl rollout status statefulset ci-e2e-cassandra-cas-dc1
+          kubectl rollout status statefulset ci-e2e-cassandra-cas-dc2 && sleep 30
+          kubectl rollout status deployment ci-e2e-cassandra-cas-dc1-kwatcher
+      - name: Job has failed, showing debug info
+        if: ${{ failure() }}
+        run: |
+          kubectl get svc,deployments,statefulsets,pods
+          kubectl logs -l operator=cassandra-operator --tail=20
+          kubectl logs ci-e2e-cassandra-cas-dc1-0 --tail=20
+          kubectl logs ci-e2e-cassandra-cas-dc1-1 --tail=20
+          kubectl logs ci-e2e-cassandra-cas-dc1-2 --tail=20
+          kubectl logs ci-e2e-cassandra-cas-dc2-0 --tail=20
+          kubectl logs ci-e2e-cassandra-cas-dc2-1 --tail=20
+          kubectl logs ci-e2e-cassandra-cas-dc2-2 --tail=20
       - name: Cleanup Deployment
         if: ${{ always() }}
         run: |
           kubectl delete -f config/samples/cassandracluster.yaml && sleep 60
           helm uninstall cassandra-operator-ci-e2e
-          kubectl get job --no-headers=true | awk "/example/{print \$1}" | xargs kubectl delete job --ignore-not-found -
+          kubectl get job --no-headers=true | awk "/ci-e2e/{print \$1}" | xargs kubectl delete job --ignore-not-found -
       # We have below logic bc when multiple tags exist for the same image digest within a repository, the ibmcloud cr image-rm command removes the underlying image and all its tags. See details: https://cloud.ibm.com/docs/container-registry-cli-plugin?topic=container-registry-cli-plugin-containerregcli#bx_cr_image_rm
       - name: Cleanup Image
         if: ${{ always() && github.event_name != 'release' }}

@@ -1,0 +1,96 @@
+apiVersion: db.ibm.com/v1alpha1
+kind: CassandraCluster
+metadata:
+  name: ci-e2e
+spec:
+  cassandra:
+    auth:
+      password: cassandra
+      user: cassandra
+    image: us.icr.io/icm-cassandra/cassandra:3.11.8-0.18.3
+    imagePullPolicy: IfNotPresent
+    usersDir: /etc/cassandra-users
+  cqlConfigMapLabelKey: cql-scripts
+  nodetoolUser: cassandra
+  dcs:
+    - name: cas-dc1
+      replicas: 3
+    - name: cas-dc2
+      replicas: 3
+  hostPort:
+    enabled: false
+  imagePullSecretName: icm-coreeng-pull-secret
+  jmx:
+    authentication: internal
+    ssl: false
+  kwatcher:
+    enabled: true
+    image: us.icr.io/icm-cassandra/cassandra-kwatcher:0.18.3
+    imagePullPolicy: IfNotPresent
+  prober:
+    debug: true
+    image: us.icr.io/icm-cassandra/cassandra-prober:0.18.3
+    imagePullPolicy: IfNotPresent
+    jolokia:
+      image: us.icr.io/icm-docker-images/jolokia-proxy:1.6.2
+      imagePullPolicy: IfNotPresent
+    serverPort: 8888
+  reaper:
+    image: thelastpickle/cassandra-reaper:2.0.5
+    imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        memory: 1.5Gi
+        cpu: 1
+      limits:
+        memory: 1.5Gi
+        cpu: 1
+    tolerations: []
+    nodeSelector: {}
+    repairIntensity: "1.0"
+    datacenterAvailability: each
+    keyspace: reaper_db
+    dcs:
+      - name: cas-dc1
+        replicas: 2
+      - name: cas-dc2
+        replicas: 2
+    scheduleRepairs:
+      enabled: true
+      repairs:
+        - keyspace: system_traces
+          tables: [events]
+          scheduleDaysBetween: 7
+          scheduleTriggerTime: "2020-11-15T14:00:00"
+          datacenters: [cas-dc1]
+          repairThreadCount: 2
+          intensity: "1.0"
+          incrementalRepair: false
+          repairParallelism: "datacenter_aware"
+  systemKeyspaces:
+    dcs:
+      - name: cas-dc1
+        rf: 2
+      - name: cas-dc2
+        rf: 2
+    names:
+      - system_auth
+      - system_distributed
+      - system_traces
+  monitoring:
+    enabled: true
+    port: 8090
+  config:
+    numSeeds: 2
+    seeds: [ ]
+    rackName: RAC1
+    preferLocal: true
+    maxHeapSize: 1024M
+    heapNewSize: 512M
+    migrationTaskWaitSeconds: 1
+    ringDelayMS: 30000
+    logLevel: INFO
+    maxGCPauseMillis: 500
+    g1RSetUpdatingPauseTimePercent: 5
+    initiatingHeapOccupancyPercent: 25
+    internalAuth: true
