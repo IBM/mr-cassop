@@ -106,13 +106,17 @@ jobs:
           kubectl rollout status deployment cassandra-operator
           kubectl apply -f config/samples/cassandracluster-e2e.yaml && sleep 30
           kubectl rollout status deployment ci-e2e-cassandra-prober && sleep 30
-          kubectl rollout status statefulset ci-e2e-cassandra-cas-dc1
-          kubectl rollout status statefulset ci-e2e-cassandra-cas-dc2 && sleep 30
+          kubectl rollout status sts ci-e2e-cassandra-cas-dc1
+          kubectl rollout status sts ci-e2e-cassandra-cas-dc2 && sleep 30
           kubectl rollout status deployment ci-e2e-cassandra-cas-dc1-kwatcher
+          kubectl rollout status deployment ci-e2e-cassandra-cas-dc2-kwatcher
+          kubectl rollout status deployment ci-e2e-cassandra-cas-dc1-reaper
+          kubectl rollout status deployment ci-e2e-cassandra-cas-dc2-reaper
       - name: Job has failed, showing debug info
         if: ${{ failure() }}
         run: |
-          kubectl get svc,deployments,statefulsets,pods
+          sleep 30
+          kubectl get svc,deployments,sts,po
           kubectl logs -l operator=cassandra-operator --tail=20
           kubectl logs ci-e2e-cassandra-cas-dc1-0 --tail=20
           kubectl logs ci-e2e-cassandra-cas-dc1-1 --tail=20
