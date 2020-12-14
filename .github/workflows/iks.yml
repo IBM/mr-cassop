@@ -51,9 +51,9 @@ jobs:
       - uses: satackey/action-docker-layer-caching@b983974a88fdf77424203b546b8f0e818f426420 # v0.0.10
         continue-on-error: true
         with:
-          key: docker-layer-caching-${{ env.GITHUB_REF_SLUG }}-{hash}
+          key: docker-layers-${{ github.job }}-${{ hashFiles('Dockerfile') }}
           restore-keys: |
-            docker-layer-caching-${{ env.GITHUB_REF_SLUG }}-
+            docker-layers-${{ github.job }}-
       - name: Build Image
         run: |
           docker build -t "us.icr.io/icm-cassandra/cassandra-operator:$GITHUB_REF_SLUG" \
@@ -69,6 +69,14 @@ jobs:
     steps:
       - name: Ckeckout
         uses: actions/checkout@v2
+      - name: Block Concurrent Executions for the Deployment
+        uses: softprops/turnstyle@2da824432fd1b605d097378101a35779dc3cd35a # v1
+        with:
+          poll-interval-seconds: 10
+          abort-after-seconds: 3600
+          same-branch-only: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Inject slug/short variables
         uses: rlespinasse/github-slug-action@e4699e49fcf890a3172a02c56ba78d867dbb9fd5 # 3.1.0
       - name: Modify GITHUB_REF_SLUG
@@ -89,14 +97,6 @@ jobs:
           ibmcloud ks cluster config --cluster $IKS_CLUSTER
           kubectl config current-context
           kubectl config set-context --current --namespace cassandra-operator-ci
-      - name: Block Concurrent Executions for the Deployment
-        uses: softprops/turnstyle@2da824432fd1b605d097378101a35779dc3cd35a # v1
-        with:
-          poll-interval-seconds: 10
-          abort-after-seconds: 3600
-          same-branch-only: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Deploy to IKS
         timeout-minutes: 15
         run: |
