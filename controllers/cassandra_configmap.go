@@ -56,6 +56,7 @@ func generateCassandraDcData(cc *v1alpha1.CassandraCluster, dcName string, cmDat
 			},
 		},
 	}
+
 	cassandraYamlBytes, err := yaml.Marshal(cassandraYaml)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't marshal 'cassandra.yaml'")
@@ -66,7 +67,6 @@ rack=RAC1
 prefer_local=true`, dcName)
 	delete(data, "nodetool-ssl.properties") // TODO: will be implemented as part of TLS support
 	return data, nil
-
 }
 
 func cassandraDCConfigVolume(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC) v1.Volume {

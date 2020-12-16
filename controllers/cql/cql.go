@@ -11,7 +11,7 @@ const (
 	ReplicationClassNetworkTopologyStrategy = "org.apache.cassandra.locator.NetworkTopologyStrategy"
 )
 
-type Client interface {
+type CqlClient interface {
 	GetKeyspacesInfo() ([]Keyspace, error)
 	UpdateRF(cc *v1alpha1.CassandraCluster) error
 	GetUsers() ([]CassandraUser, error)
@@ -27,7 +27,7 @@ type CassandraUser struct {
 	IsSuperuser bool
 }
 
-func NewCQLClient(clusterConfig *gocql.ClusterConfig) (Client, error) {
+func NewCQLClient(clusterConfig *gocql.ClusterConfig) (CqlClient, error) {
 	cassSession, err := clusterConfig.CreateSession()
 	if err != nil {
 		return nil, err

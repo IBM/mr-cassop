@@ -216,7 +216,7 @@ func (r *CassandraClusterReconciler) reconcileReaperService(ctx context.Context,
 	return nil
 }
 
-func (r CassandraClusterReconciler) reconcileScheduleRepairs(ctx context.Context, cc *dbv1alpha1.CassandraCluster, reaperClient reaper.Client) error {
+func (r CassandraClusterReconciler) reconcileScheduleRepairs(ctx context.Context, cc *dbv1alpha1.CassandraCluster, reaperClient reaper.ReaperClient) error {
 	for _, repair := range cc.Spec.Reaper.ScheduleRepairs.Repairs {
 		if err := rescheduleTimestamp(&repair); err != nil {
 			return errors.Wrap(err, "Error rescheduling repair")
@@ -368,7 +368,7 @@ func getReaperSeed(cc *dbv1alpha1.CassandraCluster) string {
 	return seed
 }
 
-func (r CassandraClusterReconciler) reaperInitialization(ctx context.Context, cc *dbv1alpha1.CassandraCluster, reaperClient reaper.Client) error {
+func (r CassandraClusterReconciler) reaperInitialization(ctx context.Context, cc *dbv1alpha1.CassandraCluster, reaperClient reaper.ReaperClient) error {
 	seed := getReaperSeed(cc)
 	clusterExists, err := reaperClient.ClusterExists(ctx, cc.Name)
 	if err != nil {

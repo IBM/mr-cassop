@@ -39,6 +39,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"net/url"
 	"path/filepath"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -126,13 +127,13 @@ var _ = BeforeSuite(func(done Done) {
 		Scheme: scheme.Scheme,
 		Client: k8sClient,
 		Cfg:    operatorConfig,
-		ProberClient: func(host string) prober.Client {
+		ProberClient: func(url *url.URL) prober.ProberClient {
 			return mockProberClient
 		},
-		CqlClient: func(clusterConfig *gocql.ClusterConfig) (cql.Client, error) {
+		CqlClient: func(clusterConfig *gocql.ClusterConfig) (cql.CqlClient, error) {
 			return mockCQLClient, nil
 		},
-		NodetoolClient: func(clientset *kubernetes.Clientset, config *rest.Config) nodetool.Client {
+		NodetoolClient: func(clientset *kubernetes.Clientset, config *rest.Config) nodetool.NodetoolClient {
 			return mockNodetoolClient
 		},
 		RESTConfig: cfg,

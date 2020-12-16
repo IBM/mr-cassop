@@ -7,21 +7,25 @@ import (
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/config"
 	"github.com/ibm/cassandra-operator/controllers/cql"
+	"github.com/ibm/cassandra-operator/controllers/mocks"
 	"github.com/ibm/cassandra-operator/controllers/nodetool"
 	"github.com/ibm/cassandra-operator/controllers/prober"
+	"github.com/ibm/cassandra-operator/controllers/reaper"
 	"github.com/onsi/gomega"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"net/url"
 	"testing"
 )
 
 func createMockedReconciler(t *testing.T) (*CassandraClusterReconciler, *gomock.Controller, mockedClients) {
 	mCtrl := gomock.NewController(t)
-	proberClientMock := prober.NewMockClient(mCtrl)
-	nodetoolClientMock := nodetool.NewMockClient(mCtrl)
-	cqlClientMock := cql.NewMockClient(mCtrl)
+	proberClientMock := mocks.NewMockProberClient(mCtrl)
+	nodetoolClientMock := mocks.NewMockNodetoolClient(mCtrl)
+	cqlClientMock := mocks.NewMockCqlClient(mCtrl)
+	reaperClientMock := mocks.NewMockReaperClient(mCtrl)
 	reconciler := &CassandraClusterReconciler{
 		Client:     nil,
 		Log:        zap.NewNop().Sugar(),
@@ -29,25 +33,29 @@ func createMockedReconciler(t *testing.T) (*CassandraClusterReconciler, *gomock.
 		Cfg:        config.Config{},
 		Clientset:  nil,
 		RESTConfig: nil,
-		ProberClient: func(host string) prober.Client {
+		ProberClient: func(url *url.URL) prober.ProberClient {
 			return proberClientMock
 		},
-		CqlClient: func(clusterConfig *gocql.ClusterConfig) (cql.Client, error) {
+		CqlClient: func(clusterConfig *gocql.ClusterConfig) (cql.CqlClient, error) {
 			return cqlClientMock, nil
 		},
-		NodetoolClient: func(clientset *kubernetes.Clientset, config *rest.Config) nodetool.Client {
+		NodetoolClient: func(clientset *kubernetes.Clientset, config *rest.Config) nodetool.NodetoolClient {
 			return nodetoolClientMock
+		},
+		ReaperClient: func(url *url.URL) reaper.ReaperClient {
+			return reaperClientMock
 		},
 	}
 
-	mocks := mockedClients{prober: proberClientMock, nodetool: nodetoolClientMock, cql: cqlClientMock}
+	mocks := mockedClients{prober: proberClientMock, nodetool: nodetoolClientMock, cql: cqlClientMock, reaper: reaperClientMock}
 	return reconciler, mCtrl, mocks
 }
 
 type mockedClients struct {
-	prober   *prober.MockClient
-	nodetool *nodetool.MockClient
-	cql      *cql.MockClient
+	prober   *mocks.MockProberClient
+	nodetool *mocks.MockNodetoolClient
+	cql      *mocks.MockCqlClient
+	reaper   *mocks.MockReaperClient
 }
 
 func TestDefaultingFunction(t *testing.T) {

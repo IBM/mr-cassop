@@ -67,9 +67,10 @@ vet:
 # Generate code
 generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
-	mockgen -package=cql -source=./controllers/cql/cql.go -destination=./controllers/cql/mock.go
-	mockgen -package=nodetool -source=./controllers/nodetool/nodetool.go -destination=./controllers/nodetool/mock.go
-	mockgen -package=prober -source=./controllers/prober/prober.go -destination=./controllers/prober/mock.go
+	mockgen -package=mocks -source=./controllers/cql/cql.go -destination=./controllers/mocks/mock_cql.go
+	mockgen -package=mocks -source=./controllers/nodetool/nodetool.go -destination=./controllers/mocks/mock_nodetool.go
+	mockgen -package=mocks -source=./controllers/prober/prober.go -destination=./controllers/mocks/mock_prober.go
+	mockgen -package=mocks -source=./controllers/reaper/reaper.go -destination=./controllers/mocks/mock_reaper.go
 
 # Build the docker image
 docker-build:

@@ -12,7 +12,7 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 )
 
-type Client interface {
+type NodetoolClient interface {
 	RepairKeyspace(cc *v1alpha1.CassandraCluster, keyspace string) error
 }
 
@@ -21,7 +21,7 @@ type nodetoolClient struct {
 	restConfig *rest.Config
 }
 
-func NewNodetoolClient(clientset *kubernetes.Clientset, config *rest.Config) Client {
+func NewNodetoolClient(clientset *kubernetes.Clientset, config *rest.Config) NodetoolClient {
 	return &nodetoolClient{
 		clientset:  clientset,
 		restConfig: config,

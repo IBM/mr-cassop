@@ -26,9 +26,12 @@ import (
 	"github.com/ibm/cassandra-operator/controllers/logger"
 	"github.com/ibm/cassandra-operator/controllers/nodetool"
 	"github.com/ibm/cassandra-operator/controllers/prober"
+	"github.com/ibm/cassandra-operator/controllers/reaper"
 	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"net/http"
+	"net/url"
 	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -109,11 +112,12 @@ func main() {
 		Cfg:          *operatorConfig,
 		Clientset:    clientset,
 		RESTConfig:   restCfg,
-		ProberClient: func(host string) prober.Client { return prober.NewProberClient(host) },
-		CqlClient:    func(cluster *gocql.ClusterConfig) (cql.Client, error) { return cql.NewCQLClient(cluster) },
-		NodetoolClient: func(clientset *kubernetes.Clientset, config *rest.Config) nodetool.Client {
+		ProberClient: func(url *url.URL) prober.ProberClient { return prober.NewProberClient(url) },
+		CqlClient:    func(cluster *gocql.ClusterConfig) (cql.CqlClient, error) { return cql.NewCQLClient(cluster) },
+		NodetoolClient: func(clientset *kubernetes.Clientset, config *rest.Config) nodetool.NodetoolClient {
 			return nodetool.NewNodetoolClient(clientset, config)
 		},
+		ReaperClient: func(url *url.URL) reaper.ReaperClient { return reaper.NewReaperClient(url, http.DefaultClient) },
 	}
 
 	err = controllers.SetupCassandraReconciler(cassandaReconciler, mgr, logr)

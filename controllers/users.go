@@ -75,7 +75,7 @@ func (r *CassandraClusterReconciler) reconcileUsersSecret(ctx context.Context, c
 	return nil
 }
 
-func (r *CassandraClusterReconciler) usersCreated(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cqlClient cql.Client) (bool, error) {
+func (r *CassandraClusterReconciler) usersCreated(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cqlClient cql.CqlClient) (bool, error) {
 	cassUsers, err := cqlClient.GetUsers()
 	if err != nil {
 		return false, errors.Wrapf(err, "can't get list of users from Cassandra")

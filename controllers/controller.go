@@ -1,12 +1,8 @@
 /*
-
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
     http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -39,6 +35,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/rest"
+	"net/http"
+	"net/url"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -69,9 +67,10 @@ type CassandraClusterReconciler struct {
 	Cfg            config.Config
 	Clientset      *kubernetes.Clientset
 	RESTConfig     *rest.Config
-	ProberClient   func(host string) prober.Client
-	NodetoolClient func(clientset *kubernetes.Clientset, config *rest.Config) nodetool.Client
-	CqlClient      func(cluster *gocql.ClusterConfig) (cql.Client, error)
+	ProberClient   func(url *url.URL) prober.ProberClient
+	NodetoolClient func(clientset *kubernetes.Clientset, config *rest.Config) nodetool.NodetoolClient
+	CqlClient      func(cluster *gocql.ClusterConfig) (cql.CqlClient, error)
+	ReaperClient   func(url *url.URL) reaper.ReaperClient
 }
 
 // +kubebuilder:rbac:groups=db.ibm.com,resources=cassandraclusters,verbs=get;list;watch;create;update;patch;delete
@@ -133,8 +132,11 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	if err := r.reconcileProber(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling prober")
 	}
-
-	proberClient := r.ProberClient(fmt.Sprintf("%s.%s.svc.cluster.local", names.ProberService(cc), cc.Namespace))
+	proberUrl, err := url.Parse(fmt.Sprintf("http://%s.%s.svc.cluster.local", names.ProberService(cc), cc.Namespace))
+	if err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error parsing prober client url")
+	}
+	proberClient := r.ProberClient(proberUrl)
 	proberReady, err := proberClient.Ready(ctx)
 	if err != nil {
 		r.Log.Warnf("Prober ping request failed: %s. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
@@ -201,11 +203,11 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	if err = r.reconcileReaper(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling reaper")
 	}
-	reaperServiceUrl := fmt.Sprintf("http://%s.%s.svc.cluster.local:8080", names.ReaperService(cc), cc.Namespace)
-	reaperClient, err := reaper.NewReaperClient(reaperServiceUrl)
+	reaperServiceUrl, err := url.Parse(fmt.Sprintf("http://%s.%s.svc.cluster.local:8080", names.ReaperService(cc), cc.Namespace))
 	if err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Error creating reaper client")
+		return ctrl.Result{}, errors.Wrap(err, "Error parsing reaper service url")
 	}
+	reaperClient := reaper.NewReaperClient(reaperServiceUrl, http.DefaultClient)
 	isRunning, err := reaperClient.IsRunning(ctx)
 	if err != nil {
 		r.Log.Warnf("Reaper ping request failed: %s. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
