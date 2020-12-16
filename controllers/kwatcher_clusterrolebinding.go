@@ -19,6 +19,10 @@ func (r *CassandraClusterReconciler) reconcileKwatcherClusterRoleBinding(ctx con
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   names.KwatcherClusterRoleBinding(cc),
 			Labels: labels.CombinedComponentLabels(cc, v1alpha1.CassandraClusterComponentKwatcher),
+			Annotations: map[string]string{
+				annotationCassandraClusterName:      cc.Name,
+				annotationCassandraClusterNamespace: cc.Namespace,
+			},
 		},
 		Subjects: []rbac.Subject{
 			{
@@ -49,6 +53,7 @@ func (r *CassandraClusterReconciler) reconcileKwatcherClusterRoleBinding(ctx con
 		actualCRB.Subjects = desiredCRB.Subjects
 		actualCRB.RoleRef = desiredCRB.RoleRef
 		actualCRB.Labels = desiredCRB.Labels
+		actualCRB.Annotations = desiredCRB.Annotations
 		if err = r.Update(ctx, actualCRB); err != nil {
 			return errors.Wrap(err, "Could not Update kwatcher ClusterRoleBinding")
 		}

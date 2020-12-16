@@ -64,12 +64,13 @@ func (r *CassandraClusterReconciler) reconcileKwatcher(ctx context.Context, cc *
 
 func (r *CassandraClusterReconciler) reconcileKwatcherDeployment(ctx context.Context, cc *dbv1alpha1.CassandraCluster, dcName string) error {
 	kwatcherLabels := labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterComponentKwatcher)
+	kwatcherLabels = labels.WithDCLabel(kwatcherLabels, dcName)
 	percent25 := intstr.FromInt(25)
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      names.KwatcherDeployment(cc, dcName),
 			Namespace: cc.Namespace,
-			Labels:    labels.CombinedComponentLabels(cc, dbv1alpha1.CassandraClusterComponentKwatcher),
+			Labels:    kwatcherLabels,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: proto.Int32(1),
@@ -101,6 +102,7 @@ func (r *CassandraClusterReconciler) reconcileKwatcherDeployment(ctx context.Con
 							Name:            "kwatcher",
 							Image:           cc.Spec.Kwatcher.Image,
 							ImagePullPolicy: cc.Spec.Kwatcher.ImagePullPolicy,
+							Resources:       cc.Spec.Kwatcher.Resources,
 							Command: []string{
 								"./kwatcher",
 								"-namespace", cc.Namespace,
@@ -113,7 +115,7 @@ func (r *CassandraClusterReconciler) reconcileKwatcherDeployment(ctx context.Con
 								"-port", "9042",
 							},
 							Env: []v1.EnvVar{
-								{Name: "USERS_DIR", Value: cc.Spec.Cassandra.UsersDir},
+								{Name: "USERS_DIR", Value: cassandraUsersDir},
 							},
 							TerminationMessagePath:   "/dev/termination-log",
 							TerminationMessagePolicy: v1.TerminationMessageReadFile,
@@ -160,7 +162,7 @@ func (r *CassandraClusterReconciler) reconcileKwatcherDeployment(ctx context.Con
 func (r *CassandraClusterReconciler) reconcileKwatcherRepairJobs(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
 	for _, keyspaceName := range cc.Spec.SystemKeyspaces.Names {
 		job := &batch.Job{}
-		jobName := types.NamespacedName{Name: fmt.Sprintf("%s-repair-job-%s", cc.Name, strings.Replace(keyspaceName, "_", "-", -1)), Namespace: cc.Namespace}
+		jobName := types.NamespacedName{Name: fmt.Sprintf("%s-repair-job-%s", cc.Name, strings.Replace(string(keyspaceName), "_", "-", -1)), Namespace: cc.Namespace}
 		err := r.Get(ctx, jobName, job)
 		if err == nil { //if found
 			if len(job.OwnerReferences) != 0 { //controller reference already set

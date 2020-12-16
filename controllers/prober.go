@@ -22,11 +22,6 @@ import (
 	"strings"
 )
 
-const (
-	proberContainerPort  = 8888
-	jolokiaContainerPort = 8080
-)
-
 func (r *CassandraClusterReconciler) reconcileProber(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
 	if err := r.reconcileProberSourcesConfigMap(ctx, cc); err != nil {
 		return errors.Wrap(err, "Error reconciling prober sources configmap")
@@ -203,25 +198,26 @@ func proberContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 		Image:           cc.Spec.Prober.Image,
 		ImagePullPolicy: cc.Spec.Prober.ImagePullPolicy,
 		Args:            []string{"npm", "start"},
+		Resources:       cc.Spec.Prober.Resources,
 		Env: []v1.EnvVar{
 			{Name: "POD_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}},
 			{Name: "LOCAL_DCS", Value: func(dcs interface{}) string { b, _ := json.Marshal(dcs); return string(b) }(cc.Spec.DCs)},
 			{Name: "DEBUG", Value: fmt.Sprintf("%t", cc.Spec.Prober.Debug)},
-			{Name: "HOSTPORT_ENABLED", Value: fmt.Sprintf("%t", cc.Spec.HostPort.Enabled)},
+			{Name: "HOSTPORT_ENABLED", Value: "false" /*fmt.Sprintf("%t", cc.Spec.HostPort.Enabled)*/}, //TODO part of hostport implementation
 			{Name: "CASSANDRA_ENDPOINT_LABELS", Value: klabels.FormatLabels(labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra))},
 			{Name: "CASSANDRA_LOCAL_SEEDS_HOSTNAMES", Value: strings.Join(getSeedsList(cc), ",")},
 			{Name: "JMX_PROXY_URL", Value: fmt.Sprintf("http://localhost:%d/jolokia", jolokiaContainerPort)},
 			{Name: "EXTERNAL_DCS_INGRESS_DOMAINS", Value: "[]"},
 			{Name: "ALL_DCS_INGRESS_DOMAINS", Value: "null"},
 			{Name: "LOCAL_DC_INGRESS_DOMAIN", Value: ""},
-			{Name: "CASSANDRA_NUM_SEEDS", Value: fmt.Sprintf("%d", cc.Spec.Config.NumSeeds)},
+			{Name: "CASSANDRA_NUM_SEEDS", Value: fmt.Sprintf("%d", cc.Spec.Cassandra.NumSeeds)},
 			{Name: "JOLOKIA_PORT", Value: strconv.Itoa(jolokiaContainerPort)},
 			{Name: "JOLOKIA_RESPONSE_TIMEOUT", Value: "10000"},
 			{Name: "PROBER_SUBDOMAIN", Value: cc.Namespace + "-" + names.ProberDeployment(cc)},
 			{Name: "SERVER_PORT", Value: strconv.Itoa(proberContainerPort)},
 			{Name: "JMX_POLL_PERIOD_SECONDS", Value: "10"},
 			{Name: "JMX_PORT", Value: fmt.Sprintf("%d", jmxPort)},
-			{Name: "USERS_DIR", Value: cc.Spec.Cassandra.UsersDir},
+			{Name: "USERS_DIR", Value: cassandraUsersDir},
 		},
 		Ports: []v1.ContainerPort{
 			{
@@ -261,6 +257,7 @@ func jolokiaContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 		Name:            "jolokia",
 		Image:           cc.Spec.Prober.Jolokia.Image,
 		ImagePullPolicy: cc.Spec.Prober.Jolokia.ImagePullPolicy,
+		Resources:       cc.Spec.Prober.Jolokia.Resources,
 		Ports: []v1.ContainerPort{
 			{
 				Name:          "jolokia",

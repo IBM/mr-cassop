@@ -36,14 +36,14 @@ func (r *CassandraClusterReconciler) reconcileUsersSecret(ctx context.Context, c
 	}
 
 	cassandraUser, _ := json.Marshal(User{
-		Username:     cc.Spec.Cassandra.Auth.User,
-		Password:     cc.Spec.Cassandra.Auth.Password,
+		Username:     dbv1alpha1.CassandraUsername,
+		Password:     dbv1alpha1.CassandraPassword,
 		NodetoolUser: true,
 		Super:        true,
 		Randomize:    false,
 	})
 
-	desiredSecret.Data = map[string][]byte{cc.Spec.Cassandra.Auth.User: cassandraUser}
+	desiredSecret.Data = map[string][]byte{dbv1alpha1.CassandraUsername: cassandraUser}
 
 	if err := controllerutil.SetControllerReference(cc, desiredSecret, r.Scheme); err != nil {
 		return errors.Wrap(err, "Cannot set controller reference")

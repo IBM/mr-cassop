@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"github.com/gocql/gocql"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/config"
 	"github.com/ibm/cassandra-operator/controllers/cql"
@@ -40,14 +41,24 @@ import (
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
+	"time"
 )
 
 const (
-	cqlPort    = 9042
-	jmxPort    = 7199
-	thriftPort = 9160
+	proberContainerPort         = 8888
+	jolokiaContainerPort        = 8080
+	cqlPort                     = 9042
+	jmxPort                     = 7199
+	thriftPort                  = 9160
+	cassandraUsersDir           = "/etc/cassandra-users"
+	defaultCQLConfigMapLabelKey = "cql-scripts"
+
+	annotationCassandraClusterName      = "cassandra-cluster-name"
+	annotationCassandraClusterNamespace = "cassandra-cluster-namespace"
 )
 
 // CassandraClusterReconciler reconciles a CassandraCluster object
@@ -60,7 +71,7 @@ type CassandraClusterReconciler struct {
 	RESTConfig     *rest.Config
 	ProberClient   func(host string) prober.Client
 	NodetoolClient func(clientset *kubernetes.Clientset, config *rest.Config) nodetool.Client
-	CqlClient      func(cluster *dbv1alpha1.CassandraCluster) (cql.Client, error)
+	CqlClient      func(cluster *gocql.ClusterConfig) (cql.Client, error)
 }
 
 // +kubebuilder:rbac:groups=db.ibm.com,resources=cassandraclusters,verbs=get;list;watch;create;update;patch;delete
@@ -105,6 +116,8 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, err
 	}
 
+	r.defaultCassandraCluster(cc)
+
 	if err := r.reconcileScriptsConfigMap(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling scripts configmap")
 	}
@@ -129,7 +142,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	}
 
 	if !proberReady {
-		r.Log.Warnf("Prober is not ready. Trying again in %s...", r.Cfg.RetryDelay)
+		r.Log.Warnf("Prober is not ready. Err: %#v. Trying again in %s...", err, r.Cfg.RetryDelay)
 		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 	}
 
@@ -143,7 +156,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 
 	readyAllDCs, err := proberClient.ReadyAllDCs(ctx)
 	if err != nil {
-		r.Log.Warnf("Prober request failed: %s. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
+		r.Log.Warnf("Prober request failed: %#v. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
 		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 	}
 
@@ -154,14 +167,13 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 
 	r.Log.Debug("All DCs are ready")
 
-	if cc.Spec.Kwatcher.Enabled {
-		if err := r.reconcileKwatcher(ctx, cc); err != nil {
-			return ctrl.Result{}, errors.Wrap(err, "Error reconciling kwatcher")
-		}
+	if err := r.reconcileKwatcher(ctx, cc); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error reconciling kwatcher")
 	}
 
 	ntClient := r.NodetoolClient(r.Clientset, r.RESTConfig)
-	cqlClient, err := r.CqlClient(cc)
+
+	cqlClient, err := r.CqlClient(newCassandraConfig(cc))
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Can't create cassandra session")
 	}
@@ -170,19 +182,17 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrapf(err, "Error reconciling RF settings")
 	}
 
-	if (cc.Spec.Config.InternalAuth || cc.Spec.Jmx.Authentication == "internal") && cc.Spec.Kwatcher.Enabled {
-		r.Log.Debug("Internal auth and kwatcher are enabled. Checking if all users are created.")
-		created, err := r.usersCreated(ctx, cc, cqlClient)
-		if err != nil {
-			return ctrl.Result{}, errors.Wrapf(err, "Can't get created users info")
-		}
-
-		if !created {
-			r.Log.Infof("Users hasn't been created yet. Checking again in %s...", r.Cfg.RetryDelay)
-			return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
-		}
-		r.Log.Info("Users has been created")
+	r.Log.Debug("Checking if all users are created by kwatcher")
+	created, err := r.usersCreated(ctx, cc, cqlClient)
+	if err != nil {
+		return ctrl.Result{}, errors.Wrapf(err, "Can't get created users info")
 	}
+
+	if !created {
+		r.Log.Infof("Users hasn't been created yet. Checking again in %s...", r.Cfg.RetryDelay)
+		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
+	}
+	r.Log.Info("Users has been created")
 
 	if err := r.reconcileCQLConfigMaps(ctx, cc, cqlClient, ntClient); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile CQL config maps")
@@ -218,15 +228,154 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	return ctrl.Result{}, nil
 }
 
-func SetupCassandraReconciler(r reconcile.Reconciler, mgr manager.Manager) error {
+func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.CassandraCluster) {
+	if cc.Spec.CQLConfigMapLabelKey == "" {
+		cc.Spec.CQLConfigMapLabelKey = defaultCQLConfigMapLabelKey
+	}
+
+	if cc.Spec.Cassandra == nil {
+		cc.Spec.Cassandra = &dbv1alpha1.Cassandra{}
+	}
+
+	if cc.Spec.Cassandra.Image == "" {
+		cc.Spec.Cassandra.Image = r.Cfg.DefaultCassandraImage
+	}
+
+	if cc.Spec.Cassandra.ImagePullPolicy == "" {
+		cc.Spec.Cassandra.ImagePullPolicy = v1.PullIfNotPresent
+	}
+
+	if cc.Spec.Cassandra.NumSeeds == 0 {
+		cc.Spec.Cassandra.NumSeeds = 2
+	}
+
+	if cc.Spec.Prober.Image == "" {
+		cc.Spec.Prober.Image = r.Cfg.DefaultProberImage
+	}
+
+	if cc.Spec.Prober.ImagePullPolicy == "" {
+		cc.Spec.Prober.ImagePullPolicy = v1.PullIfNotPresent
+	}
+
+	if cc.Spec.Prober.Jolokia.Image == "" {
+		cc.Spec.Prober.Jolokia.Image = r.Cfg.DefaultJolokiaImage
+	}
+
+	if cc.Spec.Prober.Jolokia.ImagePullPolicy == "" {
+		cc.Spec.Prober.Jolokia.ImagePullPolicy = v1.PullIfNotPresent
+	}
+
+	if cc.Spec.Kwatcher.Image == "" {
+		cc.Spec.Kwatcher.Image = r.Cfg.DefaultKwatcherImage
+	}
+
+	if cc.Spec.Kwatcher.ImagePullPolicy == "" {
+		cc.Spec.Kwatcher.ImagePullPolicy = v1.PullIfNotPresent
+	}
+
+	if cc.Spec.Reaper == nil {
+		cc.Spec.Reaper = &dbv1alpha1.Reaper{}
+	}
+
+	if cc.Spec.Reaper.Image == "" {
+		cc.Spec.Reaper.Image = r.Cfg.DefaultReaperImage
+	}
+
+	if cc.Spec.Reaper.ImagePullPolicy == "" {
+		cc.Spec.Reaper.ImagePullPolicy = v1.PullIfNotPresent
+	}
+
+	if len(cc.Spec.Reaper.DCs) == 0 {
+		cc.Spec.Reaper.DCs = cc.Spec.DCs
+	}
+
+	if cc.Spec.Reaper.RepairIntensity == "" {
+		cc.Spec.Reaper.RepairIntensity = "1.0"
+	}
+
+	if cc.Spec.Reaper.DatacenterAvailability == "" {
+		cc.Spec.Reaper.DatacenterAvailability = "each"
+	}
+
+	if len(cc.Spec.Reaper.Tolerations) == 0 {
+		cc.Spec.Reaper.Tolerations = nil
+	}
+
+	if len(cc.Spec.Reaper.NodeSelector) == 0 {
+		cc.Spec.Reaper.NodeSelector = nil
+	}
+
+	if len(cc.Spec.Reaper.ScheduleRepairs.Repairs) != 0 {
+		for i, repair := range cc.Spec.Reaper.ScheduleRepairs.Repairs {
+			if repair.RepairParallelism == "" {
+				cc.Spec.Reaper.ScheduleRepairs.Repairs[i].RepairParallelism = "datacenter_aware"
+			}
+			if repair.ScheduleDaysBetween == 0 {
+				cc.Spec.Reaper.ScheduleRepairs.Repairs[i].ScheduleDaysBetween = 7
+			}
+			if len(repair.Datacenters) == 0 {
+				dcNames := make([]string, 0, len(cc.Spec.DCs))
+				for _, dc := range cc.Spec.DCs {
+					dcNames = append(dcNames, dc.Name)
+				}
+				cc.Spec.Reaper.ScheduleRepairs.Repairs[i].Datacenters = dcNames
+			}
+			if repair.RepairThreadCount == 0 {
+				cc.Spec.Reaper.ScheduleRepairs.Repairs[i].RepairThreadCount = 2
+			}
+		}
+	}
+}
+
+func newCassandraConfig(cc *dbv1alpha1.CassandraCluster) *gocql.ClusterConfig {
+	cassCfg := gocql.NewCluster(fmt.Sprintf("%s.%s.svc.cluster.local", names.DCService(cc, cc.Spec.DCs[0].Name), cc.Namespace))
+	cassCfg.Authenticator = &gocql.PasswordAuthenticator{
+		Username: dbv1alpha1.CassandraUsername,
+		Password: dbv1alpha1.CassandraUsername,
+	}
+
+	cassCfg.Timeout = 6 * time.Second
+	cassCfg.ConnectTimeout = 6 * time.Second
+	cassCfg.ProtoVersion = 4
+	cassCfg.Consistency = gocql.LocalQuorum
+
+	return cassCfg
+}
+
+func SetupCassandraReconciler(r reconcile.Reconciler, mgr manager.Manager, logr *zap.SugaredLogger) error {
+	annotationEventHandler := &handler.EnqueueRequestsFromMapFunc{ToRequests: handler.ToRequestsFunc(
+		func(a handler.MapObject) []ctrl.Request {
+			annotations := a.Meta.GetAnnotations()
+			if annotations[annotationCassandraClusterNamespace] == "" {
+				return nil
+			}
+
+			if annotations[annotationCassandraClusterName] == "" {
+				return nil
+			}
+
+			return []ctrl.Request{
+				{NamespacedName: types.NamespacedName{
+					Name:      annotations[annotationCassandraClusterName],
+					Namespace: annotations[annotationCassandraClusterNamespace],
+				}},
+			}
+		}),
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
+		Named("cassandracluster").
 		For(&dbv1alpha1.CassandraCluster{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&v1.Service{}).
 		Owns(&appsv1.StatefulSet{}).
 		Owns(&v1.Secret{}).
 		Owns(&v1.ConfigMap{}).
-		Owns(&rbac.ClusterRole{}).
-		Owns(&rbac.ClusterRoleBinding{}).
+		Owns(&rbac.Role{}).
+		Owns(&rbac.RoleBinding{}).
+		Owns(&v1.ServiceAccount{}).
+		Watches(&source.Kind{Type: &rbac.ClusterRole{}}, annotationEventHandler).
+		Watches(&source.Kind{Type: &rbac.ClusterRoleBinding{}}, annotationEventHandler).
+		//WithEventFilter(predicate.NewPredicate(logr)). //uncomment to see kubernetes events in the logs, e.g. ConfigMap updates
 		Complete(r)
 }

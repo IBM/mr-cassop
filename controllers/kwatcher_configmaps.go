@@ -39,14 +39,14 @@ func (r *CassandraClusterReconciler) reconcileKwatcherKeyspaceConfigMap(ctx cont
 		}
 
 		keyspace := CassandraKeyspace{
-			Keyspace:          keyspaceName,
+			Keyspace:          string(keyspaceName),
 			Strategy:          "NetworkTopologyStrategy",
 			DurableWrites:     true,
 			ReplicationFactor: replicationFactor,
 		}
 
 		jsonKeyspace, _ := json.Marshal(keyspace)
-		data[keyspaceName] = string(jsonKeyspace)
+		data[string(keyspaceName)] = string(jsonKeyspace)
 	}
 	desiredCM.Data = data
 

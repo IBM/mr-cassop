@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"github.com/gocql/gocql"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
-	"github.com/ibm/cassandra-operator/controllers/names"
 	"github.com/pkg/errors"
-	"time"
 )
 
 const (
@@ -29,19 +27,8 @@ type CassandraUser struct {
 	IsSuperuser bool
 }
 
-func NewCQLClient(cluster *v1alpha1.CassandraCluster) (Client, error) {
-	cassCfg := gocql.NewCluster(fmt.Sprintf("%s.%s.svc.cluster.local", names.DCService(cluster, cluster.Spec.DCs[0].Name), cluster.Namespace))
-	cassCfg.Authenticator = &gocql.PasswordAuthenticator{
-		Username: cluster.Spec.Cassandra.Auth.User,
-		Password: cluster.Spec.Cassandra.Auth.Password,
-	}
-
-	cassCfg.Timeout = 6 * time.Second
-	cassCfg.ConnectTimeout = 6 * time.Second
-	cassCfg.ProtoVersion = 4
-	cassCfg.Consistency = gocql.LocalQuorum
-
-	cassSession, err := cassCfg.CreateSession()
+func NewCQLClient(clusterConfig *gocql.ClusterConfig) (Client, error) {
+	cassSession, err := clusterConfig.CreateSession()
 	if err != nil {
 		return nil, err
 	}

@@ -20,6 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/go-logr/zapr"
+	"github.com/gocql/gocql"
 	operatorCfg "github.com/ibm/cassandra-operator/controllers/config"
 	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/ibm/cassandra-operator/controllers/logger"
@@ -109,13 +110,13 @@ func main() {
 		Clientset:    clientset,
 		RESTConfig:   restCfg,
 		ProberClient: func(host string) prober.Client { return prober.NewProberClient(host) },
-		CqlClient:    func(cluster *dbv1alpha1.CassandraCluster) (cql.Client, error) { return cql.NewCQLClient(cluster) },
+		CqlClient:    func(cluster *gocql.ClusterConfig) (cql.Client, error) { return cql.NewCQLClient(cluster) },
 		NodetoolClient: func(clientset *kubernetes.Clientset, config *rest.Config) nodetool.Client {
 			return nodetool.NewNodetoolClient(clientset, config)
 		},
 	}
 
-	err = controllers.SetupCassandraReconciler(cassandaReconciler, mgr)
+	err = controllers.SetupCassandraReconciler(cassandaReconciler, mgr, logr)
 	if err != nil {
 		logr.With(zap.Error(err)).Error("unable to create controller", "controller", "CassandraCluster")
 		os.Exit(1)

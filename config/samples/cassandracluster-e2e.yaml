@@ -4,27 +4,17 @@ metadata:
   name: ci-e2e
 spec:
   cassandra:
-    auth:
-      password: cassandra
-      user: cassandra
     image: us.icr.io/icm-cassandra/cassandra:3.11.8-0.18.3
     imagePullPolicy: IfNotPresent
-    usersDir: /etc/cassandra-users
+    numSeeds: 2
   cqlConfigMapLabelKey: cql-scripts
-  nodetoolUser: cassandra
   dcs:
     - name: cas-dc1
       replicas: 3
     - name: cas-dc2
       replicas: 3
-  hostPort:
-    enabled: false
   imagePullSecretName: icm-coreeng-pull-secret
-  jmx:
-    authentication: internal
-    ssl: false
   kwatcher:
-    enabled: true
     image: us.icr.io/icm-cassandra/cassandra-kwatcher:0.18.3
     imagePullPolicy: IfNotPresent
   prober:
@@ -34,7 +24,6 @@ spec:
     jolokia:
       image: us.icr.io/icm-docker-images/jolokia-proxy:1.6.2
       imagePullPolicy: IfNotPresent
-    serverPort: 8888
   reaper:
     image: thelastpickle/cassandra-reaper:2.0.5
     imagePullPolicy: IfNotPresent
@@ -77,20 +66,3 @@ spec:
       - system_auth
       - system_distributed
       - system_traces
-  monitoring:
-    enabled: true
-    port: 8090
-  config:
-    numSeeds: 2
-    seeds: [ ]
-    rackName: RAC1
-    preferLocal: true
-    maxHeapSize: 1024M
-    heapNewSize: 512M
-    migrationTaskWaitSeconds: 1
-    ringDelayMS: 30000
-    logLevel: INFO
-    maxGCPauseMillis: 500
-    g1RSetUpdatingPauseTimePercent: 5
-    initiatingHeapOccupancyPercent: 25
-    internalAuth: true

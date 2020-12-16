@@ -20,6 +20,10 @@ func (r *CassandraClusterReconciler) reconcileKwatcherClusterRole(ctx context.Co
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   names.KwatcherClusterRole(cc),
 			Labels: labels.CombinedComponentLabels(cc, v1alpha1.CassandraClusterComponentKwatcher),
+			Annotations: map[string]string{
+				annotationCassandraClusterName:      cc.Name,
+				annotationCassandraClusterNamespace: cc.Namespace,
+			},
 		},
 		Rules: []rbac.PolicyRule{
 			{
@@ -44,6 +48,7 @@ func (r *CassandraClusterReconciler) reconcileKwatcherClusterRole(ctx context.Co
 		r.Log.Debug(compare.DiffClusterRole(actualCR, desiredCR))
 		actualCR.Rules = desiredCR.Rules
 		actualCR.Labels = desiredCR.Labels
+		actualCR.Annotations = desiredCR.Annotations
 		if err = r.Update(ctx, actualCR); err != nil {
 			return errors.Wrap(err, "Could not Update kwatcher clusterrole")
 		}

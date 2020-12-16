@@ -19,6 +19,7 @@ package integration
 import (
 	"context"
 	"github.com/go-logr/zapr"
+	"github.com/gocql/gocql"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers"
 	"github.com/ibm/cassandra-operator/controllers/config"
@@ -103,8 +104,12 @@ var _ = BeforeSuite(func(done Done) {
 	err = dbv1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	operatorConfig = config.Config{
-		Namespace:  "default",
-		RetryDelay: time.Millisecond * 50,
+		Namespace:             "default",
+		RetryDelay:            time.Millisecond * 50,
+		DefaultCassandraImage: "cassandra/image",
+		DefaultProberImage:    "prober/image",
+		DefaultJolokiaImage:   "jolokia/image",
+		DefaultKwatcherImage:  "kwatcher/image",
 	}
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).ToNot(HaveOccurred())
@@ -124,7 +129,7 @@ var _ = BeforeSuite(func(done Done) {
 		ProberClient: func(host string) prober.Client {
 			return mockProberClient
 		},
-		CqlClient: func(cluster *dbv1alpha1.CassandraCluster) (cql.Client, error) {
+		CqlClient: func(clusterConfig *gocql.ClusterConfig) (cql.Client, error) {
 			return mockCQLClient, nil
 		},
 		NodetoolClient: func(clientset *kubernetes.Clientset, config *rest.Config) nodetool.Client {
@@ -134,7 +139,7 @@ var _ = BeforeSuite(func(done Done) {
 	}
 
 	testReconciler := SetupTestReconcile(cassandraCtrl)
-	err = controllers.SetupCassandraReconciler(testReconciler, mgr)
+	err = controllers.SetupCassandraReconciler(testReconciler, mgr, nil)
 	Expect(err).ToNot(HaveOccurred())
 
 	mgrStopCh = StartTestManager(mgr)
@@ -256,4 +261,14 @@ func CleanUpCreatedResources(ccName, ccNamespace string) {
 
 	err = k8sClient.DeleteAllOf(context.Background(), &v1.Secret{}, client.InNamespace(ccNamespace), hasCassandraLabel)
 	Expect(err).To(haveNoErrorOrNotFoundError)
+}
+
+func getContainerByName(pod v1.PodSpec, containerName string) (v1.Container, bool) {
+	for _, container := range pod.Containers {
+		if container.Name == containerName {
+			return container, true
+		}
+	}
+
+	return v1.Container{}, false
 }

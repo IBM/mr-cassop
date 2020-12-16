@@ -3,7 +3,6 @@ package controllers
 import (
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	v1 "k8s.io/api/core/v1"
-	"strconv"
 )
 
 func createAuthVolumes(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) []v1.Volume {
@@ -31,10 +30,10 @@ func createCassandraAuth(cc *dbv1alpha1.CassandraCluster) v1.Container {
 		ImagePullPolicy: cc.Spec.Cassandra.ImagePullPolicy,
 		Env: []v1.EnvVar{
 			// Used in probe.sh and readinessrc.sh scripts
-			{Name: "CASSANDRA_JMX_AUTH", Value: strconv.FormatBool(cc.Spec.Jmx.Authentication == "local_files" || cc.Spec.Jmx.Authentication == "internal")},
-			{Name: "CASSANDRA_JMX_SSL", Value: strconv.FormatBool(cc.Spec.Jmx.SSL)},
-			{Name: "CASSANDRA_INTERNAL_AUTH", Value: strconv.FormatBool(cc.Spec.Config.InternalAuth || cc.Spec.Jmx.Authentication == "internal")},
-			{Name: "USERS_DIR", Value: cc.Spec.Cassandra.UsersDir},
+			{Name: "CASSANDRA_JMX_AUTH", Value: "true" /*strconv.FormatBool(cc.Spec.JMX.Authentication == "local_files" || cc.Spec.JMX.Authentication == "internal")*/},
+			{Name: "CASSANDRA_JMX_SSL", Value: "false" /*strconv.FormatBool(cc.Spec.JMX.SSL)*/},
+			{Name: "CASSANDRA_INTERNAL_AUTH", Value: "true" /*strconv.FormatBool(cc.Spec.Cassandra.InternalAuth || cc.Spec.JMX.Authentication == "internal")*/},
+			{Name: "USERS_DIR", Value: cassandraUsersDir},
 		},
 		VolumeMounts:             sharedVolumeMounts(),
 		TerminationMessagePath:   "/dev/termination-log",

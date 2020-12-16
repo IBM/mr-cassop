@@ -37,7 +37,7 @@ func (r *CassandraClusterReconciler) reconcileCassandra(ctx context.Context, cc 
 
 func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context, cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) error {
 	stsLabels := labels.CombinedComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra)
-	stsLabels["datacenter"] = dc.Name
+	stsLabels = labels.WithDCLabel(stsLabels, dc.Name)
 	desiredSts := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      names.DC(cc, dc.Name),
@@ -47,7 +47,7 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 		Spec: appsv1.StatefulSetSpec{
 			ServiceName:         names.DCService(cc, dc.Name),
 			Replicas:            dc.Replicas,
-			Selector:            &metav1.LabelSelector{MatchLabels: labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra)},
+			Selector:            &metav1.LabelSelector{MatchLabels: stsLabels},
 			PodManagementPolicy: appsv1.OrderedReadyPodManagement,
 			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
 				Type:          appsv1.RollingUpdateStatefulSetStrategyType,
@@ -56,7 +56,7 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 			RevisionHistoryLimit: proto.Int32(10),
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra),
+					Labels: stsLabels,
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
@@ -77,6 +77,7 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 								"-c",
 								getCassandraRunCommand(),
 							},
+							Resources: cc.Spec.Cassandra.Resources,
 							LivenessProbe: &v1.Probe{
 								Handler: v1.Handler{
 									TCPSocket: &v1.TCPSocketAction{
@@ -217,10 +218,12 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 }
 
 func (r *CassandraClusterReconciler) reconcileDCService(ctx context.Context, cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) error {
+	svcLabels := labels.CombinedComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra)
+	svcLabels = labels.WithDCLabel(svcLabels, dc.Name)
 	desiredService := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      names.DCService(cc, dc.Name),
-			Labels:    labels.CombinedComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra),
+			Labels:    svcLabels,
 			Namespace: cc.Namespace,
 		},
 		Spec: v1.ServiceSpec{
@@ -265,7 +268,7 @@ func (r *CassandraClusterReconciler) reconcileDCService(ctx context.Context, cc 
 			Type:                     v1.ServiceTypeClusterIP,
 			SessionAffinity:          v1.ServiceAffinityNone,
 			PublishNotReadyAddresses: true,
-			Selector:                 labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra),
+			Selector:                 svcLabels,
 		},
 	}
 
@@ -303,8 +306,8 @@ func getSeedsList(cc *dbv1alpha1.CassandraCluster) []string {
 	seedsList := make([]string, 0)
 	for _, dc := range cc.Spec.DCs {
 		seedsCount := *dc.Replicas
-		if seedsCount > cc.Spec.Config.NumSeeds {
-			seedsCount = cc.Spec.Config.NumSeeds
+		if seedsCount > cc.Spec.Cassandra.NumSeeds {
+			seedsCount = cc.Spec.Cassandra.NumSeeds
 		}
 
 		for i := int32(0); i < seedsCount; i++ {

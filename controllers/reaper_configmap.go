@@ -94,11 +94,11 @@ func autoSchedulingOpts(cc *v1alpha1.CassandraCluster) map[string]string {
 
 func javaOpts(cc *v1alpha1.CassandraCluster) string {
 	options := ""
-	if cc.Spec.Jmx.SSL {
-		options += "-Dssl.enable=true"
-	}
+	//if cc.Spec.JMX.SSL {
+	//	options += "-Dssl.enable=true"
+	//}
 	/* TODO: SSL
-	if cc.Spec.Jmx.SSL || cc.Spec.CassandraYaml["client_encryption_options"].(map[string]interface{})["enabled"].(bool) {
+	if cc.Spec.JMX.SSL || cc.Spec.CassandraYaml["client_encryption_options"].(map[string]interface{})["enabled"].(bool) {
 		options += CassandraClientTlsJvmArgs(cc)
 	}
 	*/

@@ -111,11 +111,10 @@ func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Conte
 					Containers: []v1.Container{
 						reaperContainer(cc, dc),
 					},
-					Volumes:          reaperVolumes(cc, dc),
-					ImagePullSecrets: imagePullSecrets(cc),
-					// TODO: include CRD fields once we have defaults working
-					Tolerations:                   nil, // cc.Spec.Reaper.Tolerations,
-					NodeSelector:                  nil, // cc.Spec.Reaper.NodeSelector,
+					Volumes:                       reaperVolumes(cc, dc),
+					ImagePullSecrets:              imagePullSecrets(cc),
+					Tolerations:                   cc.Spec.Reaper.Tolerations,
+					NodeSelector:                  cc.Spec.Reaper.NodeSelector,
 					RestartPolicy:                 v1.RestartPolicyAlways,
 					TerminationGracePeriodSeconds: proto.Int64(30),
 					DNSPolicy:                     v1.DNSClusterFirst,
@@ -222,9 +221,10 @@ func (r CassandraClusterReconciler) reconcileScheduleRepairs(ctx context.Context
 		if err := rescheduleTimestamp(&repair); err != nil {
 			return errors.Wrap(err, "Error rescheduling repair")
 		}
-		if repair.Owner == "" {
-			repair.Owner = cc.Spec.NodetoolUser // Default owner to nodetool user
-		}
+		repair.Owner = dbv1alpha1.CassandraUsername
+		//if repair.Owner == "" { //TODO part of auth implementation
+		//	repair.Owner = cc.Spec.NodetoolUser // Default owner to nodetool user
+		//}
 		err := reaperClient.ScheduleRepair(ctx, cc.Name, repair)
 		if err != nil {
 			return errors.Wrapf(err, "Error scheduling repair on keyspace %s", repair.Keyspace)
@@ -360,11 +360,11 @@ func reaperVolumes(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) []v1.Volum
 
 func getReaperSeed(cc *dbv1alpha1.CassandraCluster) string {
 	seed := ""
-	if len(cc.Spec.Config.Seeds) > 0 {
-		seed = cc.Spec.Config.Seeds[0]
-	} else {
-		seed = getSeed(cc, cc.Spec.DCs[0].Name, 0)
-	}
+	//if len(cc.Spec.Config.Seeds) > 0 {
+	//	seed = cc.Spec.Config.Seeds[0]
+	//} else {
+	seed = getSeed(cc, cc.Spec.DCs[0].Name, 0)
+	//}
 	return seed
 }
 
