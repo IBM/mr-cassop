@@ -48,12 +48,6 @@ jobs:
           registry: ${{ env.DOCKER_PROXY_REGISTRY }}
           username: ${{ env.DOCKER_PROXY_USER }}
           password: ${{ env.DOCKER_PROXY_PASS }}
-      - uses: satackey/action-docker-layer-caching@b983974a88fdf77424203b546b8f0e818f426420 # v0.0.10
-        continue-on-error: true
-        with:
-          key: docker-layers-${{ github.job }}-${{ hashFiles('Dockerfile') }}
-          restore-keys: |
-            docker-layers-${{ github.job }}-
       - name: Build Image
         run: |
           docker build -t "us.icr.io/icm-cassandra/cassandra-operator:$GITHUB_REF_SLUG" \
@@ -106,24 +100,24 @@ jobs:
           kubectl rollout status deployment cassandra-operator
           kubectl apply -f config/samples/cassandracluster-e2e.yaml && sleep 30
           kubectl rollout status deployment ci-e2e-cassandra-prober && sleep 30
-          kubectl rollout status sts ci-e2e-cassandra-cas-dc1
-          kubectl rollout status sts ci-e2e-cassandra-cas-dc2 && sleep 30
-          kubectl rollout status deployment ci-e2e-cassandra-cas-dc1-kwatcher
-          kubectl rollout status deployment ci-e2e-cassandra-cas-dc2-kwatcher
-          kubectl rollout status deployment ci-e2e-cassandra-cas-dc1-reaper
-          kubectl rollout status deployment ci-e2e-cassandra-cas-dc2-reaper
+          kubectl rollout status sts ci-e2e-cassandra-dc1
+          kubectl rollout status sts ci-e2e-cassandra-dc2 && sleep 30
+          kubectl rollout status deployment ci-e2e-cassandra-dc1-kwatcher
+          kubectl rollout status deployment ci-e2e-cassandra-dc2-kwatcher && sleep 30
+          kubectl rollout status deployment ci-e2e-cassandra-dc1-reaper --timeout=5m
       - name: Job has failed, showing debug info
         if: ${{ failure() }}
         run: |
           sleep 30
           kubectl get svc,deployments,sts,po
-          kubectl logs -l operator=cassandra-operator --tail=20
-          kubectl logs ci-e2e-cassandra-cas-dc1-0 --tail=20
-          kubectl logs ci-e2e-cassandra-cas-dc1-1 --tail=20
-          kubectl logs ci-e2e-cassandra-cas-dc1-2 --tail=20
-          kubectl logs ci-e2e-cassandra-cas-dc2-0 --tail=20
-          kubectl logs ci-e2e-cassandra-cas-dc2-1 --tail=20
-          kubectl logs ci-e2e-cassandra-cas-dc2-2 --tail=20
+          kubectl logs deployment/cassandra-operator --tail=20
+          kubectl logs ci-e2e-cassandra-dc1-0 --tail=20
+          kubectl logs ci-e2e-cassandra-dc1-1 --tail=20
+          kubectl logs ci-e2e-cassandra-dc1-2 --tail=20
+          kubectl logs ci-e2e-cassandra-dc2-0 --tail=20
+          kubectl logs ci-e2e-cassandra-dc2-1 --tail=20
+          kubectl logs ci-e2e-cassandra-dc2-2 --tail=20
+          kubectl logs deployment/ci-e2e-cassandra-reaper-dc1 --tail=20
       - name: Cleanup Deployment
         if: ${{ always() }}
         run: |
