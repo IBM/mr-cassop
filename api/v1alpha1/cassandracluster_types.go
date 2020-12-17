@@ -67,7 +67,7 @@ type Reaper struct {
 	// +kubebuilder:validation:Enum=Always;Never;IfNotPresent
 	ImagePullPolicy v1.PullPolicy `json:"imagePullPolicy,omitempty"`
 	// +kubebuilder:validation:MinLength=1
-	Keyspace string `json:"keyspace"`
+	Keyspace string `json:"keyspace,omitempty"`
 	DCs      []DC   `json:"dcs,omitempty"`
 	// +kubebuilder:validation:Enum=each
 	DatacenterAvailability                 string                  `json:"datacenterAvailability,omitempty"`

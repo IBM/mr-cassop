@@ -261,7 +261,7 @@ func jolokiaContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 		Ports: []v1.ContainerPort{
 			{
 				Name:          "jolokia",
-				ContainerPort: 8080,
+				ContainerPort: jolokiaContainerPort,
 				Protocol:      v1.ProtocolTCP,
 			},
 		},

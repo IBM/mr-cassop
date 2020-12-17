@@ -8,6 +8,8 @@ import (
 	"github.com/ibm/cassandra-operator/controllers/names"
 	"github.com/ibm/cassandra-operator/controllers/util"
 	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strconv"
 	"strings"
@@ -15,8 +17,13 @@ import (
 
 func (r *CassandraClusterReconciler) reconcileReaperConfigMap(ctx context.Context, cc *v1alpha1.CassandraCluster) error {
 	for _, dc := range cc.Spec.DCs {
-		desiredCM := createConfigMap(names.ReaperConfigMap(cc, dc.Name), cc.Namespace,
-			labels.CombinedComponentLabels(cc, v1alpha1.CassandraClusterComponentReaper), nil)
+		desiredCM := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      names.ReaperConfigMap(cc, dc.Name),
+				Namespace: cc.Namespace,
+				Labels:    labels.CombinedComponentLabels(cc, v1alpha1.CassandraClusterComponentReaper),
+			},
+		}
 		reaperData := reaperConfigMapData(cc, dc)
 		schedulingOpts := autoSchedulingOpts(cc)
 		if schedulingOpts != nil {

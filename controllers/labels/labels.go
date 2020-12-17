@@ -34,6 +34,6 @@ func InheritLabels(instance *v1alpha1.CassandraCluster) (m map[string]string) {
 
 func WithDCLabel(labels map[string]string, dcName string) map[string]string {
 	labels[v1alpha1.CassandraClusterDC] = dcName
-	labels["datacenter"] = dcName //for prober compatibility
+	labels["datacenter"] = dcName // for prober compatibility
 	return labels
 }

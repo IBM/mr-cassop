@@ -1,10 +1,7 @@
 ---
 title: Development
-hide_title: true
 slug: /development
 ---
-
-# Development
 
 ### Requirements:
 
@@ -16,8 +13,10 @@ slug: /development
 * [docker](https://docs.docker.com/install/)
 * [goimports](https://godoc.org/golang.org/x/tools/cmd/goimports)
 * [GolangCI-Lint](https://github.com/golangci/golangci-lint) 1.19.1+
+* [kubebuilder](https://github.com/kubernetes-sigs/kubebuilder) to setup test environment
+* [gomock](https://github.com/golang/mock)
 
-## Run the operator locally
+## Run Operator Locally
 
 The operator can be run only using the whole Helm chart with all necessary components. The operator interacts with Cassandra clusters so it has to live in the cluster. It is not possible to run the operator having the binary locally (the `make run` way).
 
@@ -42,6 +41,16 @@ Once the cluster is up and running, use the sample in `config/samples/cassandrac
 
 If all set correctly, you should see the components getting created.
 
+## Tests
+
+To run tests, simply run `make test` from command line.
+
+It will run the usual Go unit and integration tests, which utilize [testenv](https://book.kubebuilder.io/reference/envtest.html) to execute the test against on a semi-real Kubernetes cluster. `testenv` requires assets that are installed with `kubebuilder`, so it must installed first.
+
+Integration tests use the Ginkgo framework and are located in `./test/integration`. Ginkgo has its own [options]([Ginkgo flags](https://onsi.github.io/ginkgo/#the-ginkgo-cli)) that can be arguments to `go test`. For example, to run a specific test (`--focus` option):
+
+`go test ./test/integration -ginkgo.focus="regex matcher"` 
+
 ## Docs
 
 To download and run docs locally, clone the repo and then go to the docs directory:
@@ -62,14 +71,8 @@ Then install the dependencies:
 npm install
 ```
 
-Now, there are actually 2 ways to built and serve the documentation locally (use either the first _OR_ the second option):
+To build and serve the documentation locally, run the command:
 
-1. If you just want to view/read documentation:
-   ```console
-   npm run serve
-   ```
-
-1. If you develop the documentation and want to watch the changes:
-   ```console
-   npm run dev
-   ```
+```console
+npm start
+```

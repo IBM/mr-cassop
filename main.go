@@ -105,7 +105,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	cassandaReconciler := &controllers.CassandraClusterReconciler{
+	cassandraReconciler := &controllers.CassandraClusterReconciler{
 		Client:       mgr.GetClient(),
 		Log:          logr,
 		Scheme:       mgr.GetScheme(),
@@ -119,8 +119,7 @@ func main() {
 		},
 		ReaperClient: func(url *url.URL) reaper.ReaperClient { return reaper.NewReaperClient(url, http.DefaultClient) },
 	}
-
-	err = controllers.SetupCassandraReconciler(cassandaReconciler, mgr, logr)
+	err = controllers.SetupCassandraReconciler(cassandraReconciler, mgr, logr)
 	if err != nil {
 		logr.With(zap.Error(err)).Error("unable to create controller", "controller", "CassandraCluster")
 		os.Exit(1)

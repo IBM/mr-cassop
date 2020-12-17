@@ -29,8 +29,13 @@ type ReplicationFactor struct {
 }
 
 func (r *CassandraClusterReconciler) reconcileKwatcherKeyspaceConfigMap(ctx context.Context, cc *v1alpha1.CassandraCluster) error {
-	desiredCM := createConfigMap(names.KeyspaceConfigMap(cc), cc.Namespace,
-		labels.CombinedComponentLabels(cc, v1alpha1.CassandraClusterComponentKwatcher), nil)
+	desiredCM := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      names.KeyspaceConfigMap(cc),
+			Namespace: cc.Namespace,
+			Labels:    labels.CombinedComponentLabels(cc, v1alpha1.CassandraClusterComponentKwatcher),
+		},
+	}
 	data := make(map[string]string)
 	for _, keyspaceName := range cc.Spec.SystemKeyspaces.Names {
 		replicationFactor := make([]ReplicationFactor, 0, len(cc.Spec.SystemKeyspaces.DCs))

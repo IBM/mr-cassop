@@ -8,6 +8,7 @@ import (
 	"github.com/ibm/cassandra-operator/controllers/names"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
@@ -17,8 +18,14 @@ func (r *CassandraClusterReconciler) reconcileScriptsConfigMap(ctx context.Conte
 	if err != nil {
 		return err
 	}
-	desiredCM := createConfigMap(names.ScriptsConfigMap(cc), cc.Namespace,
-		labels.CombinedComponentLabels(cc, v1alpha1.CassandraClusterComponentCassandra), operatorCM.Data)
+	desiredCM := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      names.ScriptsConfigMap(cc),
+			Namespace: cc.Namespace,
+			Labels:    labels.CombinedComponentLabels(cc, v1alpha1.CassandraClusterComponentCassandra),
+		},
+		Data: operatorCM.Data,
+	}
 	if err := controllerutil.SetControllerReference(cc, desiredCM, r.Scheme); err != nil {
 		return errors.Wrap(err, "Cannot set controller reference")
 	}

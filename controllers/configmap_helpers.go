@@ -6,21 +6,8 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
-
-func createConfigMap(name string, namespace string, labels, data map[string]string) *v1.ConfigMap {
-	desiredCM := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels:    labels,
-		},
-		Data: data,
-	}
-	return desiredCM
-}
 
 func (r *CassandraClusterReconciler) getConfigMap(ctx context.Context, name, namespace string) (*v1.ConfigMap, error) {
 	cm := &v1.ConfigMap{}

@@ -158,7 +158,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 
 	readyAllDCs, err := proberClient.ReadyAllDCs(ctx)
 	if err != nil {
-		r.Log.Warnf("Prober request failed: %#v. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
+		r.Log.Warnf("Prober request failed: %s. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
 		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 	}
 
@@ -196,7 +196,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	}
 	r.Log.Info("Users has been created")
 
-	if err := r.reconcileCQLConfigMaps(ctx, cc, cqlClient, ntClient); err != nil {
+	if err = r.reconcileCQLConfigMaps(ctx, cc, cqlClient, ntClient); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile CQL config maps")
 	}
 
@@ -277,6 +277,10 @@ func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.Cass
 
 	if cc.Spec.Reaper == nil {
 		cc.Spec.Reaper = &dbv1alpha1.Reaper{}
+	}
+
+	if cc.Spec.Reaper.Keyspace == "" {
+		cc.Spec.Reaper.Keyspace = "reaper_db"
 	}
 
 	if cc.Spec.Reaper.Image == "" {

@@ -84,6 +84,7 @@ func TestDefaultingFunction(t *testing.T) {
 	g.Expect(cc.Spec.Kwatcher.Image).To(gomega.Equal("kwatcher/image"))
 	g.Expect(cc.Spec.Kwatcher.ImagePullPolicy).To(gomega.Equal(v1.PullIfNotPresent))
 	g.Expect(cc.Spec.Reaper).ToNot(gomega.BeNil())
+	g.Expect(cc.Spec.Reaper.Keyspace).To(gomega.Equal("reaper_db"))
 	g.Expect(cc.Spec.Reaper.Image).To(gomega.Equal("reaper/image"))
 	g.Expect(cc.Spec.Reaper.ImagePullPolicy).To(gomega.Equal(v1.PullIfNotPresent))
 	g.Expect(cc.Spec.Reaper.DatacenterAvailability).To(gomega.Equal("each"))
@@ -111,10 +112,10 @@ func TestDefaultingFunction(t *testing.T) {
 		},
 	}
 	reconciler.defaultCassandraCluster(cc)
+	g.Expect(cc.Spec.Reaper.DCs).To(gomega.Equal(cc.Spec.DCs))
 	g.Expect(cc.Spec.Reaper.ScheduleRepairs.Repairs[0].Keyspace).To(gomega.Equal("system_auth"))
 	g.Expect(cc.Spec.Reaper.ScheduleRepairs.Repairs[0].RepairParallelism).To(gomega.Equal("datacenter_aware"))
 	g.Expect(cc.Spec.Reaper.ScheduleRepairs.Repairs[0].ScheduleDaysBetween).To(gomega.Equal(int32(7)))
 	g.Expect(cc.Spec.Reaper.ScheduleRepairs.Repairs[0].Datacenters).To(gomega.Equal([]string{"dc1"}))
 	g.Expect(cc.Spec.Reaper.ScheduleRepairs.Repairs[0].RepairThreadCount).To(gomega.Equal(int32(2)))
-
 }

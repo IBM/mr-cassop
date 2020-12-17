@@ -454,26 +454,6 @@ var _ = Describe("cassandracluster validation", func() {
 		})
 	})
 
-	Context(".spec.systemKeyspaces.reaper.keyspace", func() {
-		It("can't be empty", func() {
-			cc := &v1alpha1.CassandraCluster{
-				ObjectMeta: cassandraObjectMeta,
-				Spec: v1alpha1.CassandraClusterSpec{
-					DCs: []v1alpha1.DC{
-						{
-							Name:     "dc1",
-							Replicas: proto.Int32(3),
-						},
-					},
-					ImagePullSecretName: "pullSecretName",
-					Reaper:              &v1alpha1.Reaper{},
-				},
-			}
-			err := k8sClient.Create(ctx, cc)
-			expectToBeInvalidError(err)
-		})
-	})
-
 	Context("reaper with only .spec.systemKeyspaces.reaper.keyspace specified", func() {
 		It("should work", func() {
 			cc := &v1alpha1.CassandraCluster{

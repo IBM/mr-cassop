@@ -6,4 +6,4 @@ slug: /
 
 # Cassandra Operator
 
-Cassandra operator docs
+Cassandra Operator deploys, configures and manages Cassandra clusters in Kubernetes.

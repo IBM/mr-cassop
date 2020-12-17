@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.3.0
+    controller-gen.kubebuilder.io/version: v0.2.8
   creationTimestamp: null
   name: cassandraclusters.db.ibm.com
 spec:
@@ -415,8 +415,6 @@ spec:
                           type: string
                       type: object
                     type: array
-                required:
-                - keyspace
                 type: object
               systemKeyspaces:
                 properties:

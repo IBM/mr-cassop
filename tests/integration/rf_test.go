@@ -62,7 +62,6 @@ var _ = Describe("rf settings", func() {
 	Context("if doesn't match the spec", func() {
 		It("should be updated", func() {
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-
 			mockProberClient.err = nil
 			mockProberClient.readyAllDCs = true
 			mockProberClient.ready = true

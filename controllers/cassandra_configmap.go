@@ -10,6 +10,7 @@ import (
 	"github.com/ibm/cassandra-operator/controllers/util"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/yaml"
 	"strings"
@@ -21,8 +22,13 @@ func (r *CassandraClusterReconciler) reconcileCassandraConfigMap(ctx context.Con
 		return err
 	}
 	for _, dc := range cc.Spec.DCs {
-		desiredCM := createConfigMap(names.ConfigMap(cc, dc.Name), cc.Namespace,
-			labels.CombinedComponentLabels(cc, v1alpha1.CassandraClusterComponentCassandra), nil)
+		desiredCM := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      names.ConfigMap(cc, dc.Name),
+				Namespace: cc.Namespace,
+				Labels:    labels.CombinedComponentLabels(cc, v1alpha1.CassandraClusterComponentCassandra),
+			},
+		}
 		cmData, err := generateCassandraDcData(cc, dc.Name, operatorCM.Data)
 		if err != nil {
 			return err
