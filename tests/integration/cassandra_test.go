@@ -26,7 +26,7 @@ var _ = Describe("operator configmaps", func() {
 	})
 })
 
-var _ = Describe("prober, statefulsets, kwatcher and reaper", func() {
+var _ = Describe("cassandra statefulset deployment", func() {
 	cc := &v1alpha1.CassandraCluster{
 		ObjectMeta: cassandraObjectMeta,
 		Spec: v1alpha1.CassandraClusterSpec{
@@ -52,6 +52,7 @@ var _ = Describe("prober, statefulsets, kwatcher and reaper", func() {
 			mockProberClient.readyAllDCs = true
 			mockProberClient.ready = true
 			mockNodetoolClient.err = nil
+			mockReaperClient.err = nil
 			mockCQLClient.err = nil
 			mockCQLClient.cassandraUsers = []cql.CassandraUser{{Role: "cassandra", IsSuperuser: true}}
 			mockCQLClient.keyspaces = []cql.Keyspace{{
@@ -78,7 +79,6 @@ var _ = Describe("prober, statefulsets, kwatcher and reaper", func() {
 				Expect(sts.Spec.Selector.MatchLabels).To(BeEquivalentTo(cassandraLabels))
 				Expect(sts.Spec.ServiceName).To(Equal("test-cassandra-cluster" + "-cassandra-" + dc.Name))
 				Expect(sts.Spec.Template.Labels).To(Equal(cassandraLabels))
-				Expect(sts.OwnerReferences[0].UID).To(Equal(cc.UID))
 				Expect(sts.OwnerReferences[0].Controller).To(Equal(proto.Bool(true)))
 				Expect(sts.OwnerReferences[0].Kind).To(Equal("CassandraCluster"))
 				Expect(sts.OwnerReferences[0].APIVersion).To(Equal("db.ibm.com/v1alpha1"))

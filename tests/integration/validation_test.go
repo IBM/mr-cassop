@@ -454,28 +454,7 @@ var _ = Describe("cassandracluster validation", func() {
 		})
 	})
 
-	Context("reaper with only .spec.systemKeyspaces.reaper.keyspace specified", func() {
-		It("should work", func() {
-			cc := &v1alpha1.CassandraCluster{
-				ObjectMeta: cassandraObjectMeta,
-				Spec: v1alpha1.CassandraClusterSpec{
-					DCs: []v1alpha1.DC{
-						{
-							Name:     "dc1",
-							Replicas: proto.Int32(3),
-						},
-					},
-					ImagePullSecretName: "pullSecretName",
-					Reaper: &v1alpha1.Reaper{
-						Keyspace: "system_auth",
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-		})
-	})
-
-	Context(".spec.systemKeyspaces.reaper.datacenterAvailability", func() {
+	Context(".spec.reaper.datacenterAvailability", func() {
 		It("can't be invalid", func() {
 			cc := &v1alpha1.CassandraCluster{
 				ObjectMeta: cassandraObjectMeta,
@@ -531,6 +510,28 @@ var _ = Describe("cassandracluster validation", func() {
 							Image:           "jolokia/image",
 							ImagePullPolicy: v1.PullAlways,
 						},
+					},
+					Reaper: &v1alpha1.Reaper{
+						Image:           "reaper/image",
+						ImagePullPolicy: v1.PullAlways,
+						Keyspace:        "reaper_db",
+						DCs: []v1alpha1.DC{
+							{
+								Name:     "dc1",
+								Replicas: proto.Int32(1),
+							},
+							{
+								Name:     "dc2",
+								Replicas: proto.Int32(2),
+							},
+						},
+						DatacenterAvailability:                 "each",
+						Tolerations:                            nil,
+						NodeSelector:                           nil,
+						IncrementalRepair:                      false,
+						RepairIntensity:                        "1.0",
+						RepairManagerSchedulingIntervalSeconds: 0,
+						BlacklistTWCS:                          false,
 					},
 					CQLConfigMapLabelKey: "cql-label-key",
 					SystemKeyspaces: v1alpha1.SystemKeyspaces{

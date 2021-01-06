@@ -57,7 +57,6 @@ var _ = Describe("prober deployment", func() {
 			Expect(deployment.Spec.Replicas).To(Equal(proto.Int32(1)))
 			Expect(deployment.Spec.Selector.MatchLabels).To(BeEquivalentTo(proberLabels))
 			Expect(deployment.Spec.Template.Labels).To(Equal(proberLabels))
-			Expect(deployment.OwnerReferences[0].UID).To(Equal(cc.UID))
 			Expect(deployment.OwnerReferences[0].Controller).To(Equal(proto.Bool(true)))
 			Expect(deployment.OwnerReferences[0].Kind).To(Equal("CassandraCluster"))
 			Expect(deployment.OwnerReferences[0].APIVersion).To(Equal("db.ibm.com/v1alpha1"))

@@ -45,7 +45,6 @@ var _ = Describe("kwatcher deployment", func() {
 			}}
 
 			deployment := &appsv1.Deployment{}
-
 			for _, dc := range cc.Spec.DCs {
 				kwatcherLabels := map[string]string{
 					"cassandra-cluster-component": "kwatcher",
@@ -61,16 +60,15 @@ var _ = Describe("kwatcher deployment", func() {
 				Expect(deployment.Spec.Replicas).To(Equal(proto.Int32(1)))
 				Expect(deployment.Spec.Selector.MatchLabels).To(BeEquivalentTo(kwatcherLabels))
 				Expect(deployment.Spec.Template.Labels).To(Equal(kwatcherLabels))
-				Expect(deployment.OwnerReferences[0].UID).To(Equal(cc.UID))
 				Expect(deployment.OwnerReferences[0].Controller).To(Equal(proto.Bool(true)))
 				Expect(deployment.OwnerReferences[0].Kind).To(Equal("CassandraCluster"))
 				Expect(deployment.OwnerReferences[0].APIVersion).To(Equal("db.ibm.com/v1alpha1"))
 				Expect(deployment.OwnerReferences[0].Name).To(Equal(cc.Name))
 				Expect(deployment.OwnerReferences[0].BlockOwnerDeletion).To(Equal(proto.Bool(true)))
-				proberContainer, found := getContainerByName(deployment.Spec.Template.Spec, "kwatcher")
+				kwatcherContainer, found := getContainerByName(deployment.Spec.Template.Spec, "kwatcher")
 				Expect(found).To(BeTrue())
-				Expect(proberContainer.Image).To(Equal(operatorConfig.DefaultKwatcherImage), "default values")
-				Expect(proberContainer.ImagePullPolicy).To(Equal(v1.PullIfNotPresent), "default values")
+				Expect(kwatcherContainer.Image).To(Equal(operatorConfig.DefaultKwatcherImage), "default values")
+				Expect(kwatcherContainer.ImagePullPolicy).To(Equal(v1.PullIfNotPresent), "default values")
 			}
 		})
 	})

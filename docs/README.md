@@ -22,5 +22,5 @@ npm install
 
 To build and serve the documentation locally, run the following:
 ```console
-npm run start
+npm start
 ```

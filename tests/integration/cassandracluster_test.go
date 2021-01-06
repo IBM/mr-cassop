@@ -12,13 +12,14 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"strings"
 	"time"
 )
 
 var _ = Describe("operator configmaps", func() {
 	Context("when tests start", func() {
 		It("should exist", func() {
-			for _, cmName := range []string{names.OperatorCassandraConfigCM(), names.OperatorProberSourcesCM(), names.OperatorScriptsCM()} {
+			for _, cmName := range []string{names.OperatorCassandraConfigCM(), names.OperatorProberSourcesCM(), names.OperatorScriptsCM(), names.OperatorShiroCM()} {
 				cm := &v1.ConfigMap{}
 				err := k8sClient.Get(context.Background(), types.NamespacedName{Name: cmName, Namespace: operatorConfig.Namespace}, cm)
 				Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("ConfigMap %q should exist", cmName))
@@ -27,7 +28,7 @@ var _ = Describe("operator configmaps", func() {
 	})
 })
 
-var _ = Describe("prober, statefulsets and kwatcher", func() {
+var _ = Describe("prober, statefulsets, kwatcher and reaper", func() {
 	cc := &v1alpha1.CassandraCluster{
 		ObjectMeta: cassandraObjectMeta,
 		Spec: v1alpha1.CassandraClusterSpec{
@@ -116,9 +117,14 @@ exec cassandra -R -f -Dcassandra.jmx.remote.port=7199 -Dcom.sun.management.jmxre
 				}))
 			}
 
-			By("kwatcher shouldn't be deployed until DCs ready")
+			By("kwatcher shouldn't be deployed until all DCs ready")
 			Consistently(func() error {
 				return k8sClient.Get(context.Background(), types.NamespacedName{Name: names.KwatcherDeployment(cc, cc.Spec.DCs[0].Name), Namespace: cc.Namespace}, &appsv1.Deployment{})
+			}, time.Second*1, time.Millisecond*100).ShouldNot(Succeed())
+
+			By("reaper shouldn't be deployed until all DCs ready")
+			Consistently(func() error {
+				return k8sClient.Get(context.Background(), types.NamespacedName{Name: names.ReaperDeployment(cc, cc.Spec.DCs[0].Name), Namespace: cc.Namespace}, &appsv1.Deployment{})
 			}, time.Second*1, time.Millisecond*100).ShouldNot(Succeed())
 
 			By("kwatcher should be deployed after DCs ready")
@@ -139,6 +145,42 @@ exec cassandra -R -f -Dcassandra.jmx.remote.port=7199 -Dcom.sun.management.jmxre
 					"-redact",
 					"-repairjobimage", "cassandra/image",
 					"-port", "9042",
+				}))
+			}
+
+			By("reaper should be deployed after DCs ready")
+			mockReaperClient.isRunning = false
+			mockReaperClient.err = nil
+			for _, dc := range cc.Spec.DCs {
+				reaperDeployment := &appsv1.Deployment{}
+				Eventually(func() error {
+					return k8sClient.Get(context.Background(), types.NamespacedName{Name: names.ReaperDeployment(cc, dc.Name), Namespace: cc.Namespace}, reaperDeployment)
+				}, time.Second*10, time.Millisecond*100).Should(Succeed())
+
+				Expect(reaperDeployment.Spec.Template.Spec.Containers[0].Args).Should(Equal([]string{
+					"sh",
+					"-c",
+					strings.Join([]string{
+						"export $(cat /etc/reaper-auth/auth.env);",
+						"/usr/local/bin/entrypoint.sh cassandra-reaper;",
+					}, "\n"),
+				}))
+
+				Expect(reaperDeployment.Spec.Template.Spec.Containers[0].Env).Should(BeEquivalentTo([]v1.EnvVar{
+					{Name: "REAPER_CASS_ACTIVATE_QUERY_LOGGER", Value: "true"},
+					{Name: "REAPER_LOGGING_ROOT_LEVEL", Value: "INFO"},
+					{Name: "REAPER_LOGGING_APPENDERS_CONSOLE_THRESHOLD", Value: "INFO"},
+					{Name: "REAPER_DATACENTER_AVAILABILITY", Value: "each"},
+					{Name: "REAPER_REPAIR_INTENSITY", Value: "1.0"},
+					{Name: "REAPER_REPAIR_MANAGER_SCHEDULING_INTERVAL_SECONDS", Value: "0"},
+					{Name: "REAPER_BLACKLIST_TWCS", Value: "false"},
+					{Name: "REAPER_CASS_CONTACT_POINTS", Value: fmt.Sprintf("[ %s ]", names.DC(cc, dc.Name))},
+					{Name: "REAPER_CASS_CLUSTER_NAME", Value: "cassandra"},
+					{Name: "REAPER_STORAGE_TYPE", Value: "cassandra"},
+					{Name: "REAPER_CASS_KEYSPACE", Value: "reaper_db"},
+					{Name: "REAPER_CASS_PORT", Value: "9042"},
+					{Name: "JAVA_OPTS", Value: ""},
+					{Name: "REAPER_SHIRO_INI", Value: "/shiro/shiro.ini"},
 				}))
 			}
 		})

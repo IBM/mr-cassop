@@ -316,9 +316,16 @@ func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.Cass
 			if repair.RepairParallelism == "" {
 				cc.Spec.Reaper.ScheduleRepairs.Repairs[i].RepairParallelism = "datacenter_aware"
 			}
+
+			// RepairParallelism must be 'parallel' if IncrementalRepair is 'true'
+			if repair.IncrementalRepair {
+				cc.Spec.Reaper.ScheduleRepairs.Repairs[i].RepairParallelism = "parallel"
+			}
+
 			if repair.ScheduleDaysBetween == 0 {
 				cc.Spec.Reaper.ScheduleRepairs.Repairs[i].ScheduleDaysBetween = 7
 			}
+
 			if len(repair.Datacenters) == 0 {
 				dcNames := make([]string, 0, len(cc.Spec.DCs))
 				for _, dc := range cc.Spec.DCs {

@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"github.com/ibm/cassandra-operator/controllers/compare"
+	"github.com/ibm/cassandra-operator/controllers/util"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,16 +31,21 @@ func (r *CassandraClusterReconciler) reconcileConfigMap(ctx context.Context, des
 		}
 	} else if err != nil {
 		return errors.Wrapf(err, "Could not get %s", desiredCM.Name)
-	} else if !compare.EqualConfigMap(actualCM, desiredCM) {
-		r.Log.Infof("Updating %s", desiredCM.Name)
-		r.Log.Debug(compare.DiffConfigMap(actualCM, desiredCM))
-		actualCM.Labels = desiredCM.Labels
-		actualCM.Data = desiredCM.Data
-		if err = r.Update(ctx, actualCM); err != nil {
-			return errors.Wrapf(err, "Could not update %s", desiredCM.Name)
-		}
 	} else {
-		r.Log.Debugf("No updates for %s", desiredCM.Name)
+		desiredCM.Annotations = util.MergeMap(actualCM.Annotations, desiredCM.Annotations)
+		if !compare.EqualConfigMap(actualCM, desiredCM) {
+			r.Log.Infof("Updating %s", desiredCM.Name)
+			r.Log.Debug(compare.DiffConfigMap(actualCM, desiredCM))
+			actualCM.Labels = desiredCM.Labels
+			actualCM.Data = desiredCM.Data
+			actualCM.Annotations = desiredCM.Annotations
+			if err = r.Update(ctx, actualCM); err != nil {
+				return errors.Wrapf(err, "Could not update %s", desiredCM.Name)
+			}
+		} else {
+			r.Log.Debugf("No updates for %s", desiredCM.Name)
+		}
+
 	}
 	return nil
 }

@@ -62,10 +62,6 @@ func ReaperService(cc *v1alpha1.CassandraCluster) string {
 	return cc.Name + "-reaper"
 }
 
-func ReaperConfigMap(cc *v1alpha1.CassandraCluster, dcName string) string {
-	return DC(cc, dcName) + "-reaper-configmap"
-}
-
 func ReaperCqlConfigMap(cc *v1alpha1.CassandraCluster) string {
 	return ReaperService(cc) + "-cql-configmap"
 }

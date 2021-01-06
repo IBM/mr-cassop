@@ -13,18 +13,29 @@ type proberMock struct {
 	err         error
 }
 
+type cqlMock struct {
+	keyspaces      []cql.Keyspace
+	cassandraUsers []cql.CassandraUser
+	err            error
+}
+
+type nodetoolMock struct {
+	err error
+}
+
+type reaperMock struct {
+	repairs       []dbv1alpha1.Repair
+	isRunning     bool
+	clusterExists bool
+	err           error
+}
+
 func (r proberMock) Ready(ctx context.Context) (bool, error) {
 	return r.ready, r.err
 }
 
 func (r proberMock) ReadyAllDCs(ctx context.Context) (bool, error) {
 	return r.readyAllDCs, r.err
-}
-
-type cqlMock struct {
-	err            error
-	keyspaces      []cql.Keyspace
-	cassandraUsers []cql.CassandraUser
 }
 
 func (c *cqlMock) Query(stmt string, values ...interface{}) error {
@@ -69,10 +80,23 @@ func (c *cqlMock) UpdateRF(cc *dbv1alpha1.CassandraCluster) error {
 	return c.err
 }
 
-type nodetoolMock struct {
-	err error
-}
-
 func (n *nodetoolMock) RepairKeyspace(cc *dbv1alpha1.CassandraCluster, keyspace string) error {
 	return n.err
+}
+
+func (r *reaperMock) IsRunning(ctx context.Context) (bool, error) {
+	return r.isRunning, r.err
+}
+func (r *reaperMock) ClusterExists(ctx context.Context, name string) (bool, error) {
+	return r.clusterExists, r.err
+}
+func (r *reaperMock) AddCluster(ctx context.Context, name, seed string) error {
+	if !r.clusterExists {
+		r.clusterExists = true
+	}
+	return r.err
+}
+func (r *reaperMock) ScheduleRepair(ctx context.Context, clusterName string, repair dbv1alpha1.Repair) error {
+	r.repairs = append(r.repairs, repair)
+	return r.err
 }

@@ -41,10 +41,6 @@ func (r *CassandraClusterReconciler) reconcileReaper(ctx context.Context, cc *db
 		}
 	}
 
-	if err := r.reconcileReaperConfigMap(ctx, cc); err != nil {
-		return errors.Wrap(err, "Error reconciling reaper configmap")
-	}
-
 	if err := r.reconcileReaperCqlConfigMap(ctx, cc); err != nil {
 		return errors.Wrap(err, "Error reconciling reaper cql configmap")
 	}
@@ -64,27 +60,20 @@ func (r *CassandraClusterReconciler) reconcileReaper(ctx context.Context, cc *db
 
 func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Context, cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) error {
 	reaperLabels := labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterComponentReaper)
+	reaperLabels = labels.WithDCLabel(reaperLabels, dc.Name)
 	cassandraAuth := createCassandraAuth(cc)
-	cassandraAuth.EnvFrom = append(cassandraAuth.EnvFrom, v1.EnvFromSource{
-		ConfigMapRef: &v1.ConfigMapEnvSource{
-			LocalObjectReference: v1.LocalObjectReference{
-				Name: names.ReaperConfigMap(cc, dc.Name),
-			},
-		},
-	})
 	cassandraAuth.VolumeMounts = append(cassandraAuth.VolumeMounts,
 		v1.VolumeMount{
 			Name:      "reaper-auth",
 			MountPath: filepath.Dir(reaperAuthPath),
 		})
-	cmd := getAuthRunArgs(cc, dc.Name)
-	cassandraAuth.Args = append(cassandraAuth.Args, cmd)
+	cassandraAuth.Args = append(cassandraAuth.Args, getAuthRunArgs(cc, dc.Name))
 	percent25 := intstr.FromInt(25)
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      names.ReaperDeployment(cc, dc.Name),
 			Namespace: cc.Namespace,
-			Labels:    labels.CombinedComponentLabels(cc, dbv1alpha1.CassandraClusterComponentReaper),
+			Labels:    reaperLabels,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: proto.Int32(1),
@@ -287,15 +276,7 @@ func reaperContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Conta
 				"/usr/local/bin/entrypoint.sh cassandra-reaper;",
 			}, "\n"),
 		},
-		EnvFrom: []v1.EnvFromSource{
-			{
-				ConfigMapRef: &v1.ConfigMapEnvSource{
-					LocalObjectReference: v1.LocalObjectReference{
-						Name: names.ReaperConfigMap(cc, dc.Name),
-					},
-				},
-			},
-		},
+		Env: reaperEnvironment(cc, dc),
 		VolumeMounts: []v1.VolumeMount{
 			{
 				Name:      "shiro-config",

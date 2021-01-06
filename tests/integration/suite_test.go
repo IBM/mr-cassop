@@ -27,6 +27,7 @@ import (
 	"github.com/ibm/cassandra-operator/controllers/names"
 	"github.com/ibm/cassandra-operator/controllers/nodetool"
 	"github.com/ibm/cassandra-operator/controllers/prober"
+	"github.com/ibm/cassandra-operator/controllers/reaper"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"go.uber.org/zap"
@@ -66,6 +67,7 @@ var mgrStopCh = make(chan struct{}) //stops the manager by sending a value to th
 var mockProberClient = &proberMock{}
 var mockNodetoolClient = &nodetoolMock{}
 var mockCQLClient = &cqlMock{}
+var mockReaperClient = &reaperMock{}
 var operatorConfig = config.Config{}
 var ctx = context.Background()
 
@@ -88,7 +90,7 @@ var _ = BeforeSuite(func(done Done) {
 	var err error
 
 	logr := zap.NewNop()
-	//logr, err = zap.NewDevelopment() //uncomment if you want to see operator logs
+	// logr, err = zap.NewDevelopment() //uncomment if you want to see operator logs
 	Expect(err).ToNot(HaveOccurred())
 	ctrl.SetLogger(zapr.NewLogger(logr))
 	logf.SetLogger(zapr.NewLogger(logr))
@@ -111,6 +113,7 @@ var _ = BeforeSuite(func(done Done) {
 		DefaultProberImage:    "prober/image",
 		DefaultJolokiaImage:   "jolokia/image",
 		DefaultKwatcherImage:  "kwatcher/image",
+		DefaultReaperImage:    "reaper/image",
 	}
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).ToNot(HaveOccurred())
@@ -135,6 +138,9 @@ var _ = BeforeSuite(func(done Done) {
 		},
 		NodetoolClient: func(clientset *kubernetes.Clientset, config *rest.Config) nodetool.NodetoolClient {
 			return mockNodetoolClient
+		},
+		ReaperClient: func(url *url.URL) reaper.ReaperClient {
+			return mockReaperClient
 		},
 		RESTConfig: cfg,
 	}
@@ -162,6 +168,7 @@ var _ = AfterEach(func() {
 	mockProberClient = &proberMock{}
 	mockNodetoolClient = &nodetoolMock{}
 	mockCQLClient = &cqlMock{}
+	mockReaperClient = &reaperMock{}
 })
 
 func SetupTestReconcile(inner reconcile.Reconciler) reconcile.Reconciler {
