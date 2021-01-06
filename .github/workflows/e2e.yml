@@ -14,6 +14,7 @@ env:
   IBM_CLOUD_REGION: us-south
   IBM_CLOUD_RG: icm
   IKS_CLUSTER: icm-cassandra-ci
+  IKS_NAMESPACE: cassandra-operator-ci
   DOCKER_PROXY_REGISTRY: ${{ secrets.DOCKER_PROXY_REGISTRY }}
   DOCKER_PROXY_USER: ${{ secrets.ARTIFACTORY_USER }}
   DOCKER_PROXY_PASS: ${{ secrets.ARTIFACTORY_PASS }}
@@ -38,12 +39,19 @@ jobs:
           ibmcloud config --check-version=false
           ibmcloud plugin install -f container-registry
       - name: Authenticate with IBM Cloud CLI
-        run: |
-          ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RG" --quiet
-          ibmcloud cr region-set "$IBM_CLOUD_REGION"
-          ibmcloud cr login
+        uses: nick-invision/retry@fb3bca3fb54f6488d7508c8d1eeb64b94efd5a93 # v2.2.0
+        id: retry
+        continue-on-error: true
+        with:
+          timeout_seconds: 30
+          max_attempts: 3
+          retry_on: error
+          command: |
+            ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RG" --quiet
+            ibmcloud cr region-set "$IBM_CLOUD_REGION"
+            ibmcloud cr login
       - name: Authenticate to Docker Proxy Registry
-        uses: docker/login-action@adb73476b6e06caddec5db0bc1deacbec8cdd947 #v1.6.0
+        uses: docker/login-action@adb73476b6e06caddec5db0bc1deacbec8cdd947 # v1.6.0
         with:
           registry: ${{ env.DOCKER_PROXY_REGISTRY }}
           username: ${{ env.DOCKER_PROXY_USER }}
@@ -84,47 +92,51 @@ jobs:
           ibmcloud plugin install -f kubernetes-service
           ibmcloud plugin install -f container-registry
       - name: Authenticate with IBM Cloud CLI
-        run: |
-          ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RG" --quiet
-          ibmcloud cr region-set "$IBM_CLOUD_REGION"
-          ibmcloud cr login
-          ibmcloud ks cluster config --cluster $IKS_CLUSTER
-          kubectl config current-context
-          kubectl config set-context --current --namespace cassandra-operator-ci
-      - name: Deploy to IKS
+        uses: nick-invision/retry@fb3bca3fb54f6488d7508c8d1eeb64b94efd5a93 # v2.2.0
+        id: retry
+        continue-on-error: true
+        with:
+          timeout_seconds: 30
+          max_attempts: 3
+          retry_on: error
+          command: |
+            ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RG" --quiet
+            ibmcloud cr region-set "$IBM_CLOUD_REGION"
+            ibmcloud cr login
+            ibmcloud ks cluster config --cluster $IKS_CLUSTER
+            kubectl config current-context
+            kubectl config set-context --current --namespace $IKS_NAMESPACE
+      - name: Deploy C* operator to IKS
         timeout-minutes: 15
         run: |
-          helm install cassandra-operator-ci-e2e cassandra-operator \
+          helm install cassandra-operator-ci cassandra-operator \
             --set "container.image=us.icr.io/icm-cassandra/cassandra-operator:$GITHUB_REF_SLUG" \
             --set "container.imagePullSecret=icm-coreeng-pull-secret"
           kubectl rollout status deployment cassandra-operator
-          kubectl apply -f config/samples/cassandracluster-e2e.yaml && sleep 30
-          kubectl rollout status deployment ci-e2e-cassandra-prober && sleep 30
-          kubectl rollout status sts ci-e2e-cassandra-dc1
-          kubectl rollout status sts ci-e2e-cassandra-dc2 && sleep 30
-          kubectl rollout status deployment ci-e2e-cassandra-dc1-kwatcher
-          kubectl rollout status deployment ci-e2e-cassandra-dc2-kwatcher && sleep 30
-          kubectl rollout status deployment ci-e2e-cassandra-dc1-reaper --timeout=5m
-      - name: Job has failed, showing debug info
+      - name: Deploy of the operator has failed, showing debug info
         if: ${{ failure() }}
         run: |
-          sleep 30
-          kubectl get svc,deployments,sts,po
+          kubectl get deployments,po
           kubectl logs deployment/cassandra-operator --tail=20
-          kubectl logs ci-e2e-cassandra-dc1-0 --tail=20
-          kubectl logs ci-e2e-cassandra-dc1-1 --tail=20
-          kubectl logs ci-e2e-cassandra-dc1-2 --tail=20
-          kubectl logs ci-e2e-cassandra-dc2-0 --tail=20
-          kubectl logs ci-e2e-cassandra-dc2-1 --tail=20
-          kubectl logs ci-e2e-cassandra-dc2-2 --tail=20
-          kubectl logs deployment/ci-e2e-cassandra-reaper-dc1 --tail=20
-      - name: Cleanup Deployment
+      - name: Set up Go with latest minor version 1.x
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^1.15
+      - name: Get go dependencies
+        run: go mod download
+      - name: Run e2e tests
+        run: |
+          export e2e_namespace="$IKS_NAMESPACE"
+          export e2e_release="cassandra-ci-e2e"
+          go test ./tests/e2e/ \
+            -ginkgo.v -ginkgo.reportPassed -ginkgo.progress \
+            -test.v
+      - name: Uninstall C* operator
         if: ${{ always() }}
         run: |
-          kubectl delete -f config/samples/cassandracluster.yaml && sleep 60
-          helm uninstall cassandra-operator-ci-e2e
-          kubectl get job --no-headers=true | awk "/ci-e2e/{print \$1}" | xargs kubectl delete job --ignore-not-found -
+          helm uninstall cassandra-operator-ci
       # We have below logic bc when multiple tags exist for the same image digest within a repository, the ibmcloud cr image-rm command removes the underlying image and all its tags. See details: https://cloud.ibm.com/docs/container-registry-cli-plugin?topic=container-registry-cli-plugin-containerregcli#bx_cr_image_rm
+      # We can also add a check if commit message contains `no_image_del` then skip the image deletion step
       - name: Cleanup Image
         if: ${{ always() && github.event_name != 'release' }}
         run: |
