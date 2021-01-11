@@ -27,21 +27,21 @@ jobs:
       - name: Install Node
         uses: actions/setup-node@v1
         with:
-          node-version: 15.x
-      - name: Build docs
+          node-version: 14.15.4 # This is recommended LTS version which includes npm 6.14.10
+      - name: Build docs website
         run: |
           npm -v
           node -v
           cd docs
           npm ci
           npm run build
-      - name: Publish docs
+      - name: Publish docs website
         if: ${{ github.event_name == 'release' }}
         run: |
           cd ./docs/build
           git init
           git add .
           git config --local user.name \"Github Actions\"
-          git commit -m "Deploy Docs from Actions"
+          git commit -m "Deploy docs website from Actions"
           git remote add origin git@github.ibm.com:TheWeatherCompany/cassandra-operator.git
           git push -u origin master -f

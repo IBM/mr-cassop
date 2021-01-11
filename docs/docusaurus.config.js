@@ -30,8 +30,13 @@ module.exports = {
       ],
     },
     prism: {
-      defaultLanguage: 'groovy',
-      additionalLanguages: ['groovy'],
+      defaultLanguage: 'go',
+      additionalLanguages: ['go'],
+    },
+    footer: {
+      style: 'dark',
+      links: [],
+      copyright: `Cassandra Operator Documentation. Built with Docusaurus.`,
     },
   },
   presets: [

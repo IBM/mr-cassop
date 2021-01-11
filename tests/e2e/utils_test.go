@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	v1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
+	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"io"
 	"io/ioutil"
 	corev1 "k8s.io/api/core/v1"
