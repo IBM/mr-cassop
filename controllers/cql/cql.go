@@ -14,7 +14,9 @@ const (
 type CqlClient interface {
 	GetKeyspacesInfo() ([]Keyspace, error)
 	UpdateRF(cc *v1alpha1.CassandraCluster) error
-	GetUsers() ([]CassandraUser, error)
+	GetRoles() ([]Role, error)
+	CreateRole(role Role) error
+	UpdateRole(role Role) error
 	Query(stmt string, values ...interface{}) error
 }
 
@@ -22,9 +24,12 @@ type cassandraClient struct {
 	*gocql.Session
 }
 
-type CassandraUser struct {
-	Role        string
-	IsSuperuser bool
+type Role struct {
+	Role  string
+	Super bool
+	Login bool
+	// empty when retrieving roles. Only used when create/update a role.
+	Password string
 }
 
 func NewCQLClient(clusterConfig *gocql.ClusterConfig) (CqlClient, error) {
@@ -77,18 +82,35 @@ func (c cassandraClient) UpdateRF(cc *v1alpha1.CassandraCluster) error {
 	return c.Session.Query(query).Exec()
 }
 
-func (c *cassandraClient) GetUsers() ([]CassandraUser, error) {
-	iter := c.Session.Query("SELECT role,is_superuser FROM system_auth.roles").Iter()
+func (c *cassandraClient) GetRoles() ([]Role, error) {
+	iter := c.Session.Query("LIST ROLES").Iter()
 
-	cassUsers := make([]CassandraUser, 0, iter.NumRows())
+	cassandraRoles := make([]Role, 0, iter.NumRows())
 	var role string
 	var isSuperuser bool
-	for iter.Scan(&role, &isSuperuser) {
-		cassUsers = append(cassUsers, CassandraUser{Role: role, IsSuperuser: isSuperuser})
+	var login bool
+	var options map[string]string
+	for iter.Scan(&role, &isSuperuser, &login, &options) {
+		cassandraRoles = append(cassandraRoles, Role{Role: role, Super: isSuperuser})
 	}
 
 	if err := iter.Close(); err != nil {
-		return []CassandraUser{}, errors.Wrapf(err, "Can't close iterator")
+		return []Role{}, errors.Wrapf(err, "Can't close iterator")
 	}
-	return cassUsers, nil
+	return cassandraRoles, nil
+}
+
+func (c *cassandraClient) CreateRole(role Role) error {
+	query := fmt.Sprintf("CREATE ROLE '%s' WITH PASSWORD = '%s' AND LOGIN = %t AND SUPERUSER= %t", role.Role, role.Password, role.Login, role.Super)
+	return c.Session.Query(query).Exec()
+}
+
+func (c *cassandraClient) UpdateRole(role Role) error {
+	passwordQuery := ""
+	if role.Password != "" {
+		passwordQuery = fmt.Sprintf("AND PASSWORD = '%s'", role.Password)
+	}
+
+	query := fmt.Sprintf("ALTER ROLE '%s' WITH SUPERUSER = %t AND LOGIN = %t %s", role.Role, role.Super, role.Login, passwordQuery)
+	return c.Session.Query(query).Exec()
 }

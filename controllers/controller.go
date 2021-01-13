@@ -52,7 +52,7 @@ const (
 	cqlPort                     = 9042
 	jmxPort                     = 7199
 	thriftPort                  = 9160
-	cassandraUsersDir           = "/etc/cassandra-users"
+	cassandraRolesDir           = "/etc/cassandra-roles"
 	defaultCQLConfigMapLabelKey = "cql-scripts"
 
 	annotationCassandraClusterName      = "cassandra-cluster-name"
@@ -121,8 +121,8 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling scripts configmap")
 	}
 
-	if err := r.reconcileUsersSecret(ctx, cc); err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Error reconciling users secret")
+	if err := r.reconcileRolesSecret(ctx, cc); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error reconciling roles secret")
 	}
 
 	if err := r.reconcileJMXSecret(ctx, cc); err != nil {
@@ -169,32 +169,36 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 
 	r.Log.Debug("All DCs are ready")
 
-	if err := r.reconcileKwatcher(ctx, cc); err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Error reconciling kwatcher")
-	}
-
-	ntClient := r.NodetoolClient(r.Clientset, r.RESTConfig)
-
 	cqlClient, err := r.CqlClient(newCassandraConfig(cc))
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Can't create cassandra session")
 	}
 
+	err = r.reconcileRoles(cqlClient)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := r.reconcileKwatcher(ctx, cc); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error reconciling kwatcher")
+	}
+
+	ntClient := r.NodetoolClient(r.Clientset, r.RESTConfig)
 	if err = r.reconcileRFSettings(cc, cqlClient, ntClient); err != nil {
 		return ctrl.Result{}, errors.Wrapf(err, "Error reconciling RF settings")
 	}
 
-	r.Log.Debug("Checking if all users are created by kwatcher")
-	created, err := r.usersCreated(ctx, cc, cqlClient)
+	r.Log.Debug("Checking if all roles are created by kwatcher")
+	created, err := r.rolesCreated(ctx, cc, cqlClient)
 	if err != nil {
-		return ctrl.Result{}, errors.Wrapf(err, "Can't get created users info")
+		return ctrl.Result{}, errors.Wrapf(err, "Can't get created roles info")
 	}
 
 	if !created {
-		r.Log.Infof("Users hasn't been created yet. Checking again in %s...", r.Cfg.RetryDelay)
+		r.Log.Infof("Roles hasn't been created yet. Checking again in %s...", r.Cfg.RetryDelay)
 		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 	}
-	r.Log.Info("Users has been created")
+	r.Log.Info("Roles has been created")
 
 	if err = r.reconcileCQLConfigMaps(ctx, cc, cqlClient, ntClient); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile CQL config maps")
@@ -343,8 +347,8 @@ func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.Cass
 func newCassandraConfig(cc *dbv1alpha1.CassandraCluster) *gocql.ClusterConfig {
 	cassCfg := gocql.NewCluster(fmt.Sprintf("%s.%s.svc.cluster.local", names.DCService(cc, cc.Spec.DCs[0].Name), cc.Namespace))
 	cassCfg.Authenticator = &gocql.PasswordAuthenticator{
-		Username: dbv1alpha1.CassandraUsername,
-		Password: dbv1alpha1.CassandraUsername,
+		Username: dbv1alpha1.CassandraRole,
+		Password: dbv1alpha1.CassandraRole,
 	}
 
 	cassCfg.Timeout = 6 * time.Second

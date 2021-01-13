@@ -210,7 +210,7 @@ func (r CassandraClusterReconciler) reconcileScheduleRepairs(ctx context.Context
 		if err := rescheduleTimestamp(&repair); err != nil {
 			return errors.Wrap(err, "Error rescheduling repair")
 		}
-		repair.Owner = dbv1alpha1.CassandraUsername
+		repair.Owner = dbv1alpha1.CassandraRole
 		//if repair.Owner == "" { //TODO part of auth implementation
 		//	repair.Owner = cc.Spec.NodetoolUser // Default owner to nodetool user
 		//}

@@ -115,7 +115,7 @@ func (r *CassandraClusterReconciler) reconcileKwatcherDeployment(ctx context.Con
 								"-port", "9042",
 							},
 							Env: []v1.EnvVar{
-								{Name: "USERS_DIR", Value: cassandraUsersDir},
+								{Name: "USERS_DIR", Value: cassandraRolesDir},
 							},
 							TerminationMessagePath:   "/dev/termination-log",
 							TerminationMessagePolicy: v1.TerminationMessageReadFile,

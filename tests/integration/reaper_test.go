@@ -95,7 +95,7 @@ var _ = Describe("reaper deployment", func() {
 				mockNodetoolClient.err = nil
 				mockReaperClient.err = nil
 				mockCQLClient.err = nil
-				mockCQLClient.cassandraUsers = []cql.CassandraUser{{Role: "cassandra", IsSuperuser: true}}
+				mockCQLClient.cassandraRoles = []cql.Role{{Role: "cassandra", Super: true}}
 				mockCQLClient.keyspaces = []cql.Keyspace{{
 					Name: "system_auth",
 					Replication: map[string]string{

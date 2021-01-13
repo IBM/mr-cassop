@@ -27,10 +27,10 @@ func (r *CassandraClusterReconciler) reconcileJMXSecret(ctx context.Context, cc 
 	}
 
 	data := make(map[string][]byte)
-	data["jmxremote.password"] = []byte(fmt.Sprintf("%s %s", dbv1alpha1.CassandraUsername, dbv1alpha1.CassandraPassword))
+	data["jmxremote.password"] = []byte(fmt.Sprintf("%s %s", dbv1alpha1.CassandraRole, dbv1alpha1.CassandraPassword))
 	data["jmxremote.access"] = []byte(fmt.Sprintf(`%s readwrite
   create javax.management.monitor.*, javax.management.timer.*
-  unregister`, dbv1alpha1.CassandraUsername))
+  unregister`, dbv1alpha1.CassandraRole))
 
 	desiredSecret.Data = data
 

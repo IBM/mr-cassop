@@ -33,7 +33,7 @@ const (
 )
 
 var (
-	CassandraUsername = "cassandra"
+	CassandraRole     = "cassandra"
 	CassandraPassword = "cassandra"
 )
 

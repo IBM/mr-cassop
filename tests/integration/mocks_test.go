@@ -3,8 +3,10 @@ package integration
 import (
 	"context"
 	"fmt"
+	"github.com/gocql/gocql"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
+	"github.com/pkg/errors"
 )
 
 type proberMock struct {
@@ -15,7 +17,7 @@ type proberMock struct {
 
 type cqlMock struct {
 	keyspaces      []cql.Keyspace
-	cassandraUsers []cql.CassandraUser
+	cassandraRoles []cql.Role
 	err            error
 }
 
@@ -46,8 +48,30 @@ func (c *cqlMock) GetKeyspacesInfo() ([]cql.Keyspace, error) {
 	return c.keyspaces, c.err
 }
 
-func (c *cqlMock) GetUsers() ([]cql.CassandraUser, error) {
-	return c.cassandraUsers, c.err
+func (c *cqlMock) GetRoles() ([]cql.Role, error) {
+	return c.cassandraRoles, c.err
+}
+
+func (c *cqlMock) UpdateRole(role cql.Role) error {
+	for i, cassandraRole := range c.cassandraRoles {
+		if cassandraRole.Role == role.Role {
+			c.cassandraRoles[i] = role
+			return nil
+		}
+	}
+
+	return gocql.ErrNotFound
+}
+
+func (c *cqlMock) CreateRole(role cql.Role) error {
+	for _, cassandraRole := range c.cassandraRoles {
+		if cassandraRole.Role == role.Role {
+			return errors.New("role already exists")
+		}
+	}
+
+	c.cassandraRoles = append(c.cassandraRoles, role)
+	return c.err
 }
 
 func (c *cqlMock) UpdateRF(cc *dbv1alpha1.CassandraCluster) error {

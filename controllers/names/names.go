@@ -78,8 +78,8 @@ func KeyspaceConfigMap(cc *v1alpha1.CassandraCluster) string {
 	return cc.Name + "-keyspace-configmap"
 }
 
-func UsersSecret(cc *v1alpha1.CassandraCluster) string {
-	return cc.Name + "-users-secret"
+func RolesSecret(cc *v1alpha1.CassandraCluster) string {
+	return cc.Name + "-users-secret" //TODO change to `-roles-secret` after kwatcher is removed. The name is hardcoded in kwacther's code.
 }
 
 func ScriptsConfigMap(cc *v1alpha1.CassandraCluster) string {

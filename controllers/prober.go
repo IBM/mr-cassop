@@ -80,7 +80,7 @@ func (r *CassandraClusterReconciler) reconcileProberDeployment(ctx context.Conte
 				Spec: v1.PodSpec{
 					ImagePullSecrets: imagePullSecrets(cc),
 					Volumes: []v1.Volume{
-						usersVolume(cc),
+						rolesVolume(cc),
 						{
 							Name: "app",
 							VolumeSource: v1.VolumeSource{ConfigMap: &v1.ConfigMapVolumeSource{
@@ -217,7 +217,7 @@ func proberContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 			{Name: "SERVER_PORT", Value: strconv.Itoa(proberContainerPort)},
 			{Name: "JMX_POLL_PERIOD_SECONDS", Value: "10"},
 			{Name: "JMX_PORT", Value: fmt.Sprintf("%d", jmxPort)},
-			{Name: "USERS_DIR", Value: cassandraUsersDir},
+			{Name: "USERS_DIR", Value: cassandraRolesDir},
 		},
 		Ports: []v1.ContainerPort{
 			{
@@ -240,7 +240,7 @@ func proberContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 			FailureThreshold: 3,
 		},
 		VolumeMounts: []v1.VolumeMount{
-			usersVolumeMount(),
+			rolesVolumeMount(),
 			{
 				Name:      "app",
 				MountPath: "/usr/local/app",

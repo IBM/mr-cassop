@@ -63,19 +63,47 @@ func (mr *MockCqlClientMockRecorder) UpdateRF(cc interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateRF", reflect.TypeOf((*MockCqlClient)(nil).UpdateRF), cc)
 }
 
-// GetUsers mocks base method
-func (m *MockCqlClient) GetUsers() ([]cql.CassandraUser, error) {
+// GetRoles mocks base method
+func (m *MockCqlClient) GetRoles() ([]cql.Role, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetUsers")
-	ret0, _ := ret[0].([]cql.CassandraUser)
+	ret := m.ctrl.Call(m, "GetRoles")
+	ret0, _ := ret[0].([]cql.Role)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetUsers indicates an expected call of GetUsers
-func (mr *MockCqlClientMockRecorder) GetUsers() *gomock.Call {
+// GetRoles indicates an expected call of GetRoles
+func (mr *MockCqlClientMockRecorder) GetRoles() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsers", reflect.TypeOf((*MockCqlClient)(nil).GetUsers))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRoles", reflect.TypeOf((*MockCqlClient)(nil).GetRoles))
+}
+
+// CreateRole mocks base method
+func (m *MockCqlClient) CreateRole(role cql.Role) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateRole", role)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CreateRole indicates an expected call of CreateRole
+func (mr *MockCqlClientMockRecorder) CreateRole(role interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateRole", reflect.TypeOf((*MockCqlClient)(nil).CreateRole), role)
+}
+
+// UpdateRole mocks base method
+func (m *MockCqlClient) UpdateRole(role cql.Role) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateRole", role)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateRole indicates an expected call of UpdateRole
+func (mr *MockCqlClientMockRecorder) UpdateRole(role interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateRole", reflect.TypeOf((*MockCqlClient)(nil).UpdateRole), role)
 }
 
 // Query mocks base method

@@ -7,7 +7,7 @@ import (
 
 func createAuthVolumes(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) []v1.Volume {
 	return []v1.Volume{
-		usersVolume(cc),
+		rolesVolume(cc),
 		scriptsVolume(cc),
 		cassandraDCConfigVolume(cc, dc),
 		jmxSecretVolume(cc),
@@ -16,7 +16,7 @@ func createAuthVolumes(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) []v1.V
 
 func sharedVolumeMounts() []v1.VolumeMount {
 	return []v1.VolumeMount{
-		usersVolumeMount(),
+		rolesVolumeMount(),
 		scriptsVolumeMount(),
 		jmxSecretVolumeMount(),
 		cassandraDCConfigVolumeMount(),
@@ -33,7 +33,7 @@ func createCassandraAuth(cc *dbv1alpha1.CassandraCluster) v1.Container {
 			{Name: "CASSANDRA_JMX_AUTH", Value: "true" /*strconv.FormatBool(cc.Spec.JMX.Authentication == "local_files" || cc.Spec.JMX.Authentication == "internal")*/},
 			{Name: "CASSANDRA_JMX_SSL", Value: "false" /*strconv.FormatBool(cc.Spec.JMX.SSL)*/},
 			{Name: "CASSANDRA_INTERNAL_AUTH", Value: "true" /*strconv.FormatBool(cc.Spec.Cassandra.InternalAuth || cc.Spec.JMX.Authentication == "internal")*/},
-			{Name: "USERS_DIR", Value: cassandraUsersDir},
+			{Name: "USERS_DIR", Value: cassandraRolesDir},
 		},
 		VolumeMounts:             sharedVolumeMounts(),
 		TerminationMessagePath:   "/dev/termination-log",

@@ -53,7 +53,7 @@ var _ = Describe("prober, statefulsets, kwatcher and reaper", func() {
 			mockProberClient.err = nil
 			mockNodetoolClient.err = nil
 			mockCQLClient.err = nil
-			mockCQLClient.cassandraUsers = []cql.CassandraUser{{Role: "cassandra", IsSuperuser: true}}
+			mockCQLClient.cassandraRoles = []cql.Role{{Role: "cassandra", Super: true}}
 			mockCQLClient.keyspaces = []cql.Keyspace{{
 				Name: "system_auth",
 				Replication: map[string]string{
@@ -85,7 +85,7 @@ var _ = Describe("prober, statefulsets, kwatcher and reaper", func() {
 				{Name: "SERVER_PORT", Value: "8888"},
 				{Name: "JMX_POLL_PERIOD_SECONDS", Value: "10"},
 				{Name: "JMX_PORT", Value: "7199"},
-				{Name: "USERS_DIR", Value: "/etc/cassandra-users"},
+				{Name: "USERS_DIR", Value: "/etc/cassandra-roles"},
 			}))
 
 			By("cassandra dcs should not exist until prober is ready")
