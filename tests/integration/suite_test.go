@@ -90,7 +90,7 @@ var _ = BeforeSuite(func(done Done) {
 	var err error
 
 	logr := zap.NewNop()
-	// logr, err = zap.NewDevelopment() //uncomment if you want to see operator logs
+	//logr = logger.NewLogger("console", zap.DebugLevel).Desugar() //uncomment if you want to see operator logs
 	Expect(err).ToNot(HaveOccurred())
 	ctrl.SetLogger(zapr.NewLogger(logr))
 	logf.SetLogger(zapr.NewLogger(logr))

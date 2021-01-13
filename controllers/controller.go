@@ -35,7 +35,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/rest"
-	"net/http"
 	"net/url"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -211,7 +210,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error parsing reaper service url")
 	}
-	reaperClient := reaper.NewReaperClient(reaperServiceUrl, http.DefaultClient)
+	reaperClient := r.ReaperClient(reaperServiceUrl)
 	isRunning, err := reaperClient.IsRunning(ctx)
 	if err != nil {
 		r.Log.Warnf("Reaper ping request failed: %s. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
