@@ -10,21 +10,12 @@ on:
       - main
 
 jobs:
-  docs:
-    name: Docs
+  checks:
+    name: Check Docs
     runs-on: ubuntu-latest
     steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-      - name: Preapre ssh key
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -t rsa github.ibm.com >> ~/.ssh/known_hosts
-          echo "$SSH_RSA_KEY" > ~/.ssh/id_rsa
-          chmod 0600 ~/.ssh/id_rsa
-        env:
-          SSH_RSA_KEY: ${{ secrets.DOCS_REPO_KEY }}
-      - name: Install Node
+      - uses: actions/checkout@v2
+      - name: Setup Node
         uses: actions/setup-node@v1
         with:
           node-version: 14.15.4 # This is recommended LTS version which includes npm 6.14.10
@@ -35,13 +26,39 @@ jobs:
           cd docs
           npm ci
           npm run build
-      - name: Publish docs website
-        if: ${{ github.event_name == 'release' }}
+  gh-release:
+    if: ${{ github.event_name == 'release' }}
+    name: Publish Docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Node
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14.15.4 # This is recommended LTS version which includes npm 6.14.10
+      - name: Preapre ssh key
         run: |
-          cd ./docs/build
-          git init
-          git add .
-          git config --local user.name \"Github Actions\"
-          git commit -m "Deploy docs website from Actions"
-          git remote add origin git@github.ibm.com:TheWeatherCompany/cassandra-operator.git
-          git push -u origin master -f
+          mkdir -p ~/.ssh
+          ssh-keyscan -t rsa github.ibm.com >> ~/.ssh/known_hosts
+          echo "$SSH_RSA_KEY" > ~/.ssh/id_rsa
+          chmod 0600 ~/.ssh/id_rsa
+          cat <<EOT >> ~/.ssh/config
+          Host github.ibm.com
+          HostName github.ibm.com
+          IdentityFile ~/.ssh/id_rsa
+          EOT
+        env:
+          SSH_RSA_KEY: ${{ secrets.DOCS_REPO_KEY }}
+          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+      - name: Publish docs website
+        env:
+          USE_SSH: true
+          GIT_USER: git
+          DEPLOYMENT_BRANCH: master
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "gh-actions"
+          cd ./docs
+          npm ci
+          npx docusaurus deploy
+

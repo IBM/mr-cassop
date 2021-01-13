@@ -14,8 +14,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - name: Check out code into the Go module directory
-        uses: actions/checkout@v2.3.0
+      - uses: actions/checkout@v2
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@e868220d9fd3b523f1a8fcfb69749e8c7521ba14 # v2.3.0
         with:
@@ -35,8 +34,7 @@ jobs:
           tar -C /tmp/ -xzf kubebuilder.tgz;
           rm kubebuilder.tgz;
           echo "KUBEBUILDER_ASSETS=/tmp/kubebuilder_2.3.1_linux_amd64/bin" >> $GITHUB_ENV
-      - name: Check out code into the Go module directory
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
       - name: Get dependencies
         run: go mod download
       - name: Run tests

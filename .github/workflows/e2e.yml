@@ -24,8 +24,7 @@ jobs:
     name: Docker Images
     runs-on: ubuntu-latest
     steps:
-      - name: Ckeckout
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
       - name: Inject slug/short variables
         uses: rlespinasse/github-slug-action@e4699e49fcf890a3172a02c56ba78d867dbb9fd5 # 3.1.0
       # We have below variable value replacement to prevent re-push of the image within branch during parallel workflows run
@@ -69,8 +68,7 @@ jobs:
     needs: [docker_images]
     runs-on: ubuntu-latest
     steps:
-      - name: Ckeckout
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
       - name: Block Concurrent Executions for the Deployment
         uses: softprops/turnstyle@2da824432fd1b605d097378101a35779dc3cd35a # v1
         with:
@@ -130,7 +128,7 @@ jobs:
           export e2e_release="cassandra-ci-e2e"
           go test ./tests/e2e/ \
             -ginkgo.v -ginkgo.reportPassed -ginkgo.progress \
-            -test.v
+            -test.v -test.timeout=0
       - name: Uninstall C* operator
         if: ${{ always() }}
         run: |
