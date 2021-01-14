@@ -3,7 +3,6 @@ package cql
 import (
 	"fmt"
 	"github.com/gocql/gocql"
-	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/pkg/errors"
 )
 
@@ -13,7 +12,7 @@ const (
 
 type CqlClient interface {
 	GetKeyspacesInfo() ([]Keyspace, error)
-	UpdateRF(cc *v1alpha1.CassandraCluster) error
+	UpdateRF(keyspaceName string, strategyOptions map[string]string) error
 	GetRoles() ([]Role, error)
 	CreateRole(role Role) error
 	UpdateRole(role Role) error
@@ -68,17 +67,16 @@ func (c cassandraClient) GetKeyspacesInfo() ([]Keyspace, error) {
 	return keyspaces, nil
 }
 
-func (c cassandraClient) UpdateRF(cc *v1alpha1.CassandraCluster) error {
-	queryDCs := ""
-	for _, dc := range cc.Spec.SystemKeyspaces.DCs {
-		if queryDCs != "" {
-			queryDCs = queryDCs + ","
+func (c cassandraClient) UpdateRF(keyspaceName string, rfOptions map[string]string) error {
+	rfOptionsQuery := ""
+	for optionKey, optionValue := range rfOptions {
+		if rfOptionsQuery != "" {
+			rfOptionsQuery = rfOptionsQuery + ","
 		}
-		queryDCs = queryDCs + fmt.Sprintf("'%s': %d", dc.Name, dc.RF)
+		rfOptionsQuery = rfOptionsQuery + fmt.Sprintf("'%s' : '%s'", optionKey, optionValue)
 	}
 
-	query := fmt.Sprintf("ALTER KEYSPACE system_auth WITH replication = { 'class': '%s' , %s  } ;", ReplicationClassNetworkTopologyStrategy, queryDCs)
-
+	query := fmt.Sprintf("ALTER KEYSPACE %s WITH replication = { %s } ;", keyspaceName, rfOptionsQuery)
 	return c.Session.Query(query).Exec()
 }
 

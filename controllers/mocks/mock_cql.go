@@ -6,7 +6,6 @@ package mocks
 
 import (
 	gomock "github.com/golang/mock/gomock"
-	v1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	cql "github.com/ibm/cassandra-operator/controllers/cql"
 	reflect "reflect"
 )
@@ -50,17 +49,17 @@ func (mr *MockCqlClientMockRecorder) GetKeyspacesInfo() *gomock.Call {
 }
 
 // UpdateRF mocks base method
-func (m *MockCqlClient) UpdateRF(cc *v1alpha1.CassandraCluster) error {
+func (m *MockCqlClient) UpdateRF(keyspaceName string, strategyOptions map[string]string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateRF", cc)
+	ret := m.ctrl.Call(m, "UpdateRF", keyspaceName, strategyOptions)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // UpdateRF indicates an expected call of UpdateRF
-func (mr *MockCqlClientMockRecorder) UpdateRF(cc interface{}) *gomock.Call {
+func (mr *MockCqlClientMockRecorder) UpdateRF(keyspaceName, strategyOptions interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateRF", reflect.TypeOf((*MockCqlClient)(nil).UpdateRF), cc)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateRF", reflect.TypeOf((*MockCqlClient)(nil).UpdateRF), keyspaceName, strategyOptions)
 }
 
 // GetRoles mocks base method

@@ -10,7 +10,6 @@ require (
 	github.com/golang/mock v1.4.4
 	github.com/google/go-cmp v0.4.0
 	github.com/google/go-querystring v1.0.0
-	//github.com/newrelic/infra-integrations-sdk v3.6.5+incompatible
 	github.com/onsi/ginkgo v1.14.2
 	github.com/onsi/gomega v1.10.4
 	github.com/pkg/errors v0.8.1

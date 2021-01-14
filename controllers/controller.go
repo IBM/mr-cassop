@@ -183,9 +183,6 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	}
 
 	ntClient := r.NodetoolClient(r.Clientset, r.RESTConfig)
-	if err = r.reconcileRFSettings(cc, cqlClient, ntClient); err != nil {
-		return ctrl.Result{}, errors.Wrapf(err, "Error reconciling RF settings")
-	}
 
 	r.Log.Debug("Checking if all roles are created by kwatcher")
 	created, err := r.rolesCreated(ctx, cc, cqlClient)
@@ -198,6 +195,11 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 	}
 	r.Log.Info("Roles has been created")
+
+	err = r.reconcileKeyspaces(cc, cqlClient, ntClient)
+	if err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile keyspaces")
+	}
 
 	if err = r.reconcileCQLConfigMaps(ctx, cc, cqlClient, ntClient); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile CQL config maps")
@@ -278,6 +280,12 @@ func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.Cass
 		cc.Spec.Kwatcher.ImagePullPolicy = v1.PullIfNotPresent
 	}
 
+	if len(cc.Spec.SystemKeyspaces.DCs) == 0 {
+		for _, dc := range cc.Spec.DCs {
+			cc.Spec.SystemKeyspaces.DCs = append(cc.Spec.SystemKeyspaces.DCs, dbv1alpha1.SystemKeyspaceDC{Name: dc.Name, RF: 3})
+		}
+	}
+
 	if cc.Spec.Reaper == nil {
 		cc.Spec.Reaper = &dbv1alpha1.Reaper{}
 	}
@@ -347,7 +355,7 @@ func newCassandraConfig(cc *dbv1alpha1.CassandraCluster) *gocql.ClusterConfig {
 	cassCfg := gocql.NewCluster(fmt.Sprintf("%s.%s.svc.cluster.local", names.DCService(cc, cc.Spec.DCs[0].Name), cc.Namespace))
 	cassCfg.Authenticator = &gocql.PasswordAuthenticator{
 		Username: dbv1alpha1.CassandraRole,
-		Password: dbv1alpha1.CassandraRole,
+		Password: dbv1alpha1.CassandraPassword,
 	}
 
 	cassCfg.Timeout = 6 * time.Second

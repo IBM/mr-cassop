@@ -2,7 +2,6 @@ package integration
 
 import (
 	"context"
-	"fmt"
 	"github.com/gocql/gocql"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
@@ -74,32 +73,25 @@ func (c *cqlMock) CreateRole(role cql.Role) error {
 	return c.err
 }
 
-func (c *cqlMock) UpdateRF(cc *dbv1alpha1.CassandraCluster) error {
-	var systemAuthIndex *int
+func (c *cqlMock) UpdateRF(keyspaceName string, rfOptions map[string]string) error {
+	var keyspaceIndex *int
 	for i, keyspace := range c.keyspaces {
-		if keyspace.Name == "system_auth" {
+		if keyspace.Name == keyspaceName {
 			index := i
-			systemAuthIndex = &index
+			keyspaceIndex = &index
 			break
 		}
 	}
 
-	var systemAuth cql.Keyspace
-	rfs := map[string]string{}
-	for _, dc := range cc.Spec.DCs {
-		rfs[dc.Name] = fmt.Sprintf("%d", *dc.Replicas)
+	if keyspaceIndex == nil {
+		return gocql.ErrKeyspaceDoesNotExist
 	}
 
-	rfs["class"] = "org.apache.cassandra.locator.NetworkTopologyStrategy"
+	var keyspace cql.Keyspace
+	keyspace.Replication = rfOptions
+	keyspace.Name = keyspaceName
 
-	systemAuth.Replication = rfs
-	systemAuth.Name = "system_auth"
-
-	if systemAuthIndex != nil {
-		c.keyspaces[*systemAuthIndex] = systemAuth
-	} else {
-		c.keyspaces = append(c.keyspaces, systemAuth)
-	}
+	c.keyspaces[*keyspaceIndex] = keyspace
 
 	return c.err
 }

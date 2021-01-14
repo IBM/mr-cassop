@@ -4,6 +4,7 @@ module.exports = {
     'quickstart',
     'operator-configuration',
     'cassandracluster-configuration',
+    'keyspace-management',
     'reaper',
     'reaper-repairs-configuration',
     'development',
