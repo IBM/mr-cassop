@@ -12,6 +12,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -48,7 +49,7 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 			ServiceName:         names.DCService(cc, dc.Name),
 			Replicas:            dc.Replicas,
 			Selector:            &metav1.LabelSelector{MatchLabels: stsLabels},
-			PodManagementPolicy: appsv1.OrderedReadyPodManagement,
+			PodManagementPolicy: cc.Spec.PodManagementPolicy,
 			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
 				Type:          appsv1.RollingUpdateStatefulSetStrategyType,
 				RollingUpdate: &appsv1.RollingUpdateStatefulSetStrategy{Partition: proto.Int32(0)},
@@ -60,114 +61,17 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
-						{
-							Name:            "cassandra",
-							Image:           cc.Spec.Cassandra.Image,
-							ImagePullPolicy: cc.Spec.Cassandra.ImagePullPolicy,
-							Env: []v1.EnvVar{
-								{
-									Name: "POD_IP",
-									ValueFrom: &v1.EnvVarSource{
-										FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "status.podIP"},
-									},
-								},
-							},
-							Args: []string{
-								"bash",
-								"-c",
-								getCassandraRunCommand(),
-							},
-							Resources: cc.Spec.Cassandra.Resources,
-							LivenessProbe: &v1.Probe{
-								Handler: v1.Handler{
-									TCPSocket: &v1.TCPSocketAction{
-										Port: intstr.FromString("jmx"),
-									},
-								},
-								InitialDelaySeconds: 60,
-								TimeoutSeconds:      20,
-								PeriodSeconds:       20,
-								SuccessThreshold:    1,
-								FailureThreshold:    3,
-							},
-							ReadinessProbe: &v1.Probe{
-								Handler: v1.Handler{
-									Exec: &v1.ExecAction{
-										Command: []string{
-											"bash",
-											"-c",
-											fmt.Sprintf("http --check-status --timeout 2 --body GET %s/healthz/$POD_IP", names.ProberService(cc)),
-										},
-									},
-								},
-								TimeoutSeconds:      20,
-								PeriodSeconds:       10,
-								SuccessThreshold:    2,
-								FailureThreshold:    3,
-								InitialDelaySeconds: 20,
-							},
-							Lifecycle: &v1.Lifecycle{
-								PreStop: &v1.Handler{
-									Exec: &v1.ExecAction{
-										Command: []string{
-											"bash",
-											"-c",
-											strings.Join([]string{
-												"nodetool disablegossip && sleep 5",
-												"nodetool disablethrift && sleep 5",
-												"nodetool disablebinary && sleep 5",
-												"/scripts/probe.sh drain",
-											}, "\n"),
-										},
-									},
-								},
-							},
-							VolumeMounts: []v1.VolumeMount{
-								rolesVolumeMount(),
-								scriptsVolumeMount(),
-								jmxSecretVolumeMount(),
-								cassandraDCConfigVolumeMount(),
-								{
-									Name:      "data",
-									MountPath: "/var/lib/cassandra",
-								},
-							},
-							Ports: []v1.ContainerPort{
-								{
-									Name:          "intra",
-									ContainerPort: 7000,
-									Protocol:      v1.ProtocolTCP,
-								},
-								{
-									Name:          "tls",
-									ContainerPort: 7001,
-									Protocol:      v1.ProtocolTCP,
-								},
-								{
-									Name:          "jmx",
-									ContainerPort: jmxPort,
-									Protocol:      v1.ProtocolTCP,
-								},
-								{
-									Name:          "cql",
-									ContainerPort: cqlPort,
-									Protocol:      v1.ProtocolTCP,
-								},
-								{
-									Name:          "thrift",
-									ContainerPort: thriftPort,
-									Protocol:      v1.ProtocolTCP,
-								},
-							},
-							TerminationMessagePath:   "/dev/termination-log",
-							TerminationMessagePolicy: v1.TerminationMessageReadFile,
-						},
+						cassandraContainer(cc),
+					},
+					InitContainers: []v1.Container{
+						maintenanceContainer(cc, dc),
 					},
 					ImagePullSecrets: imagePullSecrets(cc),
 					Volumes: []v1.Volume{
 						rolesVolume(cc),
 						scriptsVolume(cc),
 						jmxSecretVolume(cc),
+						maintenanceVolume(cc),
 						cassandraDCConfigVolume(cc, dc),
 						{
 							Name: "data",
@@ -215,6 +119,164 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 	}
 
 	return nil
+}
+
+func cassandraContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
+	container := v1.Container{
+		Name:            "cassandra",
+		Image:           cc.Spec.Cassandra.Image,
+		ImagePullPolicy: cc.Spec.Cassandra.ImagePullPolicy,
+		Env: []v1.EnvVar{
+			{
+				Name: "POD_IP",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "status.podIP"},
+				},
+			},
+		},
+		Args: []string{
+			"bash",
+			"-c",
+			getCassandraRunCommand(),
+		},
+		Resources: cc.Spec.Cassandra.Resources,
+		LivenessProbe: &v1.Probe{
+			Handler: v1.Handler{
+				TCPSocket: &v1.TCPSocketAction{
+					Port: intstr.FromString("jmx"),
+				},
+			},
+			InitialDelaySeconds: 60,
+			TimeoutSeconds:      20,
+			PeriodSeconds:       20,
+			SuccessThreshold:    1,
+			FailureThreshold:    3,
+		},
+		ReadinessProbe: &v1.Probe{
+			Handler: v1.Handler{
+				Exec: &v1.ExecAction{
+					Command: []string{
+						"bash",
+						"-c",
+						fmt.Sprintf("http --check-status --timeout 2 --body GET %s/healthz/$POD_IP", names.ProberService(cc)),
+					},
+				},
+			},
+			TimeoutSeconds:      20,
+			PeriodSeconds:       10,
+			SuccessThreshold:    2,
+			FailureThreshold:    3,
+			InitialDelaySeconds: 20,
+		},
+		Lifecycle: &v1.Lifecycle{
+			PreStop: &v1.Handler{
+				Exec: &v1.ExecAction{
+					Command: []string{
+						"bash",
+						"-c",
+						strings.Join([]string{
+							"nodetool disablegossip && sleep 5",
+							"nodetool disablethrift && sleep 5",
+							"nodetool disablebinary && sleep 5",
+							"/scripts/probe.sh drain",
+						}, "\n"),
+					},
+				},
+			},
+		},
+		VolumeMounts: []v1.VolumeMount{
+			rolesVolumeMount(),
+			scriptsVolumeMount(),
+			jmxSecretVolumeMount(),
+			cassandraDCConfigVolumeMount(),
+			cassandraDataVolumeMount(),
+		},
+		Ports: []v1.ContainerPort{
+			{
+				Name:          "intra",
+				ContainerPort: 7000,
+				Protocol:      v1.ProtocolTCP,
+			},
+			{
+				Name:          "tls",
+				ContainerPort: 7001,
+				Protocol:      v1.ProtocolTCP,
+			},
+			{
+				Name:          "jmx",
+				ContainerPort: jmxPort,
+				Protocol:      v1.ProtocolTCP,
+			},
+			{
+				Name:          "cql",
+				ContainerPort: cqlPort,
+				Protocol:      v1.ProtocolTCP,
+			},
+			{
+				Name:          "thrift",
+				ContainerPort: thriftPort,
+				Protocol:      v1.ProtocolTCP,
+			},
+		},
+		TerminationMessagePath:   "/dev/termination-log",
+		TerminationMessagePolicy: v1.TerminationMessageReadFile,
+	}
+
+	return container
+}
+
+func maintenanceContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Container {
+	memory := resource.MustParse("200Mi")
+	cpu := resource.MustParse("0.5")
+	return v1.Container{
+		Name:            "maintenance-mode",
+		Image:           cc.Spec.Cassandra.Image,
+		ImagePullPolicy: cc.Spec.Cassandra.ImagePullPolicy,
+		Resources: v1.ResourceRequirements{
+			Requests: v1.ResourceList{
+				"memory": memory,
+				"cpu":    cpu,
+			},
+			Limits: map[v1.ResourceName]resource.Quantity{
+				"memory": memory,
+				"cpu":    cpu,
+			},
+		},
+		VolumeMounts: []v1.VolumeMount{
+			cassandraDataVolumeMount(),
+			maintenanceVolumeMount(),
+		},
+		Command: []string{
+			"bash",
+			"-c",
+		},
+		Args: []string{
+			fmt.Sprintf("while [[ -f %s/${HOSTNAME} ]]; do sleep 10; done", maintenanceDir),
+		},
+		TerminationMessagePath:   "/dev/termination-log",
+		TerminationMessagePolicy: v1.TerminationMessageReadFile,
+	}
+}
+
+func maintenanceVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
+	return v1.Volume{
+		Name: "maintenance-config",
+		VolumeSource: v1.VolumeSource{
+			ConfigMap: &v1.ConfigMapVolumeSource{
+				LocalObjectReference: v1.LocalObjectReference{
+					Name: names.MaintenanceConfigMap(cc),
+				},
+				DefaultMode: proto.Int32(0700),
+			},
+		},
+	}
+}
+
+func maintenanceVolumeMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      "maintenance-config",
+		MountPath: maintenanceDir,
+	}
 }
 
 func (r *CassandraClusterReconciler) reconcileDCService(ctx context.Context, cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) error {
@@ -340,5 +402,12 @@ func imagePullSecrets(cc *dbv1alpha1.CassandraCluster) []v1.LocalObjectReference
 		{
 			Name: cc.Spec.ImagePullSecretName,
 		},
+	}
+}
+
+func cassandraDataVolumeMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      "data",
+		MountPath: "/var/lib/cassandra",
 	}
 }

@@ -46,11 +46,14 @@ import (
 )
 
 const (
-	proberContainerPort         = 8888
-	jolokiaContainerPort        = 8080
-	cqlPort                     = 9042
-	jmxPort                     = 7199
-	thriftPort                  = 9160
+	proberContainerPort  = 8888
+	jolokiaContainerPort = 8080
+	maintenancePort      = 8889
+	cqlPort              = 9042
+	jmxPort              = 7199
+	thriftPort           = 9160
+
+	maintenanceDir              = "/etc/maintenance"
 	cassandraRolesDir           = "/etc/cassandra-roles"
 	defaultCQLConfigMapLabelKey = "cql-scripts"
 
@@ -78,6 +81,8 @@ type CassandraClusterReconciler struct {
 // +kubebuilder:rbac:groups="",resources=configmaps/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;
+// +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;patch;create;update;
+// +kubebuilder:rbac:groups="",resources=pods/status,verbs=get;patch;update
 // +kubebuilder:rbac:groups="",resources=pods/exec,verbs=create
 // +kubebuilder:rbac:groups=apps,resources=deployments;statefulsets,verbs=list;get;watch;create;update;delete
 // +kubebuilder:rbac:groups="",resources=services;serviceaccounts,verbs=list;watch;create;update;delete
@@ -221,6 +226,10 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.CassandraCluster) {
 	if cc.Spec.CQLConfigMapLabelKey == "" {
 		cc.Spec.CQLConfigMapLabelKey = defaultCQLConfigMapLabelKey
+	}
+
+	if cc.Spec.PodManagementPolicy == "" {
+		cc.Spec.PodManagementPolicy = appsv1.ParallelPodManagement
 	}
 
 	if cc.Spec.Cassandra == nil {

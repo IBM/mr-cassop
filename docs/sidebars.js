@@ -7,6 +7,7 @@ module.exports = {
     'keyspace-management',
     'reaper',
     'reaper-repairs-configuration',
+    'maintenance-mode',
     'development',
   ],
 };

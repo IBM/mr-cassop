@@ -77,11 +77,11 @@ var _ = Describe("Cassandra cluster", func() {
 
 	BeforeEach(func() { // Always initialize your variables in BeforeEach blocks
 		if casNamespace == "" {
-			Fail("You should define e2e_namespace environment variable!\nIt's a namespace name to deploy C* cluster.\nFor example: `export e2e_namespace=\"my-namespace\"`")
+			Fail("You must define the e2e_namespace environment variable!\nIt's the namespace where your C* cluster will be deployed.\nFor example: `export e2e_namespace=\"my-namespace\"`")
 		}
 
 		if casRelease == "" {
-			Fail("You should define e2e_release environment variable!\nIt's a custom name of your C* cluster.\nFor example: `export e2e_release=\"test\"`")
+			Fail("You must define the e2e_release environment variable!\nIt's the name of your C* cluster.\nFor example: `export e2e_release=\"test\"`")
 		}
 
 		currentTime = time.Now().UTC()

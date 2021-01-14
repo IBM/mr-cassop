@@ -50,6 +50,10 @@ func ShiroConfigMap(cc *v1alpha1.CassandraCluster) string {
 	return cc.Name + "-shiro-configmap"
 }
 
+func MaintenanceConfigMap(cc *v1alpha1.CassandraCluster) string {
+	return cc.Name + "-maintenance-configmap"
+}
+
 func RolesSecret(cc *v1alpha1.CassandraCluster) string {
 	return cc.Name + "-roles-secret"
 }
@@ -88,4 +92,8 @@ func OperatorCassandraConfigCM() string {
 
 func OperatorShiroCM() string {
 	return cassandraOperator + "-shiro-configmap"
+}
+
+func OperatorMaintenanceCM() string {
+	return cassandraOperator + "-maintenance-configmap"
 }

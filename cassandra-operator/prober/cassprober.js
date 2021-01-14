@@ -94,7 +94,7 @@ async function updateNodesRequest () {
   const table = new Table({ head: ['ip/host', 'ready', 'dc', 'id', ..._.range(knownIps.length)] })
   _.forEach(knownIps, (ip, index) => {
     const row = {}
-    row[nodesAttributes[ip].hostname || ip] =
+    row[nodesAttributes[ip]?.hostname || ip] =
       _.concat(isNodeReady(ip, newNodesStates, knownIps), nodesAttributes[ip]?.Datacenter, index, newNodesStates[ip])
     table.push(row)
   })
@@ -159,9 +159,9 @@ function getNodeStatesInDC (nodeIp, nStates = nodesStates, knownIPs = nodesAttri
 setInterval(updateNodeStates, JMX_POLL_PERIOD_SECONDS * 1000)
 
 chokidar.watch(USERS_DIR, { alwaysStat: true, depth: 0 })
-  .on('all', async (event, path, stats) => {
-    if (stats.isFile()) {
-      const contents = await loadJsonFile(path)
-      if (contents.nodetoolUser) userAuth.fromFile = { user: contents.username, password: contents.password }
-    }
-  }).on('error', err => log.error('File watcher error:\n', err))
+.on('all', async (event, path, stats) => {
+  if (stats.isFile()) {
+    const contents = await loadJsonFile(path)
+    if (contents.nodetoolUser) userAuth.fromFile = { user: contents.username, password: contents.password }
+  }
+}).on('error', err => log.error('File watcher error:\n', err))

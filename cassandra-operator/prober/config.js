@@ -12,21 +12,21 @@ if (LOG_LEVEL === 'trace') {
 }
 
 const log = require('ololog')
-  .configure({
-    time: true,
-    tag: true,
-    locate: { shift: 1 },
-    returnValue: (formatted, { initialArguments }) => _.size(initialArguments) === 1 ? initialArguments[0] : formatted
-  }).methods({
-    get debug () {
-      return this.configure(
-        { tag: { level: 'debug' }, render: ['debug', 'trace'].includes(LOG_LEVEL) ? { consoleMethod: 'debug' } : false })
-    },
-    handleUncaughtErrors () {
-      process.on('uncaughtException', this.bright.red.error)
-      process.on('unhandledRejection', this.bright.red.error)
-      return this
-    }
-  }).handleUncaughtErrors()
+.configure({
+  time: true,
+  tag: true,
+  locate: { shift: 1 },
+  returnValue: (formatted, { initialArguments }) => _.size(initialArguments) === 1 ? initialArguments[0] : formatted
+}).methods({
+  get debug () {
+    return this.configure(
+      { tag: { level: 'debug' }, render: ['debug', 'trace'].includes(LOG_LEVEL) ? { consoleMethod: 'debug' } : false })
+  },
+  handleUncaughtErrors () {
+    process.on('uncaughtException', this.bright.red.error)
+    process.on('unhandledRejection', this.bright.red.error)
+    return this
+  }
+}).handleUncaughtErrors()
 
 module.exports = { axios, log }

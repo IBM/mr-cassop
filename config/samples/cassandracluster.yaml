@@ -11,9 +11,6 @@ spec:
       requests:
         memory: 1.5Gi
         cpu: "1"
-      limits:
-        memory: 1.5Gi
-        cpu: "1"
   cqlConfigMapLabelKey: cql-scripts
   dcs:
     - name: dc1
@@ -28,13 +25,6 @@ spec:
     jolokia:
       image: us.icr.io/icm-docker-images/jolokia-proxy:1.6.2
       imagePullPolicy: IfNotPresent
-    resources:
-      requests:
-        memory: 256Mi
-        cpu: "200m"
-      limits:
-        memory: 256Mi
-        cpu: "200m"
   reaper:
     image: thelastpickle/cassandra-reaper:2.1.2
     imagePullPolicy: IfNotPresent

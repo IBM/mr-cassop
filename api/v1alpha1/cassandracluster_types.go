@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -46,12 +47,14 @@ type CassandraClusterSpec struct {
 	// +kubebuilder:validation:MinItems:=1
 	DCs []DC `json:"dcs"`
 	// +kubebuilder:validation:MinLength:=1
-	ImagePullSecretName  string          `json:"imagePullSecretName"`
-	CQLConfigMapLabelKey string          `json:"cqlConfigMapLabelKey,omitempty"`
-	Cassandra            *Cassandra      `json:"cassandra,omitempty"`
-	SystemKeyspaces      SystemKeyspaces `json:"systemKeyspaces,omitempty"`
-	Prober               Prober          `json:"prober,omitempty"`
-	Reaper               *Reaper         `json:"reaper,omitempty"`
+	ImagePullSecretName  string `json:"imagePullSecretName"`
+	CQLConfigMapLabelKey string `json:"cqlConfigMapLabelKey,omitempty"`
+	// +kubebuilder:validation:Enum=OrderedReady;Parallel
+	PodManagementPolicy appsv1.PodManagementPolicyType `json:"podManagementPolicy,omitempty"`
+	Cassandra           *Cassandra                     `json:"cassandra,omitempty"`
+	SystemKeyspaces     SystemKeyspaces                `json:"systemKeyspaces,omitempty"`
+	Prober              Prober                         `json:"prober,omitempty"`
+	Reaper              *Reaper                        `json:"reaper,omitempty"`
 	//JMX                  JMX             `json:"jmx,omitempty"` //TODO part of auth  implementation
 	//NodetoolUser         string          `json:"nodetoolUser,omitempty"` //TODO part of auth implementation
 	//HostPort             HostPort        `json:"hostPort,omitempty"` //TODO part of hostport implementation
@@ -59,7 +62,6 @@ type CassandraClusterSpec struct {
 	//JVM                  JVM             `json:"jvm,omitempty"`
 }
 
-// TODO: choose which fields will go into the Reaper ConfigMap
 type Reaper struct {
 	Image string `json:"image,omitempty"`
 	// +kubebuilder:validation:Enum=Always;Never;IfNotPresent

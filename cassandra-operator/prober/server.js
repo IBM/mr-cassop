@@ -8,6 +8,8 @@ const { // import pre-configured libs
   axios,
   log
 } = require('./config')
+
+require('./maintenance')
 const kprober = require('./kprober')
 const cassprober = require('./cassprober')
 

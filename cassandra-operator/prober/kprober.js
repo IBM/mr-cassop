@@ -28,7 +28,7 @@ const getPod = podName => k8sApi.readNamespacedPod(podName, POD_NAMESPACE).then(
  */
 const getStatefulsets = labelSelector =>
   appsApi.listNamespacedStatefulSet(POD_NAMESPACE, undefined, undefined, undefined, undefined, labelSelector)
-    .then(res => res.body.items).catch(log.error)
+  .then(res => res.body.items).catch(log.error)
 
 /**
  * @param {V1StatefulSet} statefulSet
@@ -46,6 +46,6 @@ const getStatefulsetStatus = statefulSet => ({
  * @param {string} labelSelector
  * @return {Promise<{           replicas: number,
  *                              readyReplicas: number,
-*                     readonly  ready: boolean }[]> }
+ *                     readonly  ready: boolean }[]> }
  */
 exports.getStatefulsetsStatus = labelSelector => getStatefulsets(labelSelector).then(sts => sts.map(getStatefulsetStatus))

@@ -29,6 +29,26 @@ func (r *CassandraClusterReconciler) reconcileProberRole(ctx context.Context, cc
 				Resources: []string{"statefulsets"},
 				Verbs:     []string{"list", "watch", "get"},
 			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"services"},
+				Verbs:     []string{"list", "watch", "update"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"configmaps"},
+				Verbs:     []string{"list", "watch", "get", "patch", "update", "create", "delete"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"pods"},
+				Verbs:     []string{"list", "watch", "get", "patch", "update", "create"},
+			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"pods/status", "configmaps/status"},
+				Verbs:     []string{"get", "patch", "update"},
+			},
 		},
 	}
 
