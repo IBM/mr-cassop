@@ -112,7 +112,6 @@ var _ = BeforeSuite(func(done Done) {
 		DefaultCassandraImage: "cassandra/image",
 		DefaultProberImage:    "prober/image",
 		DefaultJolokiaImage:   "jolokia/image",
-		DefaultKwatcherImage:  "kwatcher/image",
 		DefaultReaperImage:    "reaper/image",
 	}
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})

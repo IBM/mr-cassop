@@ -21,16 +21,6 @@ spec:
     - name: dc2
       replicas: 3
   imagePullSecretName: icm-coreeng-pull-secret
-  kwatcher:
-    image: us.icr.io/icm-cassandra/cassandra-kwatcher:0.18.3
-    imagePullPolicy: IfNotPresent
-    resources:
-      requests:
-        memory: 512Mi
-        cpu: "0.5"
-      limits:
-        memory: 512Mi
-        cpu: "0.5"
   prober:
     debug: true
     image: us.icr.io/icm-cassandra/cassandra-prober:0.18.3

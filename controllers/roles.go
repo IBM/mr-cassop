@@ -136,59 +136,6 @@ func (r *CassandraClusterReconciler) reconcileRolesSecret(ctx context.Context, c
 	return nil
 }
 
-func (r *CassandraClusterReconciler) rolesCreated(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cqlClient cql.CqlClient) (bool, error) {
-	cassandraRoles, err := cqlClient.GetRoles()
-	if err != nil {
-		return false, errors.Wrapf(err, "can't get list of roles from Cassandra")
-	}
-
-	rolesFromSecret, err := r.getRolesFromSecret(ctx, cc)
-	if err != nil {
-		return false, errors.Wrapf(err, "can't get roles from secret")
-	}
-
-	for _, roleFromSecret := range rolesFromSecret {
-		found := false
-		for _, cassandraRole := range cassandraRoles {
-			if roleFromSecret.Name == cassandraRole.Role {
-				found = true
-				break
-			}
-		}
-		if !found {
-			r.Log.Debugf("Didn't find role %s", roleFromSecret.Name)
-			return false, nil
-		}
-	}
-
-	return true, nil
-}
-
-func (r *CassandraClusterReconciler) getRolesFromSecret(ctx context.Context, cc *dbv1alpha1.CassandraCluster) ([]Role, error) {
-	rolesSecret := &v1.Secret{}
-	rolesSecretName := types.NamespacedName{
-		Name:      names.RolesSecret(cc),
-		Namespace: cc.Namespace,
-	}
-
-	err := r.Get(ctx, rolesSecretName, rolesSecret)
-	if err != nil {
-		return []Role{}, errors.Wrapf(err, "Can't get roles secret")
-	}
-
-	rolesFromSecret := make([]Role, 0, len(rolesSecret.Data))
-	for _, roleFromSecretData := range rolesSecret.Data {
-		role := Role{}
-		err := json.Unmarshal(roleFromSecretData, &role)
-		if err != nil {
-			return []Role{}, errors.Wrapf(err, "Can't unmarshal role data")
-		}
-		rolesFromSecret = append(rolesFromSecret, role)
-	}
-
-	return rolesFromSecret, nil
-}
-
 func rolesVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
 	return v1.Volume{
 		Name: "roles",

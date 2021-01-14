@@ -30,7 +30,6 @@ func (r *CassandraClusterReconciler) reconcileKeyspaces(cc *dbv1alpha1.Cassandra
 		desiredOptions := desiredReplicationOptions(cc)
 		if !cmp.Equal(keyspaceInfo.Replication, desiredOptions) {
 			r.Log.Infof("Updating keyspace %q with replication options %v", systemKeyspace, desiredOptions)
-			r.Log.Debugf("%q rf options: \n%v", systemKeyspace, desiredOptions)
 			err = cqlClient.UpdateRF(string(systemKeyspace), desiredOptions)
 			if err != nil {
 				return errors.Wrapf(err, "failed to alter %q keyspace", systemKeyspace)

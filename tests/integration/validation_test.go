@@ -187,31 +187,6 @@ var _ = Describe("cassandracluster validation", func() {
 			expectToBeInvalidError(err)
 		})
 	})
-	Context(".spec.kwatcher.imagePullPolicy", func() {
-		It("can only be one of (Always;Never;IfNotPresent)", func() {
-			cc := &v1alpha1.CassandraCluster{
-				ObjectMeta: cassandraObjectMeta,
-				Spec: v1alpha1.CassandraClusterSpec{
-					DCs: []v1alpha1.DC{
-						{
-							Name:     "dc1",
-							Replicas: proto.Int32(3),
-						},
-					},
-					ImagePullSecretName: "pullSecretName",
-					Cassandra: &v1alpha1.Cassandra{
-						NumSeeds:        3,
-						ImagePullPolicy: v1.PullAlways,
-					},
-					Kwatcher: v1alpha1.Kwatcher{
-						ImagePullPolicy: "invalid",
-					},
-				},
-			}
-			err := k8sClient.Create(ctx, cc)
-			expectToBeInvalidError(err)
-		})
-	})
 	Context(".spec.prober.imagePullPolicy", func() {
 		It("can only be one of (Always;Never;IfNotPresent)", func() {
 			cc := &v1alpha1.CassandraCluster{
@@ -226,9 +201,6 @@ var _ = Describe("cassandracluster validation", func() {
 					ImagePullSecretName: "pullSecretName",
 					Cassandra: &v1alpha1.Cassandra{
 						NumSeeds:        3,
-						ImagePullPolicy: v1.PullAlways,
-					},
-					Kwatcher: v1alpha1.Kwatcher{
 						ImagePullPolicy: v1.PullAlways,
 					},
 					Prober: v1alpha1.Prober{
@@ -255,9 +227,6 @@ var _ = Describe("cassandracluster validation", func() {
 					Cassandra: &v1alpha1.Cassandra{
 						NumSeeds:        3,
 						ImagePullPolicy: v1.PullAlways,
-					},
-					Kwatcher: v1alpha1.Kwatcher{
-						ImagePullPolicy: v1.PullNever,
 					},
 					Prober: v1alpha1.Prober{
 						ImagePullPolicy: v1.PullIfNotPresent,
@@ -497,10 +466,6 @@ var _ = Describe("cassandracluster validation", func() {
 						NumSeeds:        3,
 						ImagePullPolicy: v1.PullAlways,
 						Image:           "cassandra/image",
-					},
-					Kwatcher: v1alpha1.Kwatcher{
-						ImagePullPolicy: v1.PullAlways,
-						Image:           "kwatcher/image",
 					},
 					Prober: v1alpha1.Prober{
 						ImagePullPolicy: v1.PullAlways,

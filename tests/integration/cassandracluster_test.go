@@ -28,7 +28,7 @@ var _ = Describe("operator configmaps", func() {
 	})
 })
 
-var _ = Describe("prober, statefulsets, kwatcher and reaper", func() {
+var _ = Describe("prober, statefulsets and reaper", func() {
 	cc := &v1alpha1.CassandraCluster{
 		ObjectMeta: cassandraObjectMeta,
 		Spec: v1alpha1.CassandraClusterSpec{
@@ -117,38 +117,13 @@ exec cassandra -R -f -Dcassandra.jmx.remote.port=7199 -Dcom.sun.management.jmxre
 				}))
 			}
 
-			By("kwatcher shouldn't be deployed until all DCs ready")
-			Consistently(func() error {
-				return k8sClient.Get(context.Background(), types.NamespacedName{Name: names.KwatcherDeployment(cc, cc.Spec.DCs[0].Name), Namespace: cc.Namespace}, &appsv1.Deployment{})
-			}, time.Second*1, time.Millisecond*100).ShouldNot(Succeed())
-
 			By("reaper shouldn't be deployed until all DCs ready")
 			Consistently(func() error {
 				return k8sClient.Get(context.Background(), types.NamespacedName{Name: names.ReaperDeployment(cc, cc.Spec.DCs[0].Name), Namespace: cc.Namespace}, &appsv1.Deployment{})
 			}, time.Second*1, time.Millisecond*100).ShouldNot(Succeed())
 
-			By("kwatcher should be deployed after DCs ready")
-			mockProberClient.readyAllDCs = true
-			for _, dc := range cc.Spec.DCs {
-				kwatcherDeploy := &appsv1.Deployment{}
-				Eventually(func() error {
-					return k8sClient.Get(context.Background(), types.NamespacedName{Name: names.KwatcherDeployment(cc, dc.Name), Namespace: cc.Namespace}, kwatcherDeploy)
-				}, time.Second*5, time.Millisecond*100).Should(Succeed())
-
-				Expect(kwatcherDeploy.Spec.Template.Spec.Containers[0].Command).Should(Equal([]string{
-					"./kwatcher",
-					"-namespace", "default",
-					"-appname", "test-cassandra-cluster",
-					"-hosts", "test-cassandra-cluster-cassandra-" + dc.Name,
-					"-dcname", dc.Name,
-					"-statefulsetname", "test-cassandra-cluster-cassandra-" + dc.Name,
-					"-redact",
-					"-repairjobimage", "cassandra/image",
-					"-port", "9042",
-				}))
-			}
-
 			By("reaper should be deployed after DCs ready")
+			mockProberClient.readyAllDCs = true
 			mockReaperClient.isRunning = false
 			mockReaperClient.err = nil
 			for _, dc := range cc.Spec.DCs {

@@ -30,30 +30,6 @@ func ProberSources(cc *v1alpha1.CassandraCluster) string {
 	return cc.Name + "-cassandra-prober-sources"
 }
 
-func KwatcherDeployment(cc *v1alpha1.CassandraCluster, dcName string) string {
-	return DC(cc, dcName) + "-kwatcher"
-}
-
-func KwatcherRole(cc *v1alpha1.CassandraCluster) string {
-	return cc.Name + "-kwatcher-role"
-}
-
-func KwatcherRoleBinding(cc *v1alpha1.CassandraCluster) string {
-	return cc.Name + "-kwatcher-rolebinding"
-}
-
-func KwatcherClusterRole(cc *v1alpha1.CassandraCluster) string {
-	return cc.Name + "-kwatcher-clusterrole"
-}
-
-func KwatcherClusterRoleBinding(cc *v1alpha1.CassandraCluster) string {
-	return cc.Name + "-kwatcher-clusterrolebinding"
-}
-
-func KwatcherServiceAccount(cc *v1alpha1.CassandraCluster) string {
-	return cc.Name + "-kwatcher-serviceaccount"
-}
-
 func ReaperDeployment(cc *v1alpha1.CassandraCluster, dcName string) string {
 	return DC(cc, dcName) + "-reaper"
 }
@@ -74,12 +50,8 @@ func ShiroConfigMap(cc *v1alpha1.CassandraCluster) string {
 	return cc.Name + "-shiro-configmap"
 }
 
-func KeyspaceConfigMap(cc *v1alpha1.CassandraCluster) string {
-	return cc.Name + "-keyspace-configmap"
-}
-
 func RolesSecret(cc *v1alpha1.CassandraCluster) string {
-	return cc.Name + "-users-secret" //TODO change to `-roles-secret` after kwatcher is removed. The name is hardcoded in kwacther's code.
+	return cc.Name + "-roles-secret"
 }
 
 func ScriptsConfigMap(cc *v1alpha1.CassandraCluster) string {

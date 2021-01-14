@@ -27,7 +27,6 @@ type Config struct {
 	DefaultCassandraImage string        `env:"DEFAULT_CASSANDRA_IMAGE,required"`
 	DefaultProberImage    string        `env:"DEFAULT_PROBER_IMAGE,required"`
 	DefaultJolokiaImage   string        `env:"DEFAULT_JOLOKIA_IMAGE,required"`
-	DefaultKwatcherImage  string        `env:"DEFAULT_KWATCHER_IMAGE,required"`
 	DefaultReaperImage    string        `env:"DEFAULT_REAPER_IMAGE,required"`
 }
 

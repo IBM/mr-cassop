@@ -168,37 +168,20 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 
 	r.Log.Debug("All DCs are ready")
 
+	ntClient := r.NodetoolClient(r.Clientset, r.RESTConfig)
 	cqlClient, err := r.CqlClient(newCassandraConfig(cc))
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Can't create cassandra session")
 	}
 
-	err = r.reconcileRoles(cqlClient)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	if err := r.reconcileKwatcher(ctx, cc); err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Error reconciling kwatcher")
-	}
-
-	ntClient := r.NodetoolClient(r.Clientset, r.RESTConfig)
-
-	r.Log.Debug("Checking if all roles are created by kwatcher")
-	created, err := r.rolesCreated(ctx, cc, cqlClient)
-	if err != nil {
-		return ctrl.Result{}, errors.Wrapf(err, "Can't get created roles info")
-	}
-
-	if !created {
-		r.Log.Infof("Roles hasn't been created yet. Checking again in %s...", r.Cfg.RetryDelay)
-		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
-	}
-	r.Log.Info("Roles has been created")
-
 	err = r.reconcileKeyspaces(cc, cqlClient, ntClient)
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile keyspaces")
+	}
+
+	err = r.reconcileRoles(cqlClient)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	if err = r.reconcileCQLConfigMaps(ctx, cc, cqlClient, ntClient); err != nil {
@@ -270,14 +253,6 @@ func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.Cass
 
 	if cc.Spec.Prober.Jolokia.ImagePullPolicy == "" {
 		cc.Spec.Prober.Jolokia.ImagePullPolicy = v1.PullIfNotPresent
-	}
-
-	if cc.Spec.Kwatcher.Image == "" {
-		cc.Spec.Kwatcher.Image = r.Cfg.DefaultKwatcherImage
-	}
-
-	if cc.Spec.Kwatcher.ImagePullPolicy == "" {
-		cc.Spec.Kwatcher.ImagePullPolicy = v1.PullIfNotPresent
 	}
 
 	if len(cc.Spec.SystemKeyspaces.DCs) == 0 {

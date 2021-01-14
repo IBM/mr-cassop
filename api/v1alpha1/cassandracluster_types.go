@@ -27,7 +27,6 @@ const (
 	CassandraClusterDC        = "cassandra-cluster-dc"
 
 	CassandraClusterComponentProber    = "prober"
-	CassandraClusterComponentKwatcher  = "kwatcher"
 	CassandraClusterComponentReaper    = "reaper"
 	CassandraClusterComponentCassandra = "cassandra"
 )
@@ -52,7 +51,6 @@ type CassandraClusterSpec struct {
 	Cassandra            *Cassandra      `json:"cassandra,omitempty"`
 	SystemKeyspaces      SystemKeyspaces `json:"systemKeyspaces,omitempty"`
 	Prober               Prober          `json:"prober,omitempty"`
-	Kwatcher             Kwatcher        `json:"kwatcher,omitempty"`
 	Reaper               *Reaper         `json:"reaper,omitempty"`
 	//JMX                  JMX             `json:"jmx,omitempty"` //TODO part of auth  implementation
 	//NodetoolUser         string          `json:"nodetoolUser,omitempty"` //TODO part of auth implementation
@@ -177,13 +175,6 @@ type Prober struct {
 }
 
 type Jolokia struct {
-	Image string `json:"image,omitempty"`
-	// +kubebuilder:validation:Enum=Always;Never;IfNotPresent
-	ImagePullPolicy v1.PullPolicy           `json:"imagePullPolicy,omitempty"`
-	Resources       v1.ResourceRequirements `json:"resources,omitempty"`
-}
-
-type Kwatcher struct {
 	Image string `json:"image,omitempty"`
 	// +kubebuilder:validation:Enum=Always;Never;IfNotPresent
 	ImagePullPolicy v1.PullPolicy           `json:"imagePullPolicy,omitempty"`

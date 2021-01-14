@@ -16,5 +16,4 @@ logFormat: json
 proberImage: us.icr.io/icm-cassandra/cassandra-prober:0.18.3
 jolokiaImage: us.icr.io/icm-docker-images/jolokia-proxy:1.6.2
 cassandraImage: us.icr.io/icm-cassandra/cassandra:3.11.8-0.18.3
-kwatcherImage: us.icr.io/icm-cassandra/cassandra-kwatcher:0.18.3
 reaperImage: thelastpickle/cassandra-reaper:2.0.5

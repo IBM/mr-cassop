@@ -62,7 +62,6 @@ func TestDefaultingFunction(t *testing.T) {
 	g := NewGomegaWithT(t)
 	reconciler := &CassandraClusterReconciler{
 		Cfg: config.Config{
-			DefaultKwatcherImage:  "kwatcher/image",
 			DefaultProberImage:    "prober/image",
 			DefaultJolokiaImage:   "jolokia/image",
 			DefaultCassandraImage: "cassandra/image",
@@ -81,8 +80,6 @@ func TestDefaultingFunction(t *testing.T) {
 	g.Expect(cc.Spec.Prober.ImagePullPolicy).To(Equal(v1.PullIfNotPresent))
 	g.Expect(cc.Spec.Prober.Jolokia.Image).To(Equal("jolokia/image"))
 	g.Expect(cc.Spec.Prober.Jolokia.ImagePullPolicy).To(Equal(v1.PullIfNotPresent))
-	g.Expect(cc.Spec.Kwatcher.Image).To(Equal("kwatcher/image"))
-	g.Expect(cc.Spec.Kwatcher.ImagePullPolicy).To(Equal(v1.PullIfNotPresent))
 	g.Expect(cc.Spec.Reaper).ToNot(BeNil())
 	g.Expect(cc.Spec.Reaper.Keyspace).To(Equal("reaper_db"))
 	g.Expect(cc.Spec.Reaper.Image).To(Equal("reaper/image"))

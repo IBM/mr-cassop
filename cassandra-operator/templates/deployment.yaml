@@ -37,8 +37,6 @@ spec:
               value: {{ .Values.cassandraImage | quote }}
             - name: DEFAULT_PROBER_IMAGE
               value: {{ .Values.proberImage | quote }}
-            - name: DEFAULT_KWATCHER_IMAGE
-              value: {{ .Values.kwatcherImage | quote }}
             - name: DEFAULT_JOLOKIA_IMAGE
               value: {{ .Values.jolokiaImage | quote }}
             - name: DEFAULT_REAPER_IMAGE

@@ -72,7 +72,6 @@ var _ = Describe("Cassandra cluster", func() {
 		casDeploymentLabel = map[string]string{v1alpha1.CassandraClusterInstance: casRelease}
 		proberPodLabels    = map[string]string{v1alpha1.CassandraClusterInstance: casRelease, v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentProber}
 		casClPodLabels     = map[string]string{v1alpha1.CassandraClusterInstance: casRelease, v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra}
-		kwatcherPodLabels  = map[string]string{v1alpha1.CassandraClusterInstance: casRelease, v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentKwatcher}
 		reaperPodLabels    = map[string]string{v1alpha1.CassandraClusterInstance: casRelease, v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentReaper}
 	)
 
@@ -192,20 +191,6 @@ var _ = Describe("Cassandra cluster", func() {
 					Jolokia: v1alpha1.Jolokia{
 						Image:           "us.icr.io/icm-docker-images/jolokia-proxy:1.6.2",
 						ImagePullPolicy: "IfNotPresent",
-					},
-				},
-				Kwatcher: v1alpha1.Kwatcher{
-					Image:           "us.icr.io/icm-cassandra/cassandra-kwatcher:0.18.3",
-					ImagePullPolicy: "IfNotPresent",
-					Resources: corev1.ResourceRequirements{
-						Limits: corev1.ResourceList{
-							corev1.ResourceMemory: resource.MustParse("512Mi"),
-							corev1.ResourceCPU:    resource.MustParse("0.5"),
-						},
-						Requests: corev1.ResourceList{
-							corev1.ResourceMemory: resource.MustParse("512Mi"),
-							corev1.ResourceCPU:    resource.MustParse("0.5"),
-						},
 					},
 				},
 				Reaper: &v1alpha1.Reaper{
@@ -345,12 +330,6 @@ var _ = Describe("Cassandra cluster", func() {
 		for _, dc := range dcs {
 			casClPodLabels[v1alpha1.CassandraClusterDC] = dc
 			waitForPodsReadiness(casNamespace, casClPodLabels)
-		}
-
-		By("Checking kwatcher pods readiness...")
-		for _, dc := range dcs {
-			casClPodLabels[v1alpha1.CassandraClusterDC] = dc
-			waitForPodsReadiness(casNamespace, kwatcherPodLabels)
 		}
 
 		By("Checking reaper pods readiness...")
