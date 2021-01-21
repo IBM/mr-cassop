@@ -7,6 +7,17 @@ spec:
     image: us.icr.io/icm-cassandra/cassandra:3.11.8-0.18.3
     imagePullPolicy: IfNotPresent
     numSeeds: 2
+    persistence:
+      enabled: false
+      commitLogVolume: false
+      dataVolumeClaimSpec:
+        resources:
+          requests:
+            storage: 20Gi
+      commitLogVolumeClaimSpec:
+        resources:
+          requests:
+            storage: 20Gi
     resources:
       requests:
         memory: 1.5Gi

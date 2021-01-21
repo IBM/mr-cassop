@@ -55,6 +55,7 @@ const (
 
 	maintenanceDir              = "/etc/maintenance"
 	cassandraRolesDir           = "/etc/cassandra-roles"
+	cassandraCommitLogDir       = "/var/lib/cassandra-commitlog"
 	defaultCQLConfigMapLabelKey = "cql-scripts"
 
 	annotationCassandraClusterName      = "cassandra-cluster-name"
@@ -247,6 +248,20 @@ func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.Cass
 	if cc.Spec.Cassandra.NumSeeds == 0 {
 		cc.Spec.Cassandra.NumSeeds = 2
 	}
+
+	if cc.Spec.Cassandra.Persistence.DataVolumeClaimSpec.VolumeMode == nil {
+		volumeModeFile := v1.PersistentVolumeFilesystem
+		cc.Spec.Cassandra.Persistence.DataVolumeClaimSpec.VolumeMode = &volumeModeFile
+	}
+
+	cc.Spec.Cassandra.Persistence.DataVolumeClaimSpec.AccessModes = []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce}
+
+	if cc.Spec.Cassandra.Persistence.CommitLogVolumeClaimSpec.VolumeMode == nil {
+		volumeModeFile := v1.PersistentVolumeFilesystem
+		cc.Spec.Cassandra.Persistence.CommitLogVolumeClaimSpec.VolumeMode = &volumeModeFile
+	}
+
+	cc.Spec.Cassandra.Persistence.CommitLogVolumeClaimSpec.AccessModes = []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce}
 
 	if cc.Spec.Prober.Image == "" {
 		cc.Spec.Prober.Image = r.Cfg.DefaultProberImage

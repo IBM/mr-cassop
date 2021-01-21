@@ -15,8 +15,17 @@ var (
 
 	compareQuantity = cmp.Comparer(func(x, y resource.Quantity) bool { return x.Cmp(y) == 0 })
 
-	statefulSetIgnoreFields = cmpopts.IgnoreFields(appsv1.StatefulSet{}, "Spec.Template.Spec.DeprecatedServiceAccount", "Spec.Template.Spec.SchedulerName")
-	stsOpts                 = []cmp.Option{cmpopts.IgnoreFields(appsv1.StatefulSet{}, sharedIgnoreMetadata...), cmpopts.IgnoreFields(appsv1.StatefulSet{}, sharedIgnoreStatus...), statefulSetIgnoreFields, compareQuantity}
+	statefulSetIgnoreFields         = cmpopts.IgnoreFields(appsv1.StatefulSet{}, "Spec.Template.Spec.DeprecatedServiceAccount", "Spec.Template.Spec.SchedulerName")
+	volumeClaimTemplateIgnoreFields = cmpopts.IgnoreFields(v1.PersistentVolumeClaim{}, sharedIgnoreStatus...)
+	stsOpts                         = []cmp.Option{
+		cmpopts.IgnoreFields(appsv1.StatefulSet{}, sharedIgnoreMetadata...),
+		cmpopts.IgnoreFields(appsv1.StatefulSet{}, sharedIgnoreStatus...),
+		cmpopts.IgnoreFields(v1.PersistentVolumeClaim{}, sharedIgnoreMetadata...),
+		cmpopts.IgnoreFields(v1.PersistentVolumeClaim{}, sharedIgnoreStatus...),
+		statefulSetIgnoreFields,
+		volumeClaimTemplateIgnoreFields,
+		compareQuantity,
+	}
 
 	deploymentIgnoreFields = cmpopts.IgnoreFields(appsv1.Deployment{}, "Spec.Template.Spec.DeprecatedServiceAccount", "Spec.Template.Spec.SchedulerName")
 	deployOpts             = []cmp.Option{cmpopts.IgnoreFields(appsv1.Deployment{}, sharedIgnoreMetadata...), cmpopts.IgnoreFields(appsv1.Deployment{}, sharedIgnoreStatus...), deploymentIgnoreFields, compareQuantity}

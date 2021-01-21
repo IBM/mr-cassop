@@ -165,6 +165,18 @@ type Cassandra struct {
 	// https://docs.datastax.com/en/archived/cassandra/2.1/cassandra/security/security_config_native_authenticate_t.html
 	// https://docs.datastax.com/en/cassandra/3.0/cassandra/configuration/secureConfigNativeAuth.html
 	//InternalAuth bool `json:"internalAuth,omitempty"` //TODO part of auth implementation
+
+	PurgeGossip bool        `json:"purgeGossip,omitempty"`
+	Persistence Persistence `json:"persistence,omitempty"`
+}
+
+type Persistence struct {
+	Enabled                  bool                         `json:"enabled,omitempty"`
+	CommitLogVolume          bool                         `json:"commitLogVolume,omitempty"`
+	Labels                   map[string]string            `json:"labels,omitempty"`
+	Annotations              map[string]string            `json:"annotation,omitempty"`
+	DataVolumeClaimSpec      v1.PersistentVolumeClaimSpec `json:"dataVolumeClaimSpec,omitempty"`
+	CommitLogVolumeClaimSpec v1.PersistentVolumeClaimSpec `json:"commitLogVolumeClaimSpec,omitempty"`
 }
 
 type Prober struct {

@@ -73,12 +73,6 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 						jmxSecretVolume(cc),
 						maintenanceVolume(cc),
 						cassandraDCConfigVolume(cc, dc),
-						{
-							Name: "data",
-							VolumeSource: v1.VolumeSource{
-								EmptyDir: &v1.EmptyDirVolumeSource{},
-							},
-						},
 					},
 					RestartPolicy:                 v1.RestartPolicyAlways,
 					TerminationGracePeriodSeconds: proto.Int64(30),
@@ -87,6 +81,12 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 				},
 			},
 		},
+	}
+
+	if cc.Spec.Cassandra.Persistence.Enabled {
+		desiredSts.Spec.VolumeClaimTemplates = cassandraVolumeClaimTemplates(cc)
+	} else {
+		desiredSts.Spec.Template.Spec.Volumes = append(desiredSts.Spec.Template.Spec.Volumes, emptyDirDataVolume())
 	}
 
 	if err := controllerutil.SetControllerReference(cc, desiredSts, r.Scheme); err != nil {
@@ -137,7 +137,7 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 		Args: []string{
 			"bash",
 			"-c",
-			getCassandraRunCommand(),
+			getCassandraRunCommand(cc),
 		},
 		Resources: cc.Spec.Cassandra.Resources,
 		LivenessProbe: &v1.Probe{
@@ -222,61 +222,11 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 		TerminationMessagePolicy: v1.TerminationMessageReadFile,
 	}
 
+	if cc.Spec.Cassandra.Persistence.Enabled && cc.Spec.Cassandra.Persistence.CommitLogVolume {
+		container.VolumeMounts = append(container.VolumeMounts, commitLogVolumeMount())
+	}
+
 	return container
-}
-
-func maintenanceContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Container {
-	memory := resource.MustParse("200Mi")
-	cpu := resource.MustParse("0.5")
-	return v1.Container{
-		Name:            "maintenance-mode",
-		Image:           cc.Spec.Cassandra.Image,
-		ImagePullPolicy: cc.Spec.Cassandra.ImagePullPolicy,
-		Resources: v1.ResourceRequirements{
-			Requests: v1.ResourceList{
-				"memory": memory,
-				"cpu":    cpu,
-			},
-			Limits: map[v1.ResourceName]resource.Quantity{
-				"memory": memory,
-				"cpu":    cpu,
-			},
-		},
-		VolumeMounts: []v1.VolumeMount{
-			cassandraDataVolumeMount(),
-			maintenanceVolumeMount(),
-		},
-		Command: []string{
-			"bash",
-			"-c",
-		},
-		Args: []string{
-			fmt.Sprintf("while [[ -f %s/${HOSTNAME} ]]; do sleep 10; done", maintenanceDir),
-		},
-		TerminationMessagePath:   "/dev/termination-log",
-		TerminationMessagePolicy: v1.TerminationMessageReadFile,
-	}
-}
-
-func maintenanceVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
-	return v1.Volume{
-		Name: "maintenance-config",
-		VolumeSource: v1.VolumeSource{
-			ConfigMap: &v1.ConfigMapVolumeSource{
-				LocalObjectReference: v1.LocalObjectReference{
-					Name: names.MaintenanceConfigMap(cc),
-				},
-				DefaultMode: proto.Int32(0700),
-			},
-		},
-	}
-}
-
-func maintenanceVolumeMount() v1.VolumeMount {
-	return v1.VolumeMount{
-		Name:      "maintenance-config",
-		MountPath: maintenanceDir,
-	}
 }
 
 func (r *CassandraClusterReconciler) reconcileDCService(ctx context.Context, cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) error {
@@ -334,6 +284,10 @@ func (r *CassandraClusterReconciler) reconcileDCService(ctx context.Context, cc 
 		},
 	}
 
+	if err := controllerutil.SetControllerReference(cc, desiredService, r.Scheme); err != nil {
+		return errors.Wrap(err, "Cannot set controller reference")
+	}
+
 	actualService := &v1.Service{}
 	err := r.Get(ctx, types.NamespacedName{Name: names.DCService(cc, dc.Name), Namespace: cc.Namespace}, actualService)
 	if err != nil && apierrors.IsNotFound(err) {
@@ -386,8 +340,11 @@ func getSeed(cc *dbv1alpha1.CassandraCluster, dcName string, replicaNum int32) s
 		names.DC(cc, dcName), replicaNum, names.DCService(cc, dcName), cc.Namespace)
 }
 
-func getCassandraRunCommand() string {
+func getCassandraRunCommand(cc *dbv1alpha1.CassandraCluster) string {
 	commands := make([]string, 0)
+	if cc.Spec.Cassandra.PurgeGossip {
+		commands = append(commands, "[[ -d /var/lib/cassandra/data/system ]] && find /var/lib/cassandra/data/system -mindepth 1 -maxdepth 1 -name 'peers*' -type d -exec rm -rf {} \\;")
+	}
 	commands = append(commands, "cp /etc/cassandra-configmaps/* $CASSANDRA_CONF")
 	commands = append(commands, "cp /etc/cassandra-configmaps/jvm.options $CASSANDRA_HOME")
 	commands = append(commands, "until stat $CASSANDRA_CONF/cassandra.yaml; do sleep 5; done")
@@ -405,9 +362,105 @@ func imagePullSecrets(cc *dbv1alpha1.CassandraCluster) []v1.LocalObjectReference
 	}
 }
 
+func emptyDirDataVolume() v1.Volume {
+	return v1.Volume{
+		Name: "data",
+		VolumeSource: v1.VolumeSource{
+			EmptyDir: &v1.EmptyDirVolumeSource{},
+		},
+	}
+}
+
 func cassandraDataVolumeMount() v1.VolumeMount {
 	return v1.VolumeMount{
 		Name:      "data",
 		MountPath: "/var/lib/cassandra",
+	}
+}
+
+func commitLogVolumeMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      "commitlog",
+		MountPath: cassandraCommitLogDir,
+	}
+}
+
+func cassandraVolumeClaimTemplates(cc *dbv1alpha1.CassandraCluster) []v1.PersistentVolumeClaim {
+	volumeClaims := []v1.PersistentVolumeClaim{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        "data",
+				Labels:      cc.Spec.Cassandra.Persistence.Labels,
+				Annotations: cc.Spec.Cassandra.Persistence.Annotations,
+			},
+			Spec: cc.Spec.Cassandra.Persistence.DataVolumeClaimSpec,
+		},
+	}
+
+	if cc.Spec.Cassandra.Persistence.CommitLogVolume {
+		volumeClaims = append(volumeClaims, v1.PersistentVolumeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        "commitlog",
+				Labels:      cc.Spec.Cassandra.Persistence.Labels,
+				Annotations: cc.Spec.Cassandra.Persistence.Annotations,
+			},
+			Spec: cc.Spec.Cassandra.Persistence.CommitLogVolumeClaimSpec,
+		})
+	}
+
+	return volumeClaims
+}
+
+func maintenanceContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Container {
+	memory := resource.MustParse("200Mi")
+	cpu := resource.MustParse("0.5")
+	return v1.Container{
+		Name:            "maintenance-mode",
+		Image:           cc.Spec.Cassandra.Image,
+		ImagePullPolicy: cc.Spec.Cassandra.ImagePullPolicy,
+		Resources: v1.ResourceRequirements{
+			Requests: v1.ResourceList{
+				v1.ResourceMemory: memory,
+				v1.ResourceCPU:    cpu,
+			},
+			Limits: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceMemory: memory,
+				v1.ResourceCPU:    cpu,
+			},
+		},
+		VolumeMounts: []v1.VolumeMount{
+			cassandraDataVolumeMount(),
+			maintenanceVolumeMount(),
+		},
+		Command: []string{
+			"bash",
+			"-c",
+		},
+		Args: []string{
+			fmt.Sprintf("while [[ -f %s/${HOSTNAME} ]]; do sleep 10; done", maintenanceDir),
+		},
+		TerminationMessagePath:   "/dev/termination-log",
+		TerminationMessagePolicy: v1.TerminationMessageReadFile,
+	}
+}
+
+func maintenanceVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
+	return v1.Volume{
+		Name: "maintenance-config",
+		VolumeSource: v1.VolumeSource{
+			ConfigMap: &v1.ConfigMapVolumeSource{
+				LocalObjectReference: v1.LocalObjectReference{
+					Name: names.MaintenanceConfigMap(cc),
+				},
+				DefaultMode: proto.Int32(0700),
+			},
+		},
+	}
+}
+
+func maintenanceVolumeMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      "maintenance-config",
+		MountPath: maintenanceDir,
 	}
 }

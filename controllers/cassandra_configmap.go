@@ -63,6 +63,10 @@ func generateCassandraDcData(cc *v1alpha1.CassandraCluster, dcName string, cmDat
 		},
 	}
 
+	if cc.Spec.Cassandra.Persistence.Enabled && cc.Spec.Cassandra.Persistence.CommitLogVolume {
+		cassandraYaml["commitlog_directory"] = cassandraCommitLogDir
+	}
+
 	cassandraYamlBytes, err := yaml.Marshal(cassandraYaml)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't marshal 'cassandra.yaml'")

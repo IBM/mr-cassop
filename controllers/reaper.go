@@ -176,6 +176,10 @@ func (r *CassandraClusterReconciler) reconcileReaperService(ctx context.Context,
 		},
 	}
 
+	if err := controllerutil.SetControllerReference(cc, desiredService, r.Scheme); err != nil {
+		return errors.Wrap(err, "Cannot set controller reference")
+	}
+
 	actualService := &v1.Service{}
 	err := r.Get(ctx, types.NamespacedName{Name: names.ReaperService(cc), Namespace: cc.Namespace}, actualService)
 	if err != nil && apierrors.IsNotFound(err) {

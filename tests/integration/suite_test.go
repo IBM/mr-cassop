@@ -357,3 +357,23 @@ func deleteResource(name types.NamespacedName, obj runtime.Object) error {
 
 	return k8sClient.Delete(context.Background(), obj)
 }
+
+func getVolumeMountByName(volumeMounts []v1.VolumeMount, volumeMountName string) (v1.VolumeMount, bool) {
+	for _, volumeMount := range volumeMounts {
+		if volumeMount.Name == volumeMountName {
+			return volumeMount, true
+		}
+	}
+
+	return v1.VolumeMount{}, false
+}
+
+func getVolumeByName(volumes []v1.Volume, volumeName string) (v1.Volume, bool) {
+	for _, volume := range volumes {
+		if volume.Name == volumeName {
+			return volume, true
+		}
+	}
+
+	return v1.Volume{}, false
+}
