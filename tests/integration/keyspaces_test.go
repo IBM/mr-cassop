@@ -33,12 +33,7 @@ var _ = Describe("rf settings", func() {
 			}
 
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			mockProberClient.err = nil
-			mockProberClient.readyAllDCs = true
-			mockProberClient.ready = true
-			mockNodetoolClient.err = nil
-			mockCQLClient.err = nil
-			mockCQLClient.cassandraRoles = []cql.Role{{Role: "cassandra", Super: true}}
+			initializeReadyCluster()
 			mockCQLClient.keyspaces = []cql.Keyspace{{
 				Name: "system_auth",
 				Replication: map[string]string{
@@ -83,12 +78,7 @@ var _ = Describe("rf settings", func() {
 			}
 
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			mockProberClient.err = nil
-			mockProberClient.readyAllDCs = true
-			mockProberClient.ready = true
-			mockNodetoolClient.err = nil
-			mockCQLClient.err = nil
-			mockCQLClient.cassandraRoles = []cql.Role{{Role: "cassandra", Super: true}}
+			initializeReadyCluster()
 			mockCQLClient.keyspaces = []cql.Keyspace{
 				{
 					Name: "system_auth",
@@ -162,12 +152,7 @@ var _ = Describe("rf settings", func() {
 			}
 
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			mockProberClient.err = nil
-			mockProberClient.readyAllDCs = true
-			mockProberClient.ready = true
-			mockNodetoolClient.err = nil
-			mockCQLClient.err = nil
-			mockCQLClient.cassandraRoles = []cql.Role{{Role: "cassandra", Super: true}}
+			initializeReadyCluster()
 			mockCQLClient.keyspaces = []cql.Keyspace{
 				{
 					Name: "system_auth",
@@ -241,12 +226,7 @@ var _ = Describe("rf settings", func() {
 			}
 
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			mockProberClient.err = nil
-			mockProberClient.readyAllDCs = true
-			mockProberClient.ready = true
-			mockNodetoolClient.err = nil
-			mockCQLClient.err = nil
-			mockCQLClient.cassandraRoles = []cql.Role{{Role: "cassandra", Super: true}}
+			initializeReadyCluster()
 			mockCQLClient.keyspaces = []cql.Keyspace{
 				{
 					Name: "system_auth",
@@ -315,12 +295,7 @@ var _ = Describe("rf settings", func() {
 			}
 
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			mockProberClient.err = nil
-			mockProberClient.readyAllDCs = true
-			mockProberClient.ready = true
-			mockNodetoolClient.err = nil
-			mockCQLClient.err = nil
-			mockCQLClient.cassandraRoles = []cql.Role{{Role: "cassandra", Super: true}}
+			initializeReadyCluster()
 			mockCQLClient.keyspaces = []cql.Keyspace{
 				{
 					Name: "system_auth",

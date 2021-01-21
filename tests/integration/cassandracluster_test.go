@@ -13,20 +13,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"strings"
-	"time"
 )
-
-var _ = Describe("operator configmaps", func() {
-	Context("when tests start", func() {
-		It("should exist", func() {
-			for _, cmName := range []string{names.OperatorCassandraConfigCM(), names.OperatorProberSourcesCM(), names.OperatorScriptsCM(), names.OperatorShiroCM()} {
-				cm := &v1.ConfigMap{}
-				err := k8sClient.Get(context.Background(), types.NamespacedName{Name: cmName, Namespace: operatorConfig.Namespace}, cm)
-				Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("ConfigMap %q should exist", cmName))
-			}
-		})
-	})
-})
 
 var _ = Describe("prober, statefulsets and reaper", func() {
 	cc := &v1alpha1.CassandraCluster{
@@ -66,7 +53,7 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 			proberDeployment := &appsv1.Deployment{}
 			Eventually(func() error {
 				return k8sClient.Get(context.Background(), types.NamespacedName{Name: names.ProberDeployment(cc), Namespace: cc.Namespace}, proberDeployment)
-			}, time.Second*5, time.Millisecond*100).Should(Succeed())
+			}, mediumTimeout, mediumRetry).Should(Succeed())
 			Expect(proberDeployment.Spec.Template.Spec.Containers[0].Env).To(BeEquivalentTo([]v1.EnvVar{
 				{Name: "POD_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}},
 				{Name: "CONFIGMAP_NAME", Value: names.OperatorMaintenanceCM()},
@@ -93,7 +80,7 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 			By("cassandra dcs should not exist until prober is ready")
 			Consistently(func() error {
 				return k8sClient.Get(context.Background(), types.NamespacedName{Name: names.DC(cc, cc.Spec.DCs[0].Name), Namespace: cc.Namespace}, sts)
-			}, time.Second*1, time.Millisecond*100).ShouldNot(Succeed())
+			}, shortTimeout, shortRetry).ShouldNot(Succeed())
 
 			mockProberClient.ready = true
 			mockProberClient.readyAllDCs = false
@@ -103,7 +90,7 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 				mockProberClient.ready = true
 				Eventually(func() error {
 					return k8sClient.Get(context.Background(), types.NamespacedName{Name: names.DC(cc, dc.Name), Namespace: cc.Namespace}, sts)
-				}, time.Second*5, time.Millisecond*100).Should(Succeed())
+				}, mediumTimeout, mediumRetry).Should(Succeed())
 
 				By("Cassandra run command should be set correctly")
 				Expect(sts.Spec.Template.Spec.Containers[0].Args).To(BeEquivalentTo([]string{
@@ -122,7 +109,7 @@ exec cassandra -R -f -Dcassandra.jmx.remote.port=7199 -Dcom.sun.management.jmxre
 			By("reaper shouldn't be deployed until all DCs ready")
 			Consistently(func() error {
 				return k8sClient.Get(context.Background(), types.NamespacedName{Name: names.ReaperDeployment(cc, cc.Spec.DCs[0].Name), Namespace: cc.Namespace}, &appsv1.Deployment{})
-			}, time.Second*1, time.Millisecond*100).ShouldNot(Succeed())
+			}, shortTimeout, shortRetry).ShouldNot(Succeed())
 
 			By("reaper should be deployed after DCs ready")
 			mockProberClient.readyAllDCs = true
@@ -132,7 +119,7 @@ exec cassandra -R -f -Dcassandra.jmx.remote.port=7199 -Dcom.sun.management.jmxre
 				reaperDeployment := &appsv1.Deployment{}
 				Eventually(func() error {
 					return k8sClient.Get(context.Background(), types.NamespacedName{Name: names.ReaperDeployment(cc, dc.Name), Namespace: cc.Namespace}, reaperDeployment)
-				}, time.Second*10, time.Millisecond*100).Should(Succeed())
+				}, mediumTimeout, mediumRetry).Should(Succeed())
 
 				Expect(reaperDeployment.Spec.Template.Spec.Containers[0].Args).Should(Equal([]string{
 					"sh",
@@ -160,6 +147,12 @@ exec cassandra -R -f -Dcassandra.jmx.remote.port=7199 -Dcom.sun.management.jmxre
 					{Name: "REAPER_SHIRO_INI", Value: "/shiro/shiro.ini"},
 				}))
 			}
+			mockReaperClient.isRunning = true
+			mockReaperClient.err = nil
+
+			Eventually(func() bool {
+				return mockReaperClient.clusterExists
+			}, shortTimeout, shortRetry).Should(BeTrue())
 		})
 	})
 })

@@ -51,6 +51,16 @@ Integration tests use the Ginkgo framework and are located in `./test/integratio
 
 `go test ./test/integration -ginkgo.focus="regex matcher"` 
 
+For debugging you might want to see operator logs as the tests run. Pass the `-enableOperatorLogs=true` option to your  `go test ...` command to enable it:
+
+`go test ./tests/integration -v -enableOperatorLogs=true`
+
+or
+
+`ginkgo -v -r ./tests/integration -- -enableOperatorLogs=true`
+
+if you use Ginkgo CLI.
+
 ## Docs
 
 To download and run docs locally, clone the repo and then go to the docs directory:

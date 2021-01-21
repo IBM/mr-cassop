@@ -18,12 +18,15 @@ package integration
 
 import (
 	"context"
+	"flag"
+	"fmt"
 	"github.com/go-logr/zapr"
 	"github.com/gocql/gocql"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers"
 	"github.com/ibm/cassandra-operator/controllers/config"
 	"github.com/ibm/cassandra-operator/controllers/cql"
+	"github.com/ibm/cassandra-operator/controllers/logger"
 	"github.com/ibm/cassandra-operator/controllers/names"
 	"github.com/ibm/cassandra-operator/controllers/nodetool"
 	"github.com/ibm/cassandra-operator/controllers/prober"
@@ -36,6 +39,7 @@ import (
 	rbac "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -70,6 +74,10 @@ var mockCQLClient = &cqlMock{}
 var mockReaperClient = &reaperMock{}
 var operatorConfig = config.Config{}
 var ctx = context.Background()
+var logr = zap.NewNop()
+var reconcileInProgress = false
+var testFinished = false
+var enableOperatorLogs bool
 
 var (
 	cassandraObjectMeta = metav1.ObjectMeta{
@@ -77,6 +85,19 @@ var (
 		Name:      "test-cassandra-cluster",
 	}
 )
+
+const (
+	longTimeout   = time.Second * 10
+	mediumTimeout = time.Second * 5
+	shortTimeout  = time.Second * 1
+
+	mediumRetry = time.Second * 2
+	shortRetry  = time.Millisecond * 300
+)
+
+func init() {
+	flag.BoolVar(&enableOperatorLogs, "enableOperatorLogs", false, "set tot true to print operator logs during tests")
+}
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -89,9 +110,10 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func(done Done) {
 	var err error
 
-	logr := zap.NewNop()
-	//logr = logger.NewLogger("console", zap.DebugLevel).Desugar() //uncomment if you want to see operator logs
-	Expect(err).ToNot(HaveOccurred())
+	if enableOperatorLogs {
+		logr = logger.NewLogger("console", zap.DebugLevel).Desugar()
+	}
+
 	ctrl.SetLogger(zapr.NewLogger(logr))
 	logf.SetLogger(zapr.NewLogger(logr))
 
@@ -108,7 +130,7 @@ var _ = BeforeSuite(func(done Done) {
 	Expect(err).NotTo(HaveOccurred())
 	operatorConfig = config.Config{
 		Namespace:             "default",
-		RetryDelay:            time.Millisecond * 50,
+		RetryDelay:            time.Second * 1,
 		DefaultCassandraImage: "cassandra/image",
 		DefaultProberImage:    "prober/image",
 		DefaultJolokiaImage:   "jolokia/image",
@@ -163,20 +185,29 @@ var _ = AfterSuite(func() {
 })
 
 var _ = AfterEach(func() {
+	testFinished = true      //to not trigger other reconcile events from the queue
+	Eventually(func() bool { // to wait until the last reconcile loop finishes
+		return reconcileInProgress
+	}, mediumTimeout, mediumRetry).Should(BeFalse(), "Test didn't stop triggering reconcile events. See operator logs for more details.")
 	CleanUpCreatedResources(cassandraObjectMeta.Name, cassandraObjectMeta.Namespace)
 	mockProberClient = &proberMock{}
 	mockNodetoolClient = &nodetoolMock{}
 	mockCQLClient = &cqlMock{}
 	mockReaperClient = &reaperMock{}
+	testFinished = false
 })
 
 func SetupTestReconcile(inner reconcile.Reconciler) reconcile.Reconciler {
 	fn := reconcile.Func(func(req reconcile.Request) (reconcile.Result, error) {
-		if shutdown { // do not start reconcile events if we're shutting down. Otherwise those events will fail because of shut down apiserver
+		// do not start reconcile events if we're shutting down. Otherwise those events will fail because of shut down apiserver
+		// also do not start reconcile events if the test is finished. Otherwise reconcile events can create resources after cleanup logic
+		if shutdown || testFinished {
 			return reconcile.Result{}, nil
 		}
+		reconcileInProgress = true
 		waitGroup.Add(1) //makes sure the in flight reconcile events are handled gracefully
 		result, err := inner.Reconcile(req)
+		reconcileInProgress = false
 		waitGroup.Done()
 		return result, err
 	})
@@ -220,54 +251,75 @@ func createOperatorConfigMaps() {
 			Namespace: operatorConfig.Namespace,
 		},
 	}
+	maintenanceCM := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      names.OperatorMaintenanceCM(),
+			Namespace: operatorConfig.Namespace,
+		},
+	}
 
 	Expect(k8sClient.Create(ctx, scriptsCM)).To(Succeed())
 	Expect(k8sClient.Create(ctx, proberSourcesCM)).To(Succeed())
 	Expect(k8sClient.Create(ctx, cassConfigCM)).To(Succeed())
 	Expect(k8sClient.Create(ctx, shiroConfigCM)).To(Succeed())
+	Expect(k8sClient.Create(ctx, maintenanceCM)).To(Succeed())
 }
 
 // As the test control plane doesn't support garbage collection, this function is used to clean up resources
 // Designed to not fail if the resource is not found
 func CleanUpCreatedResources(ccName, ccNamespace string) {
-	haveNoErrorOrNotFoundError := Or(BeNil(), BeAssignableToTypeOf(&errors.StatusError{}))
 	cc := &dbv1alpha1.CassandraCluster{}
-	var err error
-	hasCassandraLabel := client.HasLabels{dbv1alpha1.CassandraClusterInstance}
 
-	err = k8sClient.Get(ctx, types.NamespacedName{Name: ccName, Namespace: ccNamespace}, cc)
-	Expect(err).To(haveNoErrorOrNotFoundError)
+	err := k8sClient.Get(ctx, types.NamespacedName{Name: ccName, Namespace: ccNamespace}, cc)
+	if err != nil && errors.IsNotFound(err) {
+		return
+	}
+	Expect(err).ToNot(HaveOccurred())
 
-	err = k8sClient.DeleteAllOf(context.Background(), &dbv1alpha1.CassandraCluster{}, client.InNamespace(ccNamespace))
-	Expect(err).To(BeNil())
+	// delete cassandracluster separately as there's no guarantee that it'll come first in the for loop
+	Expect(deleteResource(types.NamespacedName{Namespace: ccNamespace, Name: ccName}, &dbv1alpha1.CassandraCluster{})).To(Succeed())
+	expectResourceIsDeleted(types.NamespacedName{Name: ccName, Namespace: ccNamespace}, &dbv1alpha1.CassandraCluster{})
 
-	err = k8sClient.Delete(context.Background(), &v1.Service{ObjectMeta: metav1.ObjectMeta{Namespace: ccNamespace, Name: names.ProberService(cc)}})
-	Expect(err).To(haveNoErrorOrNotFoundError)
-
-	for _, dc := range cc.Spec.DCs {
-		err = k8sClient.Delete(context.Background(), &v1.Service{ObjectMeta: metav1.ObjectMeta{Namespace: ccNamespace, Name: names.DCService(cc, dc.Name)}})
-		Expect(err).To(haveNoErrorOrNotFoundError)
+	cc.Name = ccName
+	cc.Namespace = ccNamespace
+	type resourceToDelete struct {
+		name    string
+		objType runtime.Object
 	}
 
-	err = k8sClient.DeleteAllOf(context.Background(), &apps.StatefulSet{}, client.InNamespace(ccNamespace), hasCassandraLabel)
-	Expect(err).To(BeNil())
+	resourcesToDelete := []resourceToDelete{
+		{name: names.ProberService(cc), objType: &v1.Service{}},
+		{name: names.ProberDeployment(cc), objType: &apps.Deployment{}},
+		{name: names.ProberServiceAccount(cc), objType: &v1.ServiceAccount{}},
+		{name: names.ProberRole(cc), objType: &rbac.Role{}},
+		{name: names.ProberRoleBinding(cc), objType: &rbac.RoleBinding{}},
+		{name: names.ProberSources(cc), objType: &v1.ConfigMap{}},
+		{name: names.ReaperService(cc), objType: &v1.Service{}},
+		{name: names.ReaperCqlConfigMap(cc), objType: &v1.ConfigMap{}},
+		{name: names.ShiroConfigMap(cc), objType: &v1.ConfigMap{}},
+		{name: names.ScriptsConfigMap(cc), objType: &v1.ConfigMap{}},
+		{name: names.MaintenanceConfigMap(cc), objType: &v1.ConfigMap{}},
+		{name: names.RepairsConfigMap(cc), objType: &v1.ConfigMap{}},
+		{name: names.RolesSecret(cc), objType: &v1.Secret{}},
+		{name: names.JMXRemoteSecret(cc), objType: &v1.Secret{}},
+	}
 
-	err = k8sClient.DeleteAllOf(context.Background(), &apps.Deployment{}, client.InNamespace(ccNamespace), hasCassandraLabel)
-	Expect(err).To(BeNil())
+	// add DC specific resources
+	for _, dc := range cc.Spec.DCs {
+		resourcesToDelete = append(resourcesToDelete, resourceToDelete{name: names.DC(cc, dc.Name), objType: &apps.StatefulSet{}})
+		resourcesToDelete = append(resourcesToDelete, resourceToDelete{name: names.DCService(cc, dc.Name), objType: &v1.Service{}})
+		resourcesToDelete = append(resourcesToDelete, resourceToDelete{name: names.ReaperDeployment(cc, dc.Name), objType: &apps.Deployment{}})
+		resourcesToDelete = append(resourcesToDelete, resourceToDelete{name: names.ConfigMap(cc, dc.Name), objType: &v1.ConfigMap{}})
+	}
 
-	err = k8sClient.DeleteAllOf(context.Background(), &rbac.Role{}, client.InNamespace(ccNamespace), hasCassandraLabel)
-	Expect(err).To(BeNil())
-	err = k8sClient.DeleteAllOf(context.Background(), &rbac.RoleBinding{}, client.InNamespace(ccNamespace), hasCassandraLabel)
-	Expect(err).To(BeNil())
+	for _, resource := range resourcesToDelete {
+		logr.Debug(fmt.Sprintf("deleting resource %T:%s", resource.objType, resource.name))
+		Expect(deleteResource(types.NamespacedName{Namespace: ccNamespace, Name: resource.name}, resource.objType)).To(Succeed())
+	}
 
-	err = k8sClient.DeleteAllOf(context.Background(), &v1.ServiceAccount{}, client.InNamespace(ccNamespace), client.HasLabels{dbv1alpha1.CassandraClusterInstance}, hasCassandraLabel)
-	Expect(err).To(BeNil())
-
-	err = k8sClient.DeleteAllOf(context.Background(), &v1.ConfigMap{}, client.InNamespace(ccNamespace), hasCassandraLabel)
-	Expect(err).To(BeNil())
-
-	err = k8sClient.DeleteAllOf(context.Background(), &v1.Secret{}, client.InNamespace(ccNamespace), hasCassandraLabel)
-	Expect(err).To(haveNoErrorOrNotFoundError)
+	for _, resource := range resourcesToDelete {
+		expectResourceIsDeleted(types.NamespacedName{Name: resource.name, Namespace: ccNamespace}, resource.objType)
+	}
 }
 
 func getContainerByName(pod v1.PodSpec, containerName string) (v1.Container, bool) {
@@ -278,4 +330,30 @@ func getContainerByName(pod v1.PodSpec, containerName string) (v1.Container, boo
 	}
 
 	return v1.Container{}, false
+}
+
+func expectResourceIsDeleted(name types.NamespacedName, obj runtime.Object) {
+	Eventually(func() metav1.StatusReason {
+		err := k8sClient.Get(context.Background(), name, obj)
+		if err != nil {
+			if statusErr, ok := err.(*errors.StatusError); ok {
+				return statusErr.ErrStatus.Reason
+			}
+			return metav1.StatusReason(err.Error())
+		}
+
+		return "Found"
+	}, longTimeout, mediumRetry).Should(Equal(metav1.StatusReasonNotFound), fmt.Sprintf("%T %s should be deleted", obj, name))
+}
+
+func deleteResource(name types.NamespacedName, obj runtime.Object) error {
+	err := k8sClient.Get(context.Background(), name, obj)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	return k8sClient.Delete(context.Background(), obj)
 }

@@ -116,3 +116,21 @@ func (r *reaperMock) ScheduleRepair(ctx context.Context, clusterName string, rep
 	r.repairs = append(r.repairs, repair)
 	return r.err
 }
+
+func initializeReadyCluster() {
+	mockProberClient.err = nil
+	mockProberClient.readyAllDCs = true
+	mockProberClient.ready = true
+	mockNodetoolClient.err = nil
+	mockReaperClient.err = nil
+	mockReaperClient.isRunning = true
+	mockReaperClient.clusterExists = true
+	mockCQLClient.err = nil
+	mockCQLClient.cassandraRoles = []cql.Role{{Role: "cassandra", Super: true}}
+	mockCQLClient.keyspaces = []cql.Keyspace{{
+		Name: "system_auth",
+		Replication: map[string]string{
+			"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
+		},
+	}}
+}

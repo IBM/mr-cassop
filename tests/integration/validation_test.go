@@ -56,6 +56,7 @@ var _ = Describe("cassandracluster validation", func() {
 	})
 	Context("with required fields specified", func() {
 		It("should pass", func() {
+			initializeReadyCluster()
 			cc := &v1alpha1.CassandraCluster{
 				ObjectMeta: cassandraObjectMeta,
 				Spec: v1alpha1.CassandraClusterSpec{
@@ -448,6 +449,7 @@ var _ = Describe("cassandracluster validation", func() {
 
 	Context("with all valid parameters", func() {
 		It("should pass validation", func() {
+			initializeReadyCluster()
 			cc := &v1alpha1.CassandraCluster{
 				ObjectMeta: cassandraObjectMeta,
 				Spec: v1alpha1.CassandraClusterSpec{

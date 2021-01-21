@@ -10,7 +10,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"time"
 )
 
 type test struct {
@@ -112,7 +111,7 @@ var _ = Describe("reaper deployment", func() {
 					}
 					Eventually(func() error {
 						return k8sClient.Get(ctx, types.NamespacedName{Name: names.ReaperDeployment(cc, dc.Name), Namespace: cc.Namespace}, deployment)
-					}, time.Second*10, time.Millisecond*100).Should(Succeed())
+					}, mediumTimeout, mediumRetry).Should(Succeed())
 
 					Expect(deployment.Labels).To(BeEquivalentTo(reaperLabels))
 					Expect(deployment.Spec.Replicas).To(Equal(proto.Int32(1)))

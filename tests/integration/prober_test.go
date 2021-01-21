@@ -3,14 +3,12 @@ package integration
 import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
-	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/ibm/cassandra-operator/controllers/names"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"time"
 )
 
 var _ = Describe("prober deployment", func() {
@@ -30,22 +28,7 @@ var _ = Describe("prober deployment", func() {
 	Context("when cassandracluster created with only required values", func() {
 		It("should be created with defaulted values", func() {
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-
-			mockProberClient.err = nil
-			mockProberClient.readyAllDCs = true
-			mockProberClient.ready = true
-			mockNodetoolClient.err = nil
-			mockReaperClient.err = nil
-			mockReaperClient.isRunning = true
-			mockReaperClient.clusterExists = true
-			mockCQLClient.err = nil
-			mockCQLClient.cassandraRoles = []cql.Role{{Role: "cassandra", Super: true}}
-			mockCQLClient.keyspaces = []cql.Keyspace{{
-				Name: "system_auth",
-				Replication: map[string]string{
-					"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
-				},
-			}}
+			initializeReadyCluster()
 
 			deployment := &appsv1.Deployment{}
 			proberLabels := map[string]string{
@@ -54,7 +37,7 @@ var _ = Describe("prober deployment", func() {
 			}
 			Eventually(func() error {
 				return k8sClient.Get(ctx, types.NamespacedName{Name: names.ProberDeployment(cc), Namespace: cc.Namespace}, deployment)
-			}, time.Second*5, time.Millisecond*100).Should(Succeed())
+			}, mediumTimeout, mediumRetry).Should(Succeed())
 
 			Expect(deployment.Labels).To(BeEquivalentTo(proberLabels))
 			Expect(deployment.Spec.Replicas).To(Equal(proto.Int32(1)))

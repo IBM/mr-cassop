@@ -4,20 +4,26 @@ import (
 	"fmt"
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
-	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/ibm/cassandra-operator/controllers/names"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"time"
 )
 
 var _ = Describe("operator configmaps", func() {
 	Context("when tests start", func() {
 		It("should exist", func() {
-			for _, cmName := range []string{names.OperatorCassandraConfigCM(), names.OperatorProberSourcesCM(), names.OperatorScriptsCM(), names.OperatorShiroCM()} {
+			operatorConfigMaps := []string{
+				names.OperatorCassandraConfigCM(),
+				names.OperatorProberSourcesCM(),
+				names.OperatorScriptsCM(),
+				names.OperatorShiroCM(),
+				names.OperatorMaintenanceCM(),
+			}
+
+			for _, cmName := range operatorConfigMaps {
 				cm := &v1.ConfigMap{}
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: cmName, Namespace: operatorConfig.Namespace}, cm)
 				Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("ConfigMap %q should exist", cmName))
@@ -48,22 +54,7 @@ var _ = Describe("cassandra statefulset deployment", func() {
 		It("should be created with defaulted values", func() {
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
 
-			mockProberClient.err = nil
-			mockProberClient.readyAllDCs = true
-			mockProberClient.ready = true
-			mockNodetoolClient.err = nil
-			mockReaperClient.err = nil
-			mockReaperClient.isRunning = true
-			mockReaperClient.clusterExists = true
-			mockCQLClient.err = nil
-			mockCQLClient.cassandraRoles = []cql.Role{{Role: "cassandra", Super: true}}
-			mockCQLClient.keyspaces = []cql.Keyspace{{
-				Name: "system_auth",
-				Replication: map[string]string{
-					"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
-				},
-			}}
-
+			initializeReadyCluster()
 			for _, dc := range cc.Spec.DCs {
 				sts := &appsv1.StatefulSet{}
 				cassandraLabels := map[string]string{
@@ -74,7 +65,7 @@ var _ = Describe("cassandra statefulset deployment", func() {
 				}
 				Eventually(func() error {
 					return k8sClient.Get(ctx, types.NamespacedName{Name: names.DC(cc, dc.Name), Namespace: cc.Namespace}, sts)
-				}, time.Second*5, time.Millisecond*100).Should(Succeed())
+				}, mediumTimeout, mediumRetry).Should(Succeed())
 
 				Expect(sts.Labels).To(BeEquivalentTo(cassandraLabels))
 				Expect(sts.Spec.Replicas).To(BeEquivalentTo(dc.Replicas))
