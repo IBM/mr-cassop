@@ -151,7 +151,7 @@ var _ = Describe("Cassandra cluster", func() {
 				ImagePullSecretName:  "icm-coreeng-pull-secret",
 				CQLConfigMapLabelKey: "cql-cm",
 				Cassandra: &v1alpha1.Cassandra{
-					Image:           "us.icr.io/icm-cassandra/cassandra:3.11.8-0.18.3",
+					Image:           "us.icr.io/icm-cassandra/cassandra:3.11.9-0.18.19",
 					ImagePullPolicy: "Always",
 					Resources: corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
@@ -175,7 +175,7 @@ var _ = Describe("Cassandra cluster", func() {
 					},
 				},
 				Prober: v1alpha1.Prober{
-					Image:           "us.icr.io/icm-cassandra/cassandra-prober:0.18.3",
+					Image:           "us.icr.io/icm-cassandra/cassandra-prober:0.18.19",
 					ImagePullPolicy: "IfNotPresent",
 					Resources: corev1.ResourceRequirements{
 						Limits: corev1.ResourceList{
@@ -366,7 +366,7 @@ var _ = Describe("Cassandra cluster", func() {
 			log.Error(err, "CQL query doesn't work!")
 			Fail("Errors shouldn't occur.")
 		}
-		Expect(releaseVersion).To(Equal("3.11.8"))
+		Expect(releaseVersion).To(Equal("3.11.9"))
 
 		By("Port forwarding reaper API pod port...")
 		reaperPf := portForwardPod(casNamespace, reaperPodLabels, []string{"8080:8080"}, restClientConfig)

@@ -39,8 +39,6 @@ func createCassandraAuth(cc *dbv1alpha1.CassandraCluster) v1.Container {
 		TerminationMessagePath:   "/dev/termination-log",
 		TerminationMessagePolicy: v1.TerminationMessageReadFile,
 		Command: []string{
-			"/sbin/tini",
-			"--",
 			"bash",
 			"-c",
 		},

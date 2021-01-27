@@ -4,7 +4,7 @@ metadata:
   name: test-cluster
 spec:
   cassandra:
-    image: us.icr.io/icm-cassandra/cassandra:3.11.8-0.18.3
+    image: us.icr.io/icm-cassandra/cassandra:3.11.9-0.18.19
     imagePullPolicy: IfNotPresent
     numSeeds: 2
     persistence:
@@ -31,7 +31,7 @@ spec:
   imagePullSecretName: icm-coreeng-pull-secret
   prober:
     debug: true
-    image: us.icr.io/icm-cassandra/cassandra-prober:0.18.3
+    image: us.icr.io/icm-cassandra/cassandra-prober:0.18.19
     imagePullPolicy: IfNotPresent
     jolokia:
       image: us.icr.io/icm-docker-images/jolokia-proxy:1.6.2
