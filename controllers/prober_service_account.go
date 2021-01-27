@@ -17,7 +17,7 @@ import (
 )
 
 func (r *CassandraClusterReconciler) reconcileProberServiceAccount(ctx context.Context, cc *v1alpha1.CassandraCluster) error {
-	saName := names.ProberServiceAccount(cc)
+	saName := names.ProberServiceAccount(cc.Name)
 	desiredServiceAccount := &v1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      saName,

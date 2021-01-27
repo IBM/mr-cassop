@@ -19,7 +19,7 @@ import (
 func (r *CassandraClusterReconciler) reconcileProberRole(ctx context.Context, cc *v1alpha1.CassandraCluster) error {
 	desiredRole := &rbac.Role{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.ProberRole(cc),
+			Name:      names.ProberRole(cc.Name),
 			Namespace: cc.Namespace,
 			Labels:    labels.CombinedComponentLabels(cc, v1alpha1.CassandraClusterComponentProber),
 		},

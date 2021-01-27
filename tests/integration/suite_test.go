@@ -251,18 +251,11 @@ func createOperatorConfigMaps() {
 			Namespace: operatorConfig.Namespace,
 		},
 	}
-	maintenanceCM := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.OperatorMaintenanceCM(),
-			Namespace: operatorConfig.Namespace,
-		},
-	}
 
 	Expect(k8sClient.Create(ctx, scriptsCM)).To(Succeed())
 	Expect(k8sClient.Create(ctx, proberSourcesCM)).To(Succeed())
 	Expect(k8sClient.Create(ctx, cassConfigCM)).To(Succeed())
 	Expect(k8sClient.Create(ctx, shiroConfigCM)).To(Succeed())
-	Expect(k8sClient.Create(ctx, maintenanceCM)).To(Succeed())
 }
 
 // As the test control plane doesn't support garbage collection, this function is used to clean up resources
@@ -288,28 +281,28 @@ func CleanUpCreatedResources(ccName, ccNamespace string) {
 	}
 
 	resourcesToDelete := []resourceToDelete{
-		{name: names.ProberService(cc), objType: &v1.Service{}},
-		{name: names.ProberDeployment(cc), objType: &apps.Deployment{}},
-		{name: names.ProberServiceAccount(cc), objType: &v1.ServiceAccount{}},
-		{name: names.ProberRole(cc), objType: &rbac.Role{}},
-		{name: names.ProberRoleBinding(cc), objType: &rbac.RoleBinding{}},
-		{name: names.ProberSources(cc), objType: &v1.ConfigMap{}},
-		{name: names.ReaperService(cc), objType: &v1.Service{}},
-		{name: names.ReaperCqlConfigMap(cc), objType: &v1.ConfigMap{}},
-		{name: names.ShiroConfigMap(cc), objType: &v1.ConfigMap{}},
-		{name: names.ScriptsConfigMap(cc), objType: &v1.ConfigMap{}},
-		{name: names.MaintenanceConfigMap(cc), objType: &v1.ConfigMap{}},
-		{name: names.RepairsConfigMap(cc), objType: &v1.ConfigMap{}},
-		{name: names.RolesSecret(cc), objType: &v1.Secret{}},
-		{name: names.JMXRemoteSecret(cc), objType: &v1.Secret{}},
+		{name: names.ProberService(cc.Name), objType: &v1.Service{}},
+		{name: names.ProberDeployment(cc.Name), objType: &apps.Deployment{}},
+		{name: names.ProberServiceAccount(cc.Name), objType: &v1.ServiceAccount{}},
+		{name: names.ProberRole(cc.Name), objType: &rbac.Role{}},
+		{name: names.ProberRoleBinding(cc.Name), objType: &rbac.RoleBinding{}},
+		{name: names.ProberSources(cc.Name), objType: &v1.ConfigMap{}},
+		{name: names.ReaperService(cc.Name), objType: &v1.Service{}},
+		{name: names.ReaperCqlConfigMap(cc.Name), objType: &v1.ConfigMap{}},
+		{name: names.ShiroConfigMap(cc.Name), objType: &v1.ConfigMap{}},
+		{name: names.ScriptsConfigMap(cc.Name), objType: &v1.ConfigMap{}},
+		{name: names.MaintenanceConfigMap(cc.Name), objType: &v1.ConfigMap{}},
+		{name: names.RepairsConfigMap(cc.Name), objType: &v1.ConfigMap{}},
+		{name: names.RolesSecret(cc.Name), objType: &v1.Secret{}},
+		{name: names.JMXRemoteSecret(cc.Name), objType: &v1.Secret{}},
 	}
 
 	// add DC specific resources
 	for _, dc := range cc.Spec.DCs {
-		resourcesToDelete = append(resourcesToDelete, resourceToDelete{name: names.DC(cc, dc.Name), objType: &apps.StatefulSet{}})
-		resourcesToDelete = append(resourcesToDelete, resourceToDelete{name: names.DCService(cc, dc.Name), objType: &v1.Service{}})
-		resourcesToDelete = append(resourcesToDelete, resourceToDelete{name: names.ReaperDeployment(cc, dc.Name), objType: &apps.Deployment{}})
-		resourcesToDelete = append(resourcesToDelete, resourceToDelete{name: names.ConfigMap(cc, dc.Name), objType: &v1.ConfigMap{}})
+		resourcesToDelete = append(resourcesToDelete, resourceToDelete{name: names.DC(cc.Name, dc.Name), objType: &apps.StatefulSet{}})
+		resourcesToDelete = append(resourcesToDelete, resourceToDelete{name: names.DCService(cc.Name, dc.Name), objType: &v1.Service{}})
+		resourcesToDelete = append(resourcesToDelete, resourceToDelete{name: names.ReaperDeployment(cc.Name, dc.Name), objType: &apps.Deployment{}})
+		resourcesToDelete = append(resourcesToDelete, resourceToDelete{name: names.ConfigMap(cc.Name, dc.Name), objType: &v1.ConfigMap{}})
 	}
 
 	for _, resource := range resourcesToDelete {

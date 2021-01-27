@@ -110,7 +110,7 @@ var _ = Describe("reaper deployment", func() {
 						"datacenter":                  dc.Name,
 					}
 					Eventually(func() error {
-						return k8sClient.Get(ctx, types.NamespacedName{Name: names.ReaperDeployment(cc, dc.Name), Namespace: cc.Namespace}, deployment)
+						return k8sClient.Get(ctx, types.NamespacedName{Name: names.ReaperDeployment(cc.Name, dc.Name), Namespace: cc.Namespace}, deployment)
 					}, mediumTimeout, mediumRetry).Should(Succeed())
 
 					Expect(deployment.Labels).To(BeEquivalentTo(reaperLabels))

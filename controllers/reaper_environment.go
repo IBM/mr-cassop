@@ -19,7 +19,7 @@ func reaperEnvironment(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC) []v1.EnvVa
 		{Name: "REAPER_REPAIR_INTENSITY", Value: fmt.Sprint(cc.Spec.Reaper.RepairIntensity)},
 		{Name: "REAPER_REPAIR_MANAGER_SCHEDULING_INTERVAL_SECONDS", Value: fmt.Sprint(cc.Spec.Reaper.RepairManagerSchedulingIntervalSeconds)},
 		{Name: "REAPER_BLACKLIST_TWCS", Value: strconv.FormatBool(cc.Spec.Reaper.BlacklistTWCS)},
-		{Name: "REAPER_CASS_CONTACT_POINTS", Value: fmt.Sprintf("[ %s ]", names.DC(cc, dc.Name))},
+		{Name: "REAPER_CASS_CONTACT_POINTS", Value: fmt.Sprintf("[ %s ]", names.DC(cc.Name, dc.Name))},
 		{Name: "REAPER_CASS_CLUSTER_NAME", Value: "cassandra"},
 		{Name: "REAPER_STORAGE_TYPE", Value: "cassandra"},
 		// TODO: "REAPER_CASS_NATIVE_PROTOCOL_SSL_ENCRYPTION_ENABLED": strconv.FormatBool(cassandraYaml["client_encryption_options"].(map[string]interface{})["enabled"].(bool)),

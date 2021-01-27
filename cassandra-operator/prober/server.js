@@ -9,7 +9,6 @@ const { // import pre-configured libs
   log
 } = require('./config')
 
-require('./maintenance')
 const kprober = require('./kprober')
 const cassprober = require('./cassprober')
 

@@ -15,7 +15,7 @@ var (
 	}
 )
 
-// Config contains the Varnish Operator configs
+// Config contains the Cassandra Operator configs
 type Config struct {
 	Namespace             string        `env:"NAMESPACE" envDefault:"default"`
 	LeaderElectionEnabled bool          `env:"LEADERELECTION_ENABLED" envDefault:"true"`

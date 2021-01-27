@@ -71,7 +71,7 @@ func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Conte
 	percent25 := intstr.FromInt(25)
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.ReaperDeployment(cc, dc.Name),
+			Name:      names.ReaperDeployment(cc.Name, dc.Name),
 			Namespace: cc.Namespace,
 			Labels:    reaperLabels,
 		},
@@ -118,7 +118,7 @@ func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Conte
 	}
 
 	actualDeployment := &appsv1.Deployment{}
-	err := r.Get(ctx, types.NamespacedName{Name: names.ReaperDeployment(cc, dc.Name), Namespace: cc.Namespace}, actualDeployment)
+	err := r.Get(ctx, types.NamespacedName{Name: names.ReaperDeployment(cc.Name, dc.Name), Namespace: cc.Namespace}, actualDeployment)
 	if err != nil && apierrors.IsNotFound(err) {
 		r.Log.Info("Creating reaper deployment")
 		err = r.Create(ctx, desiredDeployment)
@@ -149,7 +149,7 @@ func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Conte
 func (r *CassandraClusterReconciler) reconcileReaperService(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
 	desiredService := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.ReaperService(cc),
+			Name:      names.ReaperService(cc.Name),
 			Labels:    labels.CombinedComponentLabels(cc, dbv1alpha1.CassandraClusterComponentReaper),
 			Namespace: cc.Namespace,
 		},
@@ -181,7 +181,7 @@ func (r *CassandraClusterReconciler) reconcileReaperService(ctx context.Context,
 	}
 
 	actualService := &v1.Service{}
-	err := r.Get(ctx, types.NamespacedName{Name: names.ReaperService(cc), Namespace: cc.Namespace}, actualService)
+	err := r.Get(ctx, types.NamespacedName{Name: names.ReaperService(cc.Name), Namespace: cc.Namespace}, actualService)
 	if err != nil && apierrors.IsNotFound(err) {
 		r.Log.Infof("Creating reaper service")
 		err = r.Create(ctx, desiredService)
@@ -317,7 +317,7 @@ func reaperVolumes(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) []v1.Volum
 			VolumeSource: v1.VolumeSource{
 				ConfigMap: &v1.ConfigMapVolumeSource{
 					LocalObjectReference: v1.LocalObjectReference{
-						Name: names.ShiroConfigMap(cc),
+						Name: names.ShiroConfigMap(cc.Name),
 					},
 					DefaultMode: proto.Int32(0644),
 				},
@@ -328,7 +328,7 @@ func reaperVolumes(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) []v1.Volum
 			VolumeSource: v1.VolumeSource{
 				ConfigMap: &v1.ConfigMapVolumeSource{
 					LocalObjectReference: v1.LocalObjectReference{
-						Name: names.ConfigMap(cc, dc.Name),
+						Name: names.ConfigMap(cc.Name, dc.Name),
 					},
 					DefaultMode: proto.Int32(0644),
 					Items: []v1.KeyToPath{
@@ -432,7 +432,7 @@ func getAuthRunArgs(cc *dbv1alpha1.CassandraCluster, dcName string) string {
 	commands := make([]string, 0)
 	commands = append(commands, "source /scripts/readinessrc.sh") // TODO: Convert this script to Go?
 	commands = append(commands, fmt.Sprintf("until cqlsh -e 'use %s;' %s; do sleep 5; done;",
-		cc.Spec.Reaper.Keyspace, names.DC(cc, dcName)))
+		cc.Spec.Reaper.Keyspace, names.DC(cc.Name, dcName)))
 	commands = append(commands, fmt.Sprintf("echo REAPER_CASS_AUTH_ENABLED=$CASSANDRA_INTERNAL_AUTH > %s;", reaperAuthPath))
 	commands = append(commands, fmt.Sprintf("write_auth () { echo \"$1\"=$(/scripts/probe.sh \"$2\") >> %s; };", reaperAuthPath))
 	commands = append(commands, "write_auth REAPER_CASS_AUTH_USERNAME cqlu;")

@@ -45,7 +45,6 @@ func (r *CassandraClusterReconciler) reconcileConfigMap(ctx context.Context, des
 		} else {
 			r.Log.Debugf("No updates for %s", desiredCM.Name)
 		}
-
 	}
 	return nil
 }

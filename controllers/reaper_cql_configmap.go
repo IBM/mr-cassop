@@ -15,7 +15,7 @@ import (
 func (r *CassandraClusterReconciler) reconcileReaperCqlConfigMap(ctx context.Context, cc *v1alpha1.CassandraCluster) error {
 	desiredCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.ReaperCqlConfigMap(cc),
+			Name:      names.ReaperCqlConfigMap(cc.Name),
 			Namespace: cc.Namespace,
 			Labels:    labels.CombinedComponentLabels(cc, v1alpha1.CassandraClusterComponentReaper),
 			Annotations: map[string]string{

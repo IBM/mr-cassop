@@ -23,7 +23,6 @@ var _ = Describe("operator configmaps", func() {
 				names.OperatorProberSourcesCM(),
 				names.OperatorScriptsCM(),
 				names.OperatorShiroCM(),
-				names.OperatorMaintenanceCM(),
 			}
 
 			for _, cmName := range operatorConfigMaps {
@@ -67,7 +66,7 @@ var _ = Describe("cassandra statefulset deployment", func() {
 					"datacenter":                  dc.Name,
 				}
 				Eventually(func() error {
-					return k8sClient.Get(ctx, types.NamespacedName{Name: names.DC(cc, dc.Name), Namespace: cc.Namespace}, sts)
+					return k8sClient.Get(ctx, types.NamespacedName{Name: names.DC(cc.Name, dc.Name), Namespace: cc.Namespace}, sts)
 				}, mediumTimeout, mediumRetry).Should(Succeed())
 
 				Expect(sts.Labels).To(BeEquivalentTo(cassandraLabels))
@@ -161,7 +160,7 @@ var _ = Describe("cassandra statefulset", func() {
 			for _, dc := range cc.Spec.DCs {
 				sts := &appsv1.StatefulSet{}
 				Eventually(func() error {
-					return k8sClient.Get(ctx, types.NamespacedName{Name: names.DC(cc, dc.Name), Namespace: cc.Namespace}, sts)
+					return k8sClient.Get(ctx, types.NamespacedName{Name: names.DC(cc.Name, dc.Name), Namespace: cc.Namespace}, sts)
 				}, time.Second*5, time.Millisecond*100).Should(Succeed())
 
 				cassandraContainer, found := getContainerByName(sts.Spec.Template.Spec, "cassandra")
@@ -254,7 +253,7 @@ var _ = Describe("cassandra statefulset", func() {
 			for _, dc := range cc.Spec.DCs {
 				sts := &appsv1.StatefulSet{}
 				Eventually(func() error {
-					return k8sClient.Get(ctx, types.NamespacedName{Name: names.DC(cc, dc.Name), Namespace: cc.Namespace}, sts)
+					return k8sClient.Get(ctx, types.NamespacedName{Name: names.DC(cc.Name, dc.Name), Namespace: cc.Namespace}, sts)
 				}, time.Second*10, time.Millisecond*100).Should(Succeed())
 
 				cassandraContainer, found := getContainerByName(sts.Spec.Template.Spec, "cassandra")

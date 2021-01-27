@@ -20,7 +20,7 @@ func (r *CassandraClusterReconciler) reconcileScriptsConfigMap(ctx context.Conte
 	}
 	desiredCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.ScriptsConfigMap(cc),
+			Name:      names.ScriptsConfigMap(cc.Name),
 			Namespace: cc.Namespace,
 			Labels:    labels.CombinedComponentLabels(cc, v1alpha1.CassandraClusterComponentCassandra),
 		},
@@ -41,7 +41,7 @@ func scriptsVolume(cc *v1alpha1.CassandraCluster) v1.Volume {
 		VolumeSource: v1.VolumeSource{
 			ConfigMap: &v1.ConfigMapVolumeSource{
 				LocalObjectReference: v1.LocalObjectReference{
-					Name: names.ScriptsConfigMap(cc),
+					Name: names.ScriptsConfigMap(cc.Name),
 				},
 				DefaultMode: proto.Int32(0700),
 			},

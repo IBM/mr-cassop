@@ -20,6 +20,10 @@ import (
 	"strings"
 )
 
+const (
+	CassandraEndpointLabels = "cassandra-cluster-component=cassandra"
+)
+
 func (r *CassandraClusterReconciler) reconcileCassandra(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
 	for _, dc := range cc.Spec.DCs {
 		err := r.reconcileDCService(ctx, cc, dc)
@@ -41,12 +45,12 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 	stsLabels = labels.WithDCLabel(stsLabels, dc.Name)
 	desiredSts := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.DC(cc, dc.Name),
+			Name:      names.DC(cc.Name, dc.Name),
 			Namespace: cc.Namespace,
 			Labels:    stsLabels,
 		},
 		Spec: appsv1.StatefulSetSpec{
-			ServiceName:         names.DCService(cc, dc.Name),
+			ServiceName:         names.DCService(cc.Name, dc.Name),
 			Replicas:            dc.Replicas,
 			Selector:            &metav1.LabelSelector{MatchLabels: stsLabels},
 			PodManagementPolicy: cc.Spec.PodManagementPolicy,
@@ -94,7 +98,7 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 	}
 
 	actualSts := &appsv1.StatefulSet{}
-	err := r.Get(ctx, types.NamespacedName{Name: names.DC(cc, dc.Name), Namespace: cc.Namespace}, actualSts)
+	err := r.Get(ctx, types.NamespacedName{Name: names.DC(cc.Name, dc.Name), Namespace: cc.Namespace}, actualSts)
 	if err != nil && apierrors.IsNotFound(err) {
 		r.Log.Infof("Creating cassandra statefulset for DC %q", dc.Name)
 		err = r.Create(ctx, desiredSts)
@@ -158,7 +162,7 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 					Command: []string{
 						"bash",
 						"-c",
-						fmt.Sprintf("http --check-status --timeout 2 --body GET %s/healthz/$POD_IP", names.ProberService(cc)),
+						fmt.Sprintf("http --check-status --timeout 2 --body GET %s/healthz/$POD_IP", names.ProberService(cc.Name)),
 					},
 				},
 			},
@@ -234,7 +238,7 @@ func (r *CassandraClusterReconciler) reconcileDCService(ctx context.Context, cc 
 	svcLabels = labels.WithDCLabel(svcLabels, dc.Name)
 	desiredService := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.DCService(cc, dc.Name),
+			Name:      names.DCService(cc.Name, dc.Name),
 			Labels:    svcLabels,
 			Namespace: cc.Namespace,
 		},
@@ -289,7 +293,7 @@ func (r *CassandraClusterReconciler) reconcileDCService(ctx context.Context, cc 
 	}
 
 	actualService := &v1.Service{}
-	err := r.Get(ctx, types.NamespacedName{Name: names.DCService(cc, dc.Name), Namespace: cc.Namespace}, actualService)
+	err := r.Get(ctx, types.NamespacedName{Name: names.DCService(cc.Name, dc.Name), Namespace: cc.Namespace}, actualService)
 	if err != nil && apierrors.IsNotFound(err) {
 		r.Log.Infof("Creating service for DC %q", dc.Name)
 		err = r.Create(ctx, desiredService)
@@ -337,7 +341,7 @@ func getSeedsList(cc *dbv1alpha1.CassandraCluster) []string {
 func getSeed(cc *dbv1alpha1.CassandraCluster, dcName string, replicaNum int32) string {
 	return fmt.Sprintf(
 		"%s-%d.%s.%s.svc.cluster.local",
-		names.DC(cc, dcName), replicaNum, names.DCService(cc, dcName), cc.Namespace)
+		names.DC(cc.Name, dcName), replicaNum, names.DCService(cc.Name, dcName), cc.Namespace)
 }
 
 func getCassandraRunCommand(cc *dbv1alpha1.CassandraCluster) string {
@@ -450,7 +454,7 @@ func maintenanceVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
 		VolumeSource: v1.VolumeSource{
 			ConfigMap: &v1.ConfigMapVolumeSource{
 				LocalObjectReference: v1.LocalObjectReference{
-					Name: names.MaintenanceConfigMap(cc),
+					Name: names.MaintenanceConfigMap(cc.Name),
 				},
 				DefaultMode: proto.Int32(0700),
 			},

@@ -18,20 +18,20 @@ import (
 func (r *CassandraClusterReconciler) reconcileProberRoleBinding(ctx context.Context, cc *v1alpha1.CassandraCluster) error {
 	desiredRoleBinding := &rbac.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.ProberRoleBinding(cc),
+			Name:      names.ProberRoleBinding(cc.Name),
 			Namespace: cc.Namespace,
 			Labels:    labels.CombinedComponentLabels(cc, v1alpha1.CassandraClusterComponentProber),
 		},
 		Subjects: []rbac.Subject{
 			{
 				Kind:      "ServiceAccount",
-				Name:      names.ProberServiceAccount(cc),
+				Name:      names.ProberServiceAccount(cc.Name),
 				Namespace: cc.Namespace,
 			},
 		},
 		RoleRef: rbac.RoleRef{
 			Kind:     "Role",
-			Name:     names.ProberRole(cc),
+			Name:     names.ProberRole(cc.Name),
 			APIGroup: "rbac.authorization.k8s.io",
 		},
 	}

@@ -27,10 +27,6 @@ func (r *CassandraClusterReconciler) reconcileProber(ctx context.Context, cc *db
 		return errors.Wrap(err, "Error reconciling prober sources configmap")
 	}
 
-	if err := r.reconcileMaintenanceConfigMap(ctx, cc); err != nil {
-		return errors.Wrap(err, "Error reconciling maintenance configmap")
-	}
-
 	if err := r.reconcileProberServiceAccount(ctx, cc); err != nil {
 		return errors.Wrap(err, "Error reconciling prober serviceaccount")
 	}
@@ -59,7 +55,7 @@ func (r *CassandraClusterReconciler) reconcileProberDeployment(ctx context.Conte
 	percent25 := intstr.FromInt(25)
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.ProberDeployment(cc),
+			Name:      names.ProberDeployment(cc.Name),
 			Namespace: cc.Namespace,
 			Labels:    labels.CombinedComponentLabels(cc, dbv1alpha1.CassandraClusterComponentProber),
 		},
@@ -89,7 +85,7 @@ func (r *CassandraClusterReconciler) reconcileProberDeployment(ctx context.Conte
 							Name: "app",
 							VolumeSource: v1.VolumeSource{ConfigMap: &v1.ConfigMapVolumeSource{
 								LocalObjectReference: v1.LocalObjectReference{
-									Name: names.ProberSources(cc),
+									Name: names.ProberSources(cc.Name),
 								},
 								DefaultMode: proto.Int32(v1.SecretVolumeSourceDefaultMode),
 							}},
@@ -99,7 +95,7 @@ func (r *CassandraClusterReconciler) reconcileProberDeployment(ctx context.Conte
 					TerminationGracePeriodSeconds: proto.Int64(30),
 					DNSPolicy:                     v1.DNSClusterFirst,
 					SecurityContext:               &v1.PodSecurityContext{},
-					ServiceAccountName:            names.ProberServiceAccount(cc),
+					ServiceAccountName:            names.ProberServiceAccount(cc.Name),
 					Containers: []v1.Container{
 						proberContainer(cc),
 						jolokiaContainer(cc),
@@ -114,7 +110,7 @@ func (r *CassandraClusterReconciler) reconcileProberDeployment(ctx context.Conte
 	}
 
 	actualDeployment := &appsv1.Deployment{}
-	err := r.Get(ctx, types.NamespacedName{Name: names.ProberDeployment(cc), Namespace: cc.Namespace}, actualDeployment)
+	err := r.Get(ctx, types.NamespacedName{Name: names.ProberDeployment(cc.Name), Namespace: cc.Namespace}, actualDeployment)
 	if err != nil && apierrors.IsNotFound(err) {
 		r.Log.Info("Creating prober deployment")
 		err = r.Create(ctx, desiredDeployment)
@@ -144,7 +140,7 @@ func (r *CassandraClusterReconciler) reconcileProberDeployment(ctx context.Conte
 func (r *CassandraClusterReconciler) reconcileProberService(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
 	desiredService := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.ProberService(cc),
+			Name:      names.ProberService(cc.Name),
 			Namespace: cc.Namespace,
 		},
 		Spec: v1.ServiceSpec{
@@ -157,12 +153,6 @@ func (r *CassandraClusterReconciler) reconcileProberService(ctx context.Context,
 					TargetPort: intstr.FromString("prober-server"),
 					Protocol:   v1.ProtocolTCP,
 				},
-				{
-					Port:       maintenancePort,
-					Name:       "maintenance",
-					TargetPort: intstr.FromString("maint-server"),
-					Protocol:   v1.ProtocolTCP,
-				},
 			},
 			SessionAffinity: v1.ServiceAffinityNone,
 		},
@@ -173,7 +163,7 @@ func (r *CassandraClusterReconciler) reconcileProberService(ctx context.Context,
 	}
 
 	actualService := &v1.Service{}
-	err := r.Get(ctx, types.NamespacedName{Name: names.ProberService(cc), Namespace: cc.Namespace}, actualService)
+	err := r.Get(ctx, types.NamespacedName{Name: names.ProberService(cc.Name), Namespace: cc.Namespace}, actualService)
 	if err != nil && apierrors.IsNotFound(err) {
 		r.Log.Info("Creating prober Service")
 		err = r.Create(ctx, desiredService)
@@ -211,7 +201,6 @@ func proberContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 		Resources:       cc.Spec.Prober.Resources,
 		Env: []v1.EnvVar{
 			{Name: "POD_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}},
-			{Name: "CONFIGMAP_NAME", Value: names.OperatorMaintenanceCM()},
 			{Name: "LOCAL_DCS", Value: func(dcs interface{}) string { b, _ := json.Marshal(dcs); return string(b) }(cc.Spec.DCs)},
 			{Name: "DEBUG", Value: fmt.Sprintf("%t", cc.Spec.Prober.Debug)},
 			{Name: "HOSTPORT_ENABLED", Value: "false" /*fmt.Sprintf("%t", cc.Spec.HostPort.Enabled)*/}, //TODO part of hostport implementation
@@ -223,9 +212,8 @@ func proberContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 			{Name: "LOCAL_DC_INGRESS_DOMAIN", Value: ""},
 			{Name: "JOLOKIA_PORT", Value: strconv.Itoa(jolokiaContainerPort)},
 			{Name: "JOLOKIA_RESPONSE_TIMEOUT", Value: "10000"},
-			{Name: "PROBER_SUBDOMAIN", Value: cc.Namespace + "-" + names.ProberDeployment(cc)},
+			{Name: "PROBER_SUBDOMAIN", Value: cc.Namespace + "-" + names.ProberDeployment(cc.Name)},
 			{Name: "SERVER_PORT", Value: strconv.Itoa(proberContainerPort)},
-			{Name: "MAINTENANCE_PORT", Value: strconv.Itoa(maintenancePort)},
 			{Name: "JMX_POLL_PERIOD_SECONDS", Value: "10"},
 			{Name: "JMX_PROXY_URL", Value: fmt.Sprintf("http://localhost:%d/jolokia", jolokiaContainerPort)},
 			{Name: "JMX_PORT", Value: fmt.Sprintf("%d", jmxPort)},
@@ -235,11 +223,6 @@ func proberContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 			{
 				Name:          "prober-server",
 				ContainerPort: proberContainerPort,
-				Protocol:      v1.ProtocolTCP,
-			},
-			{
-				Name:          "maint-server",
-				ContainerPort: maintenancePort,
 				Protocol:      v1.ProtocolTCP,
 			},
 		},

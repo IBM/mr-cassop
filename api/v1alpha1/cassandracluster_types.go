@@ -37,13 +37,11 @@ var (
 	CassandraPassword = "cassandra"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+// Run "make" to regenerate code after modifying this file.
 
 // CassandraClusterSpec defines the desired state of CassandraCluster
 type CassandraClusterSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 	// +kubebuilder:validation:MinItems:=1
 	DCs []DC `json:"dcs"`
 	// +kubebuilder:validation:MinLength:=1
@@ -52,6 +50,7 @@ type CassandraClusterSpec struct {
 	// +kubebuilder:validation:Enum=OrderedReady;Parallel
 	PodManagementPolicy appsv1.PodManagementPolicyType `json:"podManagementPolicy,omitempty"`
 	Cassandra           *Cassandra                     `json:"cassandra,omitempty"`
+	Maintenance         []Maintenance                  `json:"maintenance,omitempty" diff:"maintenance"`
 	SystemKeyspaces     SystemKeyspaces                `json:"systemKeyspaces,omitempty"`
 	Prober              Prober                         `json:"prober,omitempty"`
 	Reaper              *Reaper                        `json:"reaper,omitempty"`
@@ -82,25 +81,27 @@ type Reaper struct {
 	AutoScheduling                         AutoScheduling          `json:"autoScheduling,omitempty"`
 }
 
-//type HostPort struct {//TODO part of hostport implementation
-//	Enabled   bool `json:"enabled"`
-//	UseHostIP bool `json:"useHostIP,omitempty"`
-//}
+/*
+type HostPort struct {// TODO part of hostport implementation
+	Enabled   bool `json:"enabled"`
+	UseHostIP bool `json:"useHostIP,omitempty"`
+}
 
-//type Monitoring struct { //TODO part of monitoring implementation
-//	Enabled bool  `json:"enabled"`
-//	Port    int32 `json:"port"`
-//}
+type Monitoring struct { // TODO part of monitoring implementation
+	Enabled bool  `json:"enabled"`
+	Port    int32 `json:"port"`
+}
 
-//type JVM struct { //TODO implement usage of those parameters
-//MaxHeapSize                    string   `json:"maxHeapSize,omitempty"`
-//HeapNewSize                    string   `json:"heapNewSize,omitempty"`
-//MigrationTaskWaitSeconds       int32    `json:"migrationTaskWaitSeconds,omitempty"`
-//RingDelayMS                    int32    `json:"ringDelayMS,omitempty"`
-//MaxGCPauseMillis               int32    `json:"maxGCPauseMillis,omitempty"`
-//G1RSetUpdatingPauseTimePercent int32    `json:"g1RSetUpdatingPauseTimePercent,omitempty"`
-//InitiatingHeapOccupancyPercent int32    `json:"initiatingHeapOccupancyPercent,omitempty"`
-//}
+type JVM struct { // TODO implement usage of those parameters
+	MaxHeapSize                    string   `json:"maxHeapSize,omitempty"`
+	HeapNewSize                    string   `json:"heapNewSize,omitempty"`
+	MigrationTaskWaitSeconds       int32    `json:"migrationTaskWaitSeconds,omitempty"`
+	RingDelayMS                    int32    `json:"ringDelayMS,omitempty"`
+	MaxGCPauseMillis               int32    `json:"maxGCPauseMillis,omitempty"`
+	G1RSetUpdatingPauseTimePercent int32    `json:"g1RSetUpdatingPauseTimePercent,omitempty"`
+	InitiatingHeapOccupancyPercent int32    `json:"initiatingHeapOccupancyPercent,omitempty"`
+}
+*/
 
 //type JMX struct { //TODO usage of those parrameters should be fully implemented during auth implementation
 //	// Authentication available options: false, local_files, internal
@@ -155,16 +156,19 @@ type Cassandra struct {
 	// +kubebuilder:validation:Enum:=Always;Never;IfNotPresent
 	ImagePullPolicy v1.PullPolicy           `json:"imagePullPolicy,omitempty"`
 	Resources       v1.ResourceRequirements `json:"resources,omitempty"`
-	//LogLevel                       string   `json:"logLevel,omitempty"`
-	//AdditionalSeeds                          []string `json:"additionalSeeds,omitempty"`
-	//RackName                       string   `json:"rackName,omitempty"`
-	//PreferLocal                    bool     `json:"preferLocal,omitempty"`
+
+	// LogLevel                       string   `json:"logLevel,omitempty"`
+	// AdditionalSeeds                          []string `json:"additionalSeeds,omitempty"`
+	// RackName                       string   `json:"rackName,omitempty"`
+	// PreferLocal                    bool     `json:"preferLocal,omitempty"`
+
 	// +kubebuilder:validation:Minimum:=1
 	NumSeeds int32 `json:"numSeeds,omitempty"`
+	// TODO part of auth implementation
 	// internalAuth: (true|false), configures Cassandra to use internal authentication
 	// https://docs.datastax.com/en/archived/cassandra/2.1/cassandra/security/security_config_native_authenticate_t.html
 	// https://docs.datastax.com/en/cassandra/3.0/cassandra/configuration/secureConfigNativeAuth.html
-	//InternalAuth bool `json:"internalAuth,omitempty"` //TODO part of auth implementation
+	// InternalAuth bool `json:"internalAuth,omitempty"`
 
 	PurgeGossip bool        `json:"purgeGossip,omitempty"`
 	Persistence Persistence `json:"persistence,omitempty"`
@@ -195,6 +199,15 @@ type Jolokia struct {
 	Resources       v1.ResourceRequirements `json:"resources,omitempty"`
 }
 
+type Maintenance struct {
+	// Maintenance object temporarily disables C* pods for debugging purposes.
+	// +kubebuilder:validation:MinLength:=1
+	// +kubebuilder:validation:MaxLength:=63
+	// +kubebuilder:validation:Pattern:=^[a-z0-9][a-z0-9\-]*$
+	DC   string   `json:"dc"`
+	Pods []string `json:"pods,omitempty"`
+}
+
 // +kubebuilder:validation:MinLength:=1
 // +kubebuilder:validation:MaxLength:=48
 // +kubebuilder:validation:Pattern:=^[a-zA-Z]\w+$
@@ -216,8 +229,7 @@ type SystemKeyspaceDC struct {
 
 // CassandraClusterStatus defines the observed state of CassandraCluster
 type CassandraClusterStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	MaintenanceState []Maintenance `json:"maintenanceState,omitempty"`
 }
 
 // +kubebuilder:object:root=true

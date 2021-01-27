@@ -52,11 +52,10 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 			By("prober should be deployed")
 			proberDeployment := &appsv1.Deployment{}
 			Eventually(func() error {
-				return k8sClient.Get(context.Background(), types.NamespacedName{Name: names.ProberDeployment(cc), Namespace: cc.Namespace}, proberDeployment)
+				return k8sClient.Get(context.Background(), types.NamespacedName{Name: names.ProberDeployment(cc.Name), Namespace: cc.Namespace}, proberDeployment)
 			}, mediumTimeout, mediumRetry).Should(Succeed())
 			Expect(proberDeployment.Spec.Template.Spec.Containers[0].Env).To(BeEquivalentTo([]v1.EnvVar{
 				{Name: "POD_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}},
-				{Name: "CONFIGMAP_NAME", Value: names.OperatorMaintenanceCM()},
 				{Name: "LOCAL_DCS", Value: "[{\"name\":\"dc1\",\"replicas\":3},{\"name\":\"dc2\",\"replicas\":3}]"},
 				{Name: "DEBUG", Value: "false"},
 				{Name: "HOSTPORT_ENABLED", Value: "false"},
@@ -70,7 +69,6 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 				{Name: "JOLOKIA_RESPONSE_TIMEOUT", Value: "10000"},
 				{Name: "PROBER_SUBDOMAIN", Value: "default-test-cassandra-cluster-cassandra-prober"},
 				{Name: "SERVER_PORT", Value: "8888"},
-				{Name: "MAINTENANCE_PORT", Value: "8889"},
 				{Name: "JMX_POLL_PERIOD_SECONDS", Value: "10"},
 				{Name: "JMX_PROXY_URL", Value: "http://localhost:8080/jolokia"},
 				{Name: "JMX_PORT", Value: "7199"},
@@ -79,7 +77,7 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 
 			By("cassandra dcs should not exist until prober is ready")
 			Consistently(func() error {
-				return k8sClient.Get(context.Background(), types.NamespacedName{Name: names.DC(cc, cc.Spec.DCs[0].Name), Namespace: cc.Namespace}, sts)
+				return k8sClient.Get(context.Background(), types.NamespacedName{Name: names.DC(cc.Name, cc.Spec.DCs[0].Name), Namespace: cc.Namespace}, sts)
 			}, shortTimeout, shortRetry).ShouldNot(Succeed())
 
 			mockProberClient.ready = true
@@ -89,7 +87,7 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 			for _, dc := range cc.Spec.DCs {
 				mockProberClient.ready = true
 				Eventually(func() error {
-					return k8sClient.Get(context.Background(), types.NamespacedName{Name: names.DC(cc, dc.Name), Namespace: cc.Namespace}, sts)
+					return k8sClient.Get(context.Background(), types.NamespacedName{Name: names.DC(cc.Name, dc.Name), Namespace: cc.Namespace}, sts)
 				}, mediumTimeout, mediumRetry).Should(Succeed())
 
 				By("Cassandra run command should be set correctly")
@@ -108,7 +106,7 @@ exec cassandra -R -f -Dcassandra.jmx.remote.port=7199 -Dcom.sun.management.jmxre
 
 			By("reaper shouldn't be deployed until all DCs ready")
 			Consistently(func() error {
-				return k8sClient.Get(context.Background(), types.NamespacedName{Name: names.ReaperDeployment(cc, cc.Spec.DCs[0].Name), Namespace: cc.Namespace}, &appsv1.Deployment{})
+				return k8sClient.Get(context.Background(), types.NamespacedName{Name: names.ReaperDeployment(cc.Name, cc.Spec.DCs[0].Name), Namespace: cc.Namespace}, &appsv1.Deployment{})
 			}, shortTimeout, shortRetry).ShouldNot(Succeed())
 
 			By("reaper should be deployed after DCs ready")
@@ -118,7 +116,7 @@ exec cassandra -R -f -Dcassandra.jmx.remote.port=7199 -Dcom.sun.management.jmxre
 			for _, dc := range cc.Spec.DCs {
 				reaperDeployment := &appsv1.Deployment{}
 				Eventually(func() error {
-					return k8sClient.Get(context.Background(), types.NamespacedName{Name: names.ReaperDeployment(cc, dc.Name), Namespace: cc.Namespace}, reaperDeployment)
+					return k8sClient.Get(context.Background(), types.NamespacedName{Name: names.ReaperDeployment(cc.Name, dc.Name), Namespace: cc.Namespace}, reaperDeployment)
 				}, mediumTimeout, mediumRetry).Should(Succeed())
 
 				Expect(reaperDeployment.Spec.Template.Spec.Containers[0].Args).Should(Equal([]string{
@@ -138,7 +136,7 @@ exec cassandra -R -f -Dcassandra.jmx.remote.port=7199 -Dcom.sun.management.jmxre
 					{Name: "REAPER_REPAIR_INTENSITY", Value: "1.0"},
 					{Name: "REAPER_REPAIR_MANAGER_SCHEDULING_INTERVAL_SECONDS", Value: "0"},
 					{Name: "REAPER_BLACKLIST_TWCS", Value: "false"},
-					{Name: "REAPER_CASS_CONTACT_POINTS", Value: fmt.Sprintf("[ %s ]", names.DC(cc, dc.Name))},
+					{Name: "REAPER_CASS_CONTACT_POINTS", Value: fmt.Sprintf("[ %s ]", names.DC(cc.Name, dc.Name))},
 					{Name: "REAPER_CASS_CLUSTER_NAME", Value: "cassandra"},
 					{Name: "REAPER_STORAGE_TYPE", Value: "cassandra"},
 					{Name: "REAPER_CASS_KEYSPACE", Value: "reaper_db"},

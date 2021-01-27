@@ -38,28 +38,23 @@ import (
 	"net/url"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
+	"sort"
 	"time"
 )
 
 const (
 	proberContainerPort  = 8888
 	jolokiaContainerPort = 8080
-	maintenancePort      = 8889
 	cqlPort              = 9042
 	jmxPort              = 7199
 	thriftPort           = 9160
 
-	maintenanceDir              = "/etc/maintenance"
 	cassandraRolesDir           = "/etc/cassandra-roles"
+	maintenanceDir              = "/etc/maintenance"
 	cassandraCommitLogDir       = "/var/lib/cassandra-commitlog"
 	defaultCQLConfigMapLabelKey = "cql-scripts"
-
-	annotationCassandraClusterName      = "cassandra-cluster-name"
-	annotationCassandraClusterNamespace = "cassandra-cluster-namespace"
 )
 
 // CassandraClusterReconciler reconciles a CassandraCluster object
@@ -126,6 +121,10 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling scripts configmap")
 	}
 
+	if err := r.reconcileMaintenanceConfigMap(ctx, cc); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error reconciling maintenance configmap")
+	}
+
 	if err := r.reconcileRolesSecret(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling roles secret")
 	}
@@ -137,7 +136,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	if err := r.reconcileProber(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling prober")
 	}
-	proberUrl, err := url.Parse(fmt.Sprintf("http://%s.%s.svc.cluster.local", names.ProberService(cc), cc.Namespace))
+	proberUrl, err := url.Parse(fmt.Sprintf("http://%s.%s.svc.cluster.local", names.ProberService(cc.Name), cc.Namespace))
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error parsing prober client url")
 	}
@@ -159,6 +158,10 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 
 	if err := r.reconcileCassandra(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling statefulsets")
+	}
+
+	if err := r.reconcileMaintenance(ctx, cc); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile maintenance")
 	}
 
 	readyAllDCs, err := proberClient.ReadyAllDCs(ctx)
@@ -197,7 +200,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	if err = r.reconcileReaper(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling reaper")
 	}
-	reaperServiceUrl, err := url.Parse(fmt.Sprintf("http://%s.%s.svc.cluster.local:8080", names.ReaperService(cc), cc.Namespace))
+	reaperServiceUrl, err := url.Parse(fmt.Sprintf("http://%s.%s.svc.cluster.local:8080", names.ReaperService(cc.Name), cc.Namespace))
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error parsing reaper service url")
 	}
@@ -348,10 +351,25 @@ func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.Cass
 			}
 		}
 	}
+
+	if len(cc.Spec.Maintenance) > 0 {
+		for i, entry := range cc.Spec.Maintenance {
+			if len(entry.Pods) == 0 {
+				for _, dc := range cc.Spec.DCs {
+					if entry.DC == dc.Name {
+						for j := 0; j < int(*dc.Replicas); j++ {
+							cc.Spec.Maintenance[i].Pods = append(cc.Spec.Maintenance[i].Pods, fmt.Sprintf("%s-%d", names.DC(cc.Name, dc.Name), j))
+						}
+					}
+				}
+			}
+			sort.Strings(cc.Spec.Maintenance[i].Pods)
+		}
+	}
 }
 
 func newCassandraConfig(cc *dbv1alpha1.CassandraCluster) *gocql.ClusterConfig {
-	cassCfg := gocql.NewCluster(fmt.Sprintf("%s.%s.svc.cluster.local", names.DCService(cc, cc.Spec.DCs[0].Name), cc.Namespace))
+	cassCfg := gocql.NewCluster(fmt.Sprintf("%s.%s.svc.cluster.local", names.DCService(cc.Name, cc.Spec.DCs[0].Name), cc.Namespace))
 	cassCfg.Authenticator = &gocql.PasswordAuthenticator{
 		Username: dbv1alpha1.CassandraRole,
 		Password: dbv1alpha1.CassandraPassword,
@@ -366,26 +384,6 @@ func newCassandraConfig(cc *dbv1alpha1.CassandraCluster) *gocql.ClusterConfig {
 }
 
 func SetupCassandraReconciler(r reconcile.Reconciler, mgr manager.Manager, logr *zap.SugaredLogger) error {
-	annotationEventHandler := &handler.EnqueueRequestsFromMapFunc{ToRequests: handler.ToRequestsFunc(
-		func(a handler.MapObject) []ctrl.Request {
-			annotations := a.Meta.GetAnnotations()
-			if annotations[annotationCassandraClusterNamespace] == "" {
-				return nil
-			}
-
-			if annotations[annotationCassandraClusterName] == "" {
-				return nil
-			}
-
-			return []ctrl.Request{
-				{NamespacedName: types.NamespacedName{
-					Name:      annotations[annotationCassandraClusterName],
-					Namespace: annotations[annotationCassandraClusterNamespace],
-				}},
-			}
-		}),
-	}
-
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("cassandracluster").
 		For(&dbv1alpha1.CassandraCluster{}).
@@ -397,8 +395,6 @@ func SetupCassandraReconciler(r reconcile.Reconciler, mgr manager.Manager, logr 
 		Owns(&rbac.Role{}).
 		Owns(&rbac.RoleBinding{}).
 		Owns(&v1.ServiceAccount{}).
-		Watches(&source.Kind{Type: &rbac.ClusterRole{}}, annotationEventHandler).
-		Watches(&source.Kind{Type: &rbac.ClusterRoleBinding{}}, annotationEventHandler).
 		//WithEventFilter(predicate.NewPredicate(logr)). //uncomment to see kubernetes events in the logs, e.g. ConfigMap updates
 		Complete(r)
 }

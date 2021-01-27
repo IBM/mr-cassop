@@ -1,81 +1,79 @@
 package names
 
-import "github.com/ibm/cassandra-operator/api/v1alpha1"
-
 const (
 	cassandraOperator = "cassandra-operator"
 )
 
-func ProberService(cc *v1alpha1.CassandraCluster) string {
-	return cc.Name + "-cassandra-prober"
+func ProberService(clusterName string) string {
+	return clusterName + "-cassandra-prober"
 }
 
-func ProberDeployment(cc *v1alpha1.CassandraCluster) string {
-	return cc.Name + "-cassandra-prober"
+func ProberDeployment(clusterName string) string {
+	return clusterName + "-cassandra-prober"
 }
 
-func ProberRole(cc *v1alpha1.CassandraCluster) string {
-	return cc.Name + "-cassandra-prober-role"
+func ProberRole(clusterName string) string {
+	return clusterName + "-cassandra-prober-role"
 }
 
-func ProberRoleBinding(cc *v1alpha1.CassandraCluster) string {
-	return cc.Name + "-cassandra-prober-rolebinding"
+func ProberRoleBinding(clusterName string) string {
+	return clusterName + "-cassandra-prober-rolebinding"
 }
 
-func ProberServiceAccount(cc *v1alpha1.CassandraCluster) string {
-	return cc.Name + "-cassandra-prober-serviceaccount"
+func ProberServiceAccount(clusterName string) string {
+	return clusterName + "-cassandra-prober-serviceaccount"
 }
 
-func ProberSources(cc *v1alpha1.CassandraCluster) string {
-	return cc.Name + "-cassandra-prober-sources"
+func ProberSources(clusterName string) string {
+	return clusterName + "-cassandra-prober-sources"
 }
 
-func ReaperDeployment(cc *v1alpha1.CassandraCluster, dcName string) string {
-	return DC(cc, dcName) + "-reaper"
+func ReaperDeployment(clusterName, dcName string) string {
+	return DC(clusterName, dcName) + "-reaper"
 }
 
-func ReaperService(cc *v1alpha1.CassandraCluster) string {
-	return cc.Name + "-reaper"
+func ReaperService(clusterName string) string {
+	return clusterName + "-reaper"
 }
 
-func ReaperCqlConfigMap(cc *v1alpha1.CassandraCluster) string {
-	return ReaperService(cc) + "-cql-configmap"
+func ReaperCqlConfigMap(clusterName string) string {
+	return ReaperService(clusterName) + "-cql-configmap"
 }
 
-func RepairsConfigMap(cc *v1alpha1.CassandraCluster) string {
-	return cc.Name + "-repairs-configmap"
+func RepairsConfigMap(clusterName string) string {
+	return clusterName + "-repairs-configmap"
 }
 
-func ShiroConfigMap(cc *v1alpha1.CassandraCluster) string {
-	return cc.Name + "-shiro-configmap"
+func ShiroConfigMap(clusterName string) string {
+	return clusterName + "-shiro-configmap"
 }
 
-func MaintenanceConfigMap(cc *v1alpha1.CassandraCluster) string {
-	return cc.Name + "-maintenance-configmap"
+func MaintenanceConfigMap(clusterName string) string {
+	return clusterName + "-maintenance-configmap"
 }
 
-func RolesSecret(cc *v1alpha1.CassandraCluster) string {
-	return cc.Name + "-roles-secret"
+func RolesSecret(clusterName string) string {
+	return clusterName + "-roles-secret"
 }
 
-func ScriptsConfigMap(cc *v1alpha1.CassandraCluster) string {
-	return cc.Name + "-scripts-configmap"
+func ScriptsConfigMap(clusterName string) string {
+	return clusterName + "-scripts-configmap"
 }
 
-func JMXRemoteSecret(cc *v1alpha1.CassandraCluster) string {
-	return cc.Name + "-jmxremote-secret"
+func JMXRemoteSecret(clusterName string) string {
+	return clusterName + "-jmxremote-secret"
 }
 
-func DC(cc *v1alpha1.CassandraCluster, dcName string) string {
-	return cc.Name + "-cassandra-" + dcName
+func DC(clusterName, dcName string) string {
+	return clusterName + "-cassandra-" + dcName
 }
 
-func DCService(cc *v1alpha1.CassandraCluster, dcName string) string {
-	return DC(cc, dcName)
+func DCService(clusterName, dcName string) string {
+	return DC(clusterName, dcName)
 }
 
-func ConfigMap(cc *v1alpha1.CassandraCluster, dcName string) string {
-	return DC(cc, dcName) + "-configmap"
+func ConfigMap(clusterName, dcName string) string {
+	return DC(clusterName, dcName) + "-configmap"
 }
 
 func OperatorScriptsCM() string {
@@ -92,8 +90,4 @@ func OperatorCassandraConfigCM() string {
 
 func OperatorShiroCM() string {
 	return cassandraOperator + "-shiro-configmap"
-}
-
-func OperatorMaintenanceCM() string {
-	return cassandraOperator + "-maintenance-configmap"
 }

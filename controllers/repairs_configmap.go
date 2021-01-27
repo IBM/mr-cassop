@@ -19,7 +19,7 @@ import (
 func (r *CassandraClusterReconciler) reconcileRepairsConfigMap(ctx context.Context, cc *v1alpha1.CassandraCluster) error {
 	desiredCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.RepairsConfigMap(cc),
+			Name:      names.RepairsConfigMap(cc.Name),
 			Labels:    labels.CombinedComponentLabels(cc, v1alpha1.CassandraClusterComponentReaper),
 			Namespace: cc.Namespace,
 		},

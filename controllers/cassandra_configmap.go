@@ -24,7 +24,7 @@ func (r *CassandraClusterReconciler) reconcileCassandraConfigMap(ctx context.Con
 	for _, dc := range cc.Spec.DCs {
 		desiredCM := &v1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      names.ConfigMap(cc, dc.Name),
+				Name:      names.ConfigMap(cc.Name, dc.Name),
 				Namespace: cc.Namespace,
 				Labels:    labels.CombinedComponentLabels(cc, v1alpha1.CassandraClusterComponentCassandra),
 			},
@@ -85,7 +85,7 @@ func cassandraDCConfigVolume(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC) v1.V
 		VolumeSource: v1.VolumeSource{
 			ConfigMap: &v1.ConfigMapVolumeSource{
 				LocalObjectReference: v1.LocalObjectReference{
-					Name: names.ConfigMap(cc, dc.Name),
+					Name: names.ConfigMap(cc.Name, dc.Name),
 				},
 				DefaultMode: proto.Int32(0644),
 			},

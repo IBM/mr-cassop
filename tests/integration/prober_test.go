@@ -36,7 +36,7 @@ var _ = Describe("prober deployment", func() {
 				"cassandra-cluster-instance":  "test-cassandra-cluster",
 			}
 			Eventually(func() error {
-				return k8sClient.Get(ctx, types.NamespacedName{Name: names.ProberDeployment(cc), Namespace: cc.Namespace}, deployment)
+				return k8sClient.Get(ctx, types.NamespacedName{Name: names.ProberDeployment(cc.Name), Namespace: cc.Namespace}, deployment)
 			}, mediumTimeout, mediumRetry).Should(Succeed())
 
 			Expect(deployment.Labels).To(BeEquivalentTo(proberLabels))

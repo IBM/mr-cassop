@@ -49,10 +49,6 @@ spec:
                     - IfNotPresent
                     type: string
                   numSeeds:
-                    description: LogLevel                       string   `json:"logLevel,omitempty"`
-                      AdditionalSeeds                          []string `json:"additionalSeeds,omitempty"`
-                      RackName                       string   `json:"rackName,omitempty"`
-                      PreferLocal                    bool     `json:"preferLocal,omitempty"`
                     format: int32
                     minimum: 1
                     type: integer
@@ -368,8 +364,6 @@ spec:
               cqlConfigMapLabelKey:
                 type: string
               dcs:
-                description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-                  Important: Run "make" to regenerate code after modifying this file'
                 items:
                   properties:
                     name:
@@ -390,6 +384,24 @@ spec:
               imagePullSecretName:
                 minLength: 1
                 type: string
+              maintenance:
+                items:
+                  properties:
+                    dc:
+                      description: Maintenance object temporarily disables C* pods
+                        for debugging purposes.
+                      maxLength: 63
+                      minLength: 1
+                      pattern: ^[a-z0-9][a-z0-9\-]*$
+                      type: string
+                    pods:
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - dc
+                  type: object
+                type: array
               podManagementPolicy:
                 description: PodManagementPolicyType defines the policy for creating
                   pods under a stateful set.
@@ -696,6 +708,25 @@ spec:
             type: object
           status:
             description: CassandraClusterStatus defines the observed state of CassandraCluster
+            properties:
+              maintenanceState:
+                items:
+                  properties:
+                    dc:
+                      description: Maintenance object temporarily disables C* pods
+                        for debugging purposes.
+                      maxLength: 63
+                      minLength: 1
+                      pattern: ^[a-z0-9][a-z0-9\-]*$
+                      type: string
+                    pods:
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - dc
+                  type: object
+                type: array
             type: object
         required:
         - spec

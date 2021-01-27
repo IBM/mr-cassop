@@ -19,7 +19,7 @@ import (
 func (r *CassandraClusterReconciler) reconcileJMXSecret(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
 	desiredSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.JMXRemoteSecret(cc),
+			Name:      names.JMXRemoteSecret(cc.Name),
 			Labels:    labels.CombinedComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra),
 			Namespace: cc.Namespace,
 		},
@@ -69,7 +69,7 @@ func jmxSecretVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
 		Name: "jmxremote",
 		VolumeSource: v1.VolumeSource{
 			Secret: &v1.SecretVolumeSource{
-				SecretName:  names.JMXRemoteSecret(cc),
+				SecretName:  names.JMXRemoteSecret(cc.Name),
 				DefaultMode: proto.Int32(0400),
 			},
 		},

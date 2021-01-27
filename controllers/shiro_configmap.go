@@ -18,7 +18,7 @@ func (r *CassandraClusterReconciler) reconcileShiroConfigMap(ctx context.Context
 	}
 	desiredCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.ShiroConfigMap(cc),
+			Name:      names.ShiroConfigMap(cc.Name),
 			Namespace: cc.Namespace,
 			Labels:    labels.CombinedComponentLabels(cc, v1alpha1.CassandraClusterComponentReaper),
 		},

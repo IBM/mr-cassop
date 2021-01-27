@@ -89,7 +89,7 @@ func roleChanged(desiredRole Role, existingRole cql.Role) bool {
 func (r *CassandraClusterReconciler) reconcileRolesSecret(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
 	desiredSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.RolesSecret(cc),
+			Name:      names.RolesSecret(cc.Name),
 			Labels:    labels.CombinedComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra),
 			Namespace: cc.Namespace,
 		},
@@ -141,7 +141,7 @@ func rolesVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
 		Name: "roles",
 		VolumeSource: v1.VolumeSource{
 			Secret: &v1.SecretVolumeSource{
-				SecretName:  names.RolesSecret(cc),
+				SecretName:  names.RolesSecret(cc.Name),
 				DefaultMode: proto.Int32(v1.SecretVolumeSourceDefaultMode),
 			},
 		},
