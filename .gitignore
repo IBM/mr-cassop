@@ -33,3 +33,6 @@ tiller
 *~
 
 node_modules
+
+# macOS custom attributes
+**/.DS_Store

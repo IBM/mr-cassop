@@ -96,10 +96,9 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 					"-c",
 					`cp /etc/cassandra-configmaps/* $CASSANDRA_CONF
 cp /etc/cassandra-configmaps/jvm.options $CASSANDRA_HOME
-until stat $CASSANDRA_CONF/cassandra.yaml; do sleep 5; done
-echo "broadcast_address: $POD_IP" >> $CASSANDRA_CONF/cassandra.yaml
-echo "broadcast_rpc_address: $POD_IP" >> $CASSANDRA_CONF/cassandra.yaml
-exec cassandra -R -f -Dcassandra.jmx.remote.port=7199 -Dcom.sun.management.jmxremote.rmi.port=7199 -Dcom.sun.management.jmxremote.authenticate=internal -Djava.rmi.server.hostname=$POD_IP
+until stat /etc/pods-config/${POD_NAME}.env; do "Waiting for pod configuration..."; sleep 5; done
+source /etc/pods-config/${POD_NAME}.env
+./docker-entrypoint.sh -R -f -Dcassandra.jmx.remote.port=7199 -Dcom.sun.management.jmxremote.rmi.port=7199 -Dcom.sun.management.jmxremote.authenticate=false -Djava.rmi.server.hostname=$POD_IP
 `,
 				}))
 			}

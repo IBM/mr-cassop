@@ -115,6 +115,7 @@ jobs:
         if: ${{ failure() }}
         run: |
           kubectl get deployments,po
+          kubectl describe pod -l operator=cassandra-operator
           kubectl logs deployment/cassandra-operator --tail=20
       - name: Set up Go with latest minor version 1.x
         uses: actions/setup-go@v2
@@ -124,11 +125,11 @@ jobs:
         run: go mod download
       - name: Run e2e tests
         run: |
-          export e2e_namespace="$IKS_NAMESPACE"
-          export e2e_release="cassandra-ci-e2e"
           go test ./tests/e2e/ \
             -ginkgo.v -ginkgo.reportPassed -ginkgo.progress \
-            -test.v -test.timeout=0
+            -test.v -test.timeout=0 \
+            -casNamespace="$IKS_NAMESPACE" \
+            -casRelease="cassandra-ci-e2e"
       - name: Uninstall C* operator
         if: ${{ always() }}
         run: |

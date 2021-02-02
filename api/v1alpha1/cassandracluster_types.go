@@ -170,8 +170,9 @@ type Cassandra struct {
 	// https://docs.datastax.com/en/cassandra/3.0/cassandra/configuration/secureConfigNativeAuth.html
 	// InternalAuth bool `json:"internalAuth,omitempty"`
 
-	PurgeGossip bool        `json:"purgeGossip,omitempty"`
-	Persistence Persistence `json:"persistence,omitempty"`
+	PurgeGossip  bool        `json:"purgeGossip,omitempty"`
+	Persistence  Persistence `json:"persistence,omitempty"`
+	ZonesAsRacks bool        `json:"zonesAsRacks,omitempty"`
 }
 
 type Persistence struct {

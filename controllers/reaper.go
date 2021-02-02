@@ -328,7 +328,7 @@ func reaperVolumes(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) []v1.Volum
 			VolumeSource: v1.VolumeSource{
 				ConfigMap: &v1.ConfigMapVolumeSource{
 					LocalObjectReference: v1.LocalObjectReference{
-						Name: names.ConfigMap(cc.Name, dc.Name),
+						Name: names.ConfigMap(cc.Name),
 					},
 					DefaultMode: proto.Int32(0644),
 					Items: []v1.KeyToPath{

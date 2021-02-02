@@ -27,6 +27,10 @@ func (r *CassandraClusterReconciler) reconcileProber(ctx context.Context, cc *db
 		return errors.Wrap(err, "Error reconciling prober sources configmap")
 	}
 
+	if err := r.reconcileCassandraPodsConfigConfigMap(ctx, cc); err != nil {
+		return errors.Wrap(err, "Error reconciling Cassandra pods configmap")
+	}
+
 	if err := r.reconcileProberServiceAccount(ctx, cc); err != nil {
 		return errors.Wrap(err, "Error reconciling prober serviceaccount")
 	}

@@ -65,7 +65,7 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
-						cassandraContainer(cc),
+						cassandraContainer(cc, dc),
 					},
 					InitContainers: []v1.Container{
 						maintenanceContainer(cc, dc),
@@ -77,6 +77,7 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 						jmxSecretVolume(cc),
 						maintenanceVolume(cc),
 						cassandraDCConfigVolume(cc, dc),
+						podsConfigVolume(cc),
 					},
 					RestartPolicy:                 v1.RestartPolicyAlways,
 					TerminationGracePeriodSeconds: proto.Int64(30),
@@ -125,7 +126,7 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 	return nil
 }
 
-func cassandraContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
+func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Container {
 	container := v1.Container{
 		Name:            "cassandra",
 		Image:           cc.Spec.Cassandra.Image,
@@ -133,6 +134,45 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 		Env: []v1.EnvVar{
 			{
 				Name: "POD_IP",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "status.podIP"},
+				},
+			},
+			{
+				Name: "POD_NAME",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.name"},
+				},
+			},
+			{
+				Name:  "CASSANDRA_CLUSTER_NAME",
+				Value: cc.Name,
+			},
+			{
+				Name:  "CASSANDRA_DC",
+				Value: dc.Name,
+			},
+			{
+				// In order for Cassandra to apply cassandra-rackdc.properties, otherwise this variable will have no effect.
+				Name:  "CASSANDRA_ENDPOINT_SNITCH",
+				Value: "GossipingPropertyFileSnitch",
+			},
+			{
+				Name:  "CASSANDRA_SEEDS",
+				Value: strings.Join(getSeedsList(cc), ","),
+			},
+			{
+				Name:  "CASSANDRA_LISTEN_ADDRESS",
+				Value: "auto",
+			},
+			{
+				Name: "CASSANDRA_BROADCAST_ADDRESS",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "status.podIP"},
+				},
+			},
+			{
+				Name: "CASSANDRA_BROADCAST_RPC_ADDRESS",
 				ValueFrom: &v1.EnvVarSource{
 					FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "status.podIP"},
 				},
@@ -194,6 +234,7 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 			jmxSecretVolumeMount(),
 			cassandraDCConfigVolumeMount(),
 			cassandraDataVolumeMount(),
+			podsConfigVolumeMount(),
 		},
 		Ports: []v1.ContainerPort{
 			{
@@ -351,10 +392,9 @@ func getCassandraRunCommand(cc *dbv1alpha1.CassandraCluster) string {
 	}
 	commands = append(commands, "cp /etc/cassandra-configmaps/* $CASSANDRA_CONF")
 	commands = append(commands, "cp /etc/cassandra-configmaps/jvm.options $CASSANDRA_HOME")
-	commands = append(commands, "until stat $CASSANDRA_CONF/cassandra.yaml; do sleep 5; done")
-	commands = append(commands, "echo \"broadcast_address: $POD_IP\" >> $CASSANDRA_CONF/cassandra.yaml")
-	commands = append(commands, "echo \"broadcast_rpc_address: $POD_IP\" >> $CASSANDRA_CONF/cassandra.yaml")
-	commands = append(commands, fmt.Sprintf("exec cassandra -R -f -Dcassandra.jmx.remote.port=%d -Dcom.sun.management.jmxremote.rmi.port=%d -Dcom.sun.management.jmxremote.authenticate=internal -Djava.rmi.server.hostname=$POD_IP", jmxPort, jmxPort))
+	commands = append(commands, "until stat /etc/pods-config/${POD_NAME}.env; do \"Waiting for pod configuration...\"; sleep 5; done")
+	commands = append(commands, "source /etc/pods-config/${POD_NAME}.env")
+	commands = append(commands, fmt.Sprintf("./docker-entrypoint.sh -R -f -Dcassandra.jmx.remote.port=%d -Dcom.sun.management.jmxremote.rmi.port=%d -Dcom.sun.management.jmxremote.authenticate=false -Djava.rmi.server.hostname=$POD_IP", jmxPort, jmxPort))
 	return strings.Join(commands, "\n") + "\n"
 }
 
@@ -466,5 +506,26 @@ func maintenanceVolumeMount() v1.VolumeMount {
 	return v1.VolumeMount{
 		Name:      "maintenance-config",
 		MountPath: maintenanceDir,
+	}
+}
+
+func podsConfigVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
+	return v1.Volume{
+		Name: "pods-config",
+		VolumeSource: v1.VolumeSource{
+			ConfigMap: &v1.ConfigMapVolumeSource{
+				LocalObjectReference: v1.LocalObjectReference{
+					Name: names.PodsConfigConfigmap(cc.Name),
+				},
+				DefaultMode: proto.Int32(0644),
+			},
+		},
+	}
+}
+
+func podsConfigVolumeMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      "pods-config",
+		MountPath: "/etc/pods-config",
 	}
 }

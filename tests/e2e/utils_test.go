@@ -188,3 +188,11 @@ func getPodLogs(pod corev1.Pod, kubeClient *kubernetes.Clientset, podLogOpts cor
 
 	return err, str
 }
+
+func readFile(file string) []byte {
+	content, err := ioutil.ReadFile(file)
+	if err != nil {
+		log.Error(err, "Cannot read file ../../cassandra-operator/values.yaml")
+	}
+	return content
+}

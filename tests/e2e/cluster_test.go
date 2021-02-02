@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"github.com/gocql/gocql"
 	"github.com/gogo/protobuf/proto"
@@ -12,7 +13,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
-	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -24,15 +24,32 @@ import (
 	. "github.com/onsi/gomega"
 
 	"encoding/json"
+	"sigs.k8s.io/yaml"
+)
+
+const (
+	valuesFile      = "../../cassandra-operator/values.yaml"
+	imagePullSecret = "icm-coreeng-pull-secret"
 )
 
 var (
-	casNamespace = os.Getenv("e2e_namespace")
-	casRelease   = os.Getenv("e2e_release") // C* cluster will get this name as well
-	log          = logf.Log.WithName("e2e-test")
-	err          error
-	restClient   client.Client // client to talk to k8s rest API like kubectl
+	log        = logf.Log.WithName("e2e-test")
+	err        error
+	restClient client.Client // client to talk to k8s rest API like kubectl
+
+	cassandraImage string
+	proberImage    string
+	reaperImage    string
+	jolokiaImage   string
+
+	casNamespace string
+	casRelease   string
 )
+
+func init() {
+	flag.StringVar(&casNamespace, "casNamespace", "default", "Set the namespace for e2e tests run.")
+	flag.StringVar(&casRelease, "casRelease", "e2e-tests", "Set the cassandra cluster release name for e2e tests run.")
+}
 
 func TestCassandraCluster(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -44,6 +61,22 @@ var _ = BeforeSuite(func(done Done) {
 
 	err = v1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).ToNot(HaveOccurred())
+
+	By("Getting image names...")
+	content := readFile(valuesFile)
+
+	valuesYaml := make(map[string]string)
+
+	err = yaml.Unmarshal(content, &valuesYaml)
+
+	if err != nil {
+		log.Error(err, "Can't unmarshal '../../cassandra-operator/values.yaml'")
+	}
+
+	cassandraImage = valuesYaml["cassandraImage"]
+	proberImage = valuesYaml["proberImage"]
+	reaperImage = valuesYaml["reaperImage"]
+	jolokiaImage = valuesYaml["jolokiaImage"]
 
 	close(done)
 }, 60) // Set a timeout for function execution
@@ -76,14 +109,6 @@ var _ = Describe("Cassandra cluster", func() {
 	)
 
 	BeforeEach(func() { // Always initialize your variables in BeforeEach blocks
-		if casNamespace == "" {
-			Fail("You must define the e2e_namespace environment variable!\nIt's the namespace where your C* cluster will be deployed.\nFor example: `export e2e_namespace=\"my-namespace\"`")
-		}
-
-		if casRelease == "" {
-			Fail("You must define the e2e_release environment variable!\nIt's the name of your C* cluster.\nFor example: `export e2e_release=\"test\"`")
-		}
-
 		currentTime = time.Now().UTC()
 		// Generate slice of maps with repairs
 		reaperRepairs = append(reaperRepairs,
@@ -148,10 +173,10 @@ var _ = Describe("Cassandra cluster", func() {
 						Replicas: proto.Int32(3),
 					},
 				},
-				ImagePullSecretName:  "icm-coreeng-pull-secret",
+				ImagePullSecretName:  imagePullSecret,
 				CQLConfigMapLabelKey: "cql-cm",
 				Cassandra: &v1alpha1.Cassandra{
-					Image:           "us.icr.io/icm-cassandra/cassandra:3.11.9-0.18.19",
+					Image:           cassandraImage,
 					ImagePullPolicy: "Always",
 					Resources: corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
@@ -175,7 +200,7 @@ var _ = Describe("Cassandra cluster", func() {
 					},
 				},
 				Prober: v1alpha1.Prober{
-					Image:           "us.icr.io/icm-cassandra/cassandra-prober:0.18.19",
+					Image:           proberImage,
 					ImagePullPolicy: "IfNotPresent",
 					Resources: corev1.ResourceRequirements{
 						Limits: corev1.ResourceList{
@@ -189,12 +214,12 @@ var _ = Describe("Cassandra cluster", func() {
 					},
 					Debug: false,
 					Jolokia: v1alpha1.Jolokia{
-						Image:           "us.icr.io/icm-docker-images/jolokia-proxy:1.6.2",
+						Image:           jolokiaImage,
 						ImagePullPolicy: "IfNotPresent",
 					},
 				},
 				Reaper: &v1alpha1.Reaper{
-					Image:           "thelastpickle/cassandra-reaper:2.1.2",
+					Image:           reaperImage,
 					ImagePullPolicy: "IfNotPresent",
 					Keyspace:        testReaperKeyspace,
 					DCs: []v1alpha1.DC{
@@ -366,7 +391,9 @@ var _ = Describe("Cassandra cluster", func() {
 			log.Error(err, "CQL query doesn't work!")
 			Fail("Errors shouldn't occur.")
 		}
-		Expect(releaseVersion).To(Equal("3.11.9"))
+		casVer := fmt.Sprintf(strings.Split(cassandraImage, ":")[1])
+		casVer = fmt.Sprintf(strings.Split(casVer, "-")[0])
+		Expect(releaseVersion).To(Equal(casVer))
 
 		By("Port forwarding reaper API pod port...")
 		reaperPf := portForwardPod(casNamespace, reaperPodLabels, []string{"8080:8080"}, restClientConfig)
@@ -481,4 +508,3 @@ var _ = Describe("Cassandra cluster", func() {
 })
 
 // Todo: find approach to consume restClientConfig from global vars
-// Todo: add support of custom flags to specify namespace and release name from cli like: go test ./tests/e2e/ -- --ns=<namespace> --rl=<release name>

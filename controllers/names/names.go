@@ -72,8 +72,12 @@ func DCService(clusterName, dcName string) string {
 	return DC(clusterName, dcName)
 }
 
-func ConfigMap(clusterName, dcName string) string {
-	return DC(clusterName, dcName) + "-configmap"
+func ConfigMap(clusterName string) string {
+	return clusterName + "-cassandra-config"
+}
+
+func PodsConfigConfigmap(clusterName string) string {
+	return clusterName + "-pods-config"
 }
 
 func OperatorScriptsCM() string {
@@ -85,7 +89,7 @@ func OperatorProberSourcesCM() string {
 }
 
 func OperatorCassandraConfigCM() string {
-	return cassandraOperator + "-cassandra-config-configmap"
+	return cassandraOperator + "-cassandra-init-config"
 }
 
 func OperatorShiroCM() string {
