@@ -49,6 +49,11 @@ func (in *AutoScheduling) DeepCopy() *AutoScheduling {
 func (in *Cassandra) DeepCopyInto(out *Cassandra) {
 	*out = *in
 	in.Resources.DeepCopyInto(&out.Resources)
+	if in.TerminationGracePeriodSeconds != nil {
+		in, out := &in.TerminationGracePeriodSeconds, &out.TerminationGracePeriodSeconds
+		*out = new(int64)
+		**out = **in
+	}
 	in.Persistence.DeepCopyInto(&out.Persistence)
 }
 

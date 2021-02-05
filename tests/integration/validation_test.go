@@ -166,6 +166,27 @@ var _ = Describe("cassandracluster validation", func() {
 			expectToBeInvalidError(err)
 		})
 	})
+	Context(".spec.cassandra.terminationGracePeriodSeconds", func() {
+		It("can't be negative number", func() {
+			cc := &v1alpha1.CassandraCluster{
+				ObjectMeta: cassandraObjectMeta,
+				Spec: v1alpha1.CassandraClusterSpec{
+					DCs: []v1alpha1.DC{
+						{
+							Name:     "dc1",
+							Replicas: proto.Int32(3),
+						},
+					},
+					ImagePullSecretName: "pullSecretName",
+					Cassandra: &v1alpha1.Cassandra{
+						TerminationGracePeriodSeconds: proto.Int64(-1),
+					},
+				},
+			}
+			err := k8sClient.Create(ctx, cc)
+			expectToBeInvalidError(err)
+		})
+	})
 	Context(".spec.cassandra.imagePullPolicy", func() {
 		It("can only be one of (Always;Never;IfNotPresent)", func() {
 			cc := &v1alpha1.CassandraCluster{
@@ -465,9 +486,10 @@ var _ = Describe("cassandracluster validation", func() {
 					},
 					ImagePullSecretName: "pullSecretName",
 					Cassandra: &v1alpha1.Cassandra{
-						NumSeeds:        3,
-						ImagePullPolicy: v1.PullAlways,
-						Image:           "cassandra/image",
+						NumSeeds:                      3,
+						TerminationGracePeriodSeconds: proto.Int64(60),
+						ImagePullPolicy:               v1.PullAlways,
+						Image:                         "cassandra/image",
 					},
 					Prober: v1alpha1.Prober{
 						ImagePullPolicy: v1.PullAlways,

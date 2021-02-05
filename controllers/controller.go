@@ -16,6 +16,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/gocql/gocql"
+	"github.com/gogo/protobuf/proto"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/config"
 	"github.com/ibm/cassandra-operator/controllers/cql"
@@ -250,6 +251,10 @@ func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.Cass
 
 	if cc.Spec.Cassandra.NumSeeds == 0 {
 		cc.Spec.Cassandra.NumSeeds = 2
+	}
+
+	if cc.Spec.Cassandra.TerminationGracePeriodSeconds == nil {
+		cc.Spec.Cassandra.TerminationGracePeriodSeconds = proto.Int64(300)
 	}
 
 	if cc.Spec.Cassandra.Persistence.DataVolumeClaimSpec.VolumeMode == nil {

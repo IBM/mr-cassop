@@ -164,6 +164,8 @@ type Cassandra struct {
 
 	// +kubebuilder:validation:Minimum:=1
 	NumSeeds int32 `json:"numSeeds,omitempty"`
+	// +kubebuilder:validation:Minimum:=0
+	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
 	// TODO part of auth implementation
 	// internalAuth: (true|false), configures Cassandra to use internal authentication
 	// https://docs.datastax.com/en/archived/cassandra/2.1/cassandra/security/security_config_native_authenticate_t.html
