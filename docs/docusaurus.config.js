@@ -1,9 +1,9 @@
 const isCI = !!process.env.CI;
 module.exports = {
   title: 'Cassandra Operator',
-  githubHost: 'github.ibm.com',
-  url: isCI ? 'https://pages.github.ibm.com' : 'http://localhost:3000',
-  baseUrl: isCI ? '/TheWeatherCompany/cassandra-operator/' : '/',
+  githubHost: 'github.com',
+  url: isCI ? 'https://cassandra-operator-docs.dev.sun.weather.com' : 'http://localhost:3000',
+  baseUrl: '/',
   onBrokenLinks: 'throw',
   favicon: 'images/favicon.png',
   organizationName: 'TheWeatherCompany',
@@ -23,7 +23,7 @@ module.exports = {
       },
       items: [
         {
-          href: 'https://github.com/TheWeatherCompany/cassandra-operator',
+          href: 'https://cassandra-operator-docs.dev.sun.weather.com',
           label: 'GitHub',
           position: 'right',
         },
@@ -61,4 +61,9 @@ module.exports = {
     [require.resolve('docusaurus-lunr-search'), { languages: ['en'], indexBaseUrl: true }],
     [require.resolve('@docusaurus/plugin-client-redirects'), { fromExtensions: ['html', 'md'] }],
   ],
+  customFields: {
+    commit: process.env.GIT_COMMIT || 'abcabcabcabcabcabcabcabcabcabcabcabcabca',
+    buildNumber: process.env.BUILD_NUMBER || '3333',
+    buildUrl: process.env.BUILD_URL || '#',
+  },
 };
