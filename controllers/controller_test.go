@@ -15,10 +15,22 @@ import (
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"net/url"
 	"testing"
 )
+
+func createBasicMockedReconciler() *CassandraClusterReconciler {
+	return &CassandraClusterReconciler{
+		Client:     nil,
+		Log:        zap.NewNop().Sugar(),
+		Scheme:     scheme.Scheme,
+		Cfg:        config.Config{},
+		Clientset:  nil,
+		RESTConfig: nil,
+	}
+}
 
 func createMockedReconciler(t *testing.T) (*CassandraClusterReconciler, *gomock.Controller, mockedClients) {
 	mCtrl := gomock.NewController(t)
@@ -29,7 +41,7 @@ func createMockedReconciler(t *testing.T) (*CassandraClusterReconciler, *gomock.
 	reconciler := &CassandraClusterReconciler{
 		Client:     nil,
 		Log:        zap.NewNop().Sugar(),
-		Scheme:     nil,
+		Scheme:     scheme.Scheme,
 		Cfg:        config.Config{},
 		Clientset:  nil,
 		RESTConfig: nil,
@@ -88,6 +100,8 @@ func TestDefaultingFunction(t *testing.T) {
 	g.Expect(cc.Spec.Reaper.RepairIntensity).To(Equal("1.0"))
 	g.Expect(cc.Spec.Reaper.Tolerations).To(BeNil())
 	g.Expect(cc.Spec.Reaper.NodeSelector).To(BeNil())
+	g.Expect(cc.Spec.Maintenance).To(BeNil())
+	g.Expect(cc.Status.MaintenanceState).To(BeNil())
 
 	cc = &v1alpha1.CassandraCluster{
 		Spec: v1alpha1.CassandraClusterSpec{
@@ -106,6 +120,11 @@ func TestDefaultingFunction(t *testing.T) {
 					},
 				},
 			},
+			Maintenance: []v1alpha1.Maintenance{
+				{
+					DC: "dc1",
+				},
+			},
 		},
 	}
 	reconciler.defaultCassandraCluster(cc)
@@ -116,4 +135,6 @@ func TestDefaultingFunction(t *testing.T) {
 	g.Expect(cc.Spec.Reaper.ScheduleRepairs.Repairs[0].ScheduleDaysBetween).To(Equal(int32(7)))
 	g.Expect(cc.Spec.Reaper.ScheduleRepairs.Repairs[0].Datacenters).To(Equal([]string{"dc1"}))
 	g.Expect(cc.Spec.Reaper.ScheduleRepairs.Repairs[0].RepairThreadCount).To(Equal(int32(2)))
+	g.Expect(cc.Spec.Maintenance[0].DC).To(Equal("dc1"))
+	g.Expect(cc.Spec.Maintenance[0].Pods).ToNot(BeEmpty())
 }

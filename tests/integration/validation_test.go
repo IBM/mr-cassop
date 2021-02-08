@@ -8,6 +8,18 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strings"
+)
+
+const (
+	emptyChar           = ""
+	invalidSpecialChars = "&%*^<>()"
+	invalidPullPolicy   = v1.PullPolicy("invalid")
+)
+
+var (
+	invalidNumCharsShort = strings.Repeat("A", 64)
+	invalidNumCharsLong  = strings.Repeat("A", 254)
 )
 
 var _ = Describe("cassandracluster validation", func() {
@@ -98,7 +110,7 @@ var _ = Describe("cassandracluster validation", func() {
 				Spec: v1alpha1.CassandraClusterSpec{
 					DCs: []v1alpha1.DC{
 						{
-							Name:     "",
+							Name:     emptyChar,
 							Replicas: proto.Int32(3),
 						},
 					},
@@ -116,7 +128,7 @@ var _ = Describe("cassandracluster validation", func() {
 				Spec: v1alpha1.CassandraClusterSpec{
 					DCs: []v1alpha1.DC{
 						{
-							Name:     "morethan63charsmorethan63charsmorethan63charsmorethan63charsmorethan63",
+							Name:     invalidNumCharsShort,
 							Replicas: proto.Int32(3),
 						},
 					},
@@ -134,7 +146,7 @@ var _ = Describe("cassandracluster validation", func() {
 				Spec: v1alpha1.CassandraClusterSpec{
 					DCs: []v1alpha1.DC{
 						{
-							Name:     "&%(*^()",
+							Name:     invalidSpecialChars,
 							Replicas: proto.Int32(3),
 						},
 					},
@@ -201,7 +213,7 @@ var _ = Describe("cassandracluster validation", func() {
 					ImagePullSecretName: "pullSecretName",
 					Cassandra: &v1alpha1.Cassandra{
 						NumSeeds:        3,
-						ImagePullPolicy: "invalid",
+						ImagePullPolicy: invalidPullPolicy,
 					},
 				},
 			}
@@ -226,7 +238,7 @@ var _ = Describe("cassandracluster validation", func() {
 						ImagePullPolicy: v1.PullAlways,
 					},
 					Prober: v1alpha1.Prober{
-						ImagePullPolicy: "invalid",
+						ImagePullPolicy: invalidPullPolicy,
 					},
 				},
 			}
@@ -253,7 +265,7 @@ var _ = Describe("cassandracluster validation", func() {
 					Prober: v1alpha1.Prober{
 						ImagePullPolicy: v1.PullIfNotPresent,
 						Jolokia: v1alpha1.Jolokia{
-							ImagePullPolicy: "invalid",
+							ImagePullPolicy: invalidPullPolicy,
 						},
 					},
 				},
@@ -276,7 +288,7 @@ var _ = Describe("cassandracluster validation", func() {
 					ImagePullSecretName: "pullSecretName",
 					SystemKeyspaces: v1alpha1.SystemKeyspaces{
 						Names: []v1alpha1.KeyspaceName{
-							"",
+							v1alpha1.KeyspaceName(emptyChar),
 						},
 					},
 				},
@@ -299,7 +311,7 @@ var _ = Describe("cassandracluster validation", func() {
 					ImagePullSecretName: "pullSecretName",
 					SystemKeyspaces: v1alpha1.SystemKeyspaces{
 						Names: []v1alpha1.KeyspaceName{
-							"morethan48charsmorethan48charsmorethan48charsmorethan48chars",
+							v1alpha1.KeyspaceName(invalidNumCharsShort),
 						},
 					},
 				},
@@ -322,7 +334,7 @@ var _ = Describe("cassandracluster validation", func() {
 					ImagePullSecretName: "pullSecretName",
 					SystemKeyspaces: v1alpha1.SystemKeyspaces{
 						Names: []v1alpha1.KeyspaceName{
-							"%(&*",
+							v1alpha1.KeyspaceName(invalidSpecialChars),
 						},
 					},
 				},
@@ -349,7 +361,7 @@ var _ = Describe("cassandracluster validation", func() {
 						},
 						DCs: []v1alpha1.SystemKeyspaceDC{
 							{
-								Name: "",
+								Name: emptyChar,
 							},
 						},
 					},
@@ -377,7 +389,7 @@ var _ = Describe("cassandracluster validation", func() {
 						},
 						DCs: []v1alpha1.SystemKeyspaceDC{
 							{
-								Name: "morethan63charsmorethan63charsmorethan63charsmorethan63charsmore",
+								Name: invalidNumCharsShort,
 							},
 						},
 					},
@@ -405,7 +417,7 @@ var _ = Describe("cassandracluster validation", func() {
 						},
 						DCs: []v1alpha1.SystemKeyspaceDC{
 							{
-								Name: "^&%$^&*",
+								Name: invalidSpecialChars,
 							},
 						},
 					},
@@ -415,6 +427,7 @@ var _ = Describe("cassandracluster validation", func() {
 			expectToBeInvalidError(err)
 		})
 	})
+
 	Context(".spec.systemKeyspaces.dc[].rf", func() {
 		It("can't be zero", func() {
 			cc := &v1alpha1.CassandraCluster{
@@ -468,6 +481,183 @@ var _ = Describe("cassandracluster validation", func() {
 		})
 	})
 
+	Context(".spec.maintenance[].dc", func() {
+		It("should be required if maintenance request is specified", func() {
+			cc := &v1alpha1.CassandraCluster{
+				ObjectMeta: cassandraObjectMeta,
+				Spec: v1alpha1.CassandraClusterSpec{
+					DCs: []v1alpha1.DC{
+						{
+							Name:     "dc1",
+							Replicas: proto.Int32(3),
+						},
+					},
+					Maintenance: []v1alpha1.Maintenance{
+						{
+							Pods: []v1alpha1.PodName{},
+						},
+					},
+					ImagePullSecretName: "pullSecretName",
+				},
+			}
+			err := k8sClient.Create(ctx, cc)
+			expectToBeInvalidError(err)
+		})
+	})
+
+	Context(".spec.maintenance[].dc", func() {
+		It("can't be empty", func() {
+			cc := &v1alpha1.CassandraCluster{
+				ObjectMeta: cassandraObjectMeta,
+				Spec: v1alpha1.CassandraClusterSpec{
+					DCs: []v1alpha1.DC{
+						{
+							Name:     "dc1",
+							Replicas: proto.Int32(3),
+						},
+					},
+					Maintenance: []v1alpha1.Maintenance{
+						{
+							DC: emptyChar,
+						},
+					},
+					ImagePullSecretName: "pullSecretName",
+				},
+			}
+			err := k8sClient.Create(ctx, cc)
+			expectToBeInvalidError(err)
+		})
+	})
+
+	Context(".spec.maintenance[].dc", func() {
+		It("can't be more than 63 chars", func() {
+			cc := &v1alpha1.CassandraCluster{
+				ObjectMeta: cassandraObjectMeta,
+				Spec: v1alpha1.CassandraClusterSpec{
+					DCs: []v1alpha1.DC{
+						{
+							Name:     "dc1",
+							Replicas: proto.Int32(3),
+						},
+					},
+					Maintenance: []v1alpha1.Maintenance{
+						{
+							DC: invalidNumCharsShort,
+						},
+					},
+					ImagePullSecretName: "pullSecretName",
+				},
+			}
+			err := k8sClient.Create(ctx, cc)
+			expectToBeInvalidError(err)
+		})
+	})
+
+	Context(".spec.maintenance[].dc", func() {
+		It("can't have invalid chars", func() {
+			cc := &v1alpha1.CassandraCluster{
+				ObjectMeta: cassandraObjectMeta,
+				Spec: v1alpha1.CassandraClusterSpec{
+					DCs: []v1alpha1.DC{
+						{
+							Name:     "dc1",
+							Replicas: proto.Int32(3),
+						},
+					},
+					Maintenance: []v1alpha1.Maintenance{
+						{
+							DC: invalidSpecialChars,
+						},
+					},
+					ImagePullSecretName: "pullSecretName",
+				},
+			}
+			err := k8sClient.Create(ctx, cc)
+			expectToBeInvalidError(err)
+		})
+	})
+
+	Context(".spec.maintenance[].pods", func() {
+		It("can't be empty", func() {
+			cc := &v1alpha1.CassandraCluster{
+				ObjectMeta: cassandraObjectMeta,
+				Spec: v1alpha1.CassandraClusterSpec{
+					DCs: []v1alpha1.DC{
+						{
+							Name:     "dc1",
+							Replicas: proto.Int32(3),
+						},
+					},
+					Maintenance: []v1alpha1.Maintenance{
+						{
+							DC: "dc1",
+							Pods: []v1alpha1.PodName{
+								emptyChar,
+							},
+						},
+					},
+					ImagePullSecretName: "pullSecretName",
+				},
+			}
+			err := k8sClient.Create(ctx, cc)
+			expectToBeInvalidError(err)
+		})
+	})
+
+	Context(".spec.maintenance[].pods", func() {
+		It("can't be more than 253 chars", func() {
+			cc := &v1alpha1.CassandraCluster{
+				ObjectMeta: cassandraObjectMeta,
+				Spec: v1alpha1.CassandraClusterSpec{
+					DCs: []v1alpha1.DC{
+						{
+							Name:     "dc1",
+							Replicas: proto.Int32(3),
+						},
+					},
+					Maintenance: []v1alpha1.Maintenance{
+						{
+							DC: "dc1",
+							Pods: []v1alpha1.PodName{
+								v1alpha1.PodName(invalidNumCharsLong),
+							},
+						},
+					},
+					ImagePullSecretName: "pullSecretName",
+				},
+			}
+			err := k8sClient.Create(ctx, cc)
+			expectToBeInvalidError(err)
+		})
+	})
+
+	Context(".spec.maintenance[].dc", func() {
+		It("can't have invalid chars", func() {
+			cc := &v1alpha1.CassandraCluster{
+				ObjectMeta: cassandraObjectMeta,
+				Spec: v1alpha1.CassandraClusterSpec{
+					DCs: []v1alpha1.DC{
+						{
+							Name:     "dc1",
+							Replicas: proto.Int32(3),
+						},
+					},
+					Maintenance: []v1alpha1.Maintenance{
+						{
+							DC: "dc1",
+							Pods: []v1alpha1.PodName{
+								invalidSpecialChars,
+							},
+						},
+					},
+					ImagePullSecretName: "pullSecretName",
+				},
+			}
+			err := k8sClient.Create(ctx, cc)
+			expectToBeInvalidError(err)
+		})
+	})
+
 	Context("with all valid parameters", func() {
 		It("should pass validation", func() {
 			initializeReadyCluster()
@@ -498,6 +688,14 @@ var _ = Describe("cassandracluster validation", func() {
 						Jolokia: v1alpha1.Jolokia{
 							Image:           "jolokia/image",
 							ImagePullPolicy: v1.PullAlways,
+						},
+					},
+					Maintenance: []v1alpha1.Maintenance{
+						{
+							DC: "dc1",
+							Pods: []v1alpha1.PodName{
+								"test-cluster-cassandra-dc1-0",
+							},
 						},
 					},
 					Reaper: &v1alpha1.Reaper{

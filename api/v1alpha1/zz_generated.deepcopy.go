@@ -230,7 +230,7 @@ func (in *Maintenance) DeepCopyInto(out *Maintenance) {
 	*out = *in
 	if in.Pods != nil {
 		in, out := &in.Pods, &out.Pods
-		*out = make([]string, len(*in))
+		*out = make([]PodName, len(*in))
 		copy(*out, *in)
 	}
 }

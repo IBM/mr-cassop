@@ -41,6 +41,41 @@ func (r *CassandraClusterReconciler) reconcileCassandra(ctx context.Context, cc 
 }
 
 func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context, cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) error {
+	desiredSts := cassandraStatefulSet(cc, dc)
+
+	if err := controllerutil.SetControllerReference(cc, desiredSts, r.Scheme); err != nil {
+		return errors.Wrap(err, "Cannot set controller reference")
+	}
+
+	actualSts := &appsv1.StatefulSet{}
+	err := r.Get(ctx, types.NamespacedName{Name: names.DC(cc.Name, dc.Name), Namespace: cc.Namespace}, actualSts)
+	if err != nil && apierrors.IsNotFound(err) {
+		r.Log.Infof("Creating cassandra statefulset for DC %q", dc.Name)
+		err = r.Create(ctx, desiredSts)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create statefulset")
+		}
+	} else if err != nil {
+		return errors.Wrap(err, "Failed to get statefulset")
+	} else {
+		desiredSts.Annotations = actualSts.Annotations
+		if !compare.EqualStatefulSet(desiredSts, actualSts) {
+			r.Log.Info("Updating cassandra statefulset")
+			r.Log.Debug(compare.DiffStatefulSet(actualSts, desiredSts))
+			actualSts.Spec = desiredSts.Spec
+			actualSts.Labels = desiredSts.Labels
+			if err = r.Update(ctx, actualSts); err != nil {
+				return errors.Wrap(err, "failed to update statefulset")
+			}
+		} else {
+			r.Log.Debugf("No updates to cassandra statefulset")
+		}
+	}
+
+	return nil
+}
+
+func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) *appsv1.StatefulSet {
 	stsLabels := labels.CombinedComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra)
 	stsLabels = labels.WithDCLabel(stsLabels, dc.Name)
 	desiredSts := &appsv1.StatefulSet{
@@ -93,37 +128,7 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 	} else {
 		desiredSts.Spec.Template.Spec.Volumes = append(desiredSts.Spec.Template.Spec.Volumes, emptyDirDataVolume())
 	}
-
-	if err := controllerutil.SetControllerReference(cc, desiredSts, r.Scheme); err != nil {
-		return errors.Wrap(err, "Cannot set controller reference")
-	}
-
-	actualSts := &appsv1.StatefulSet{}
-	err := r.Get(ctx, types.NamespacedName{Name: names.DC(cc.Name, dc.Name), Namespace: cc.Namespace}, actualSts)
-	if err != nil && apierrors.IsNotFound(err) {
-		r.Log.Infof("Creating cassandra statefulset for DC %q", dc.Name)
-		err = r.Create(ctx, desiredSts)
-		if err != nil {
-			return errors.Wrap(err, "Failed to create statefulset")
-		}
-	} else if err != nil {
-		return errors.Wrap(err, "Failed to get statefulset")
-	} else {
-		desiredSts.Annotations = actualSts.Annotations
-		if !compare.EqualStatefulSet(desiredSts, actualSts) {
-			r.Log.Info("Updating cassandra statefulset")
-			r.Log.Debug(compare.DiffStatefulSet(actualSts, desiredSts))
-			actualSts.Spec = desiredSts.Spec
-			actualSts.Labels = desiredSts.Labels
-			if err = r.Update(ctx, actualSts); err != nil {
-				return errors.Wrap(err, "failed to update statefulset")
-			}
-		} else {
-			r.Log.Debugf("No updates to cassandra statefulset")
-		}
-	}
-
-	return nil
+	return desiredSts
 }
 
 func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Container {

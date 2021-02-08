@@ -202,13 +202,18 @@ type Jolokia struct {
 	Resources       v1.ResourceRequirements `json:"resources,omitempty"`
 }
 
+// +kubebuilder:validation:MinLength:=1
+// +kubebuilder:validation:MaxLength:=253
+// +kubebuilder:validation:Pattern:=^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+type PodName string
+
 type Maintenance struct {
 	// Maintenance object temporarily disables C* pods for debugging purposes.
 	// +kubebuilder:validation:MinLength:=1
 	// +kubebuilder:validation:MaxLength:=63
 	// +kubebuilder:validation:Pattern:=^[a-z0-9][a-z0-9\-]*$
-	DC   string   `json:"dc"`
-	Pods []string `json:"pods,omitempty"`
+	DC   string    `json:"dc"`
+	Pods []PodName `json:"pods,omitempty"`
 }
 
 // +kubebuilder:validation:MinLength:=1

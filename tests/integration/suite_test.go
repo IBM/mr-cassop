@@ -39,7 +39,6 @@ import (
 	rbac "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -198,7 +197,7 @@ var _ = AfterEach(func() {
 })
 
 func SetupTestReconcile(inner reconcile.Reconciler) reconcile.Reconciler {
-	fn := reconcile.Func(func(req reconcile.Request) (reconcile.Result, error) {
+	fn := reconcile.Func(func(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 		// do not start reconcile events if we're shutting down. Otherwise those events will fail because of shut down apiserver
 		// also do not start reconcile events if the test is finished. Otherwise reconcile events can create resources after cleanup logic
 		if shutdown || testFinished {
@@ -206,7 +205,7 @@ func SetupTestReconcile(inner reconcile.Reconciler) reconcile.Reconciler {
 		}
 		reconcileInProgress = true
 		waitGroup.Add(1) //makes sure the in flight reconcile events are handled gracefully
-		result, err := inner.Reconcile(req)
+		result, err := inner.Reconcile(ctx, req)
 		reconcileInProgress = false
 		waitGroup.Done()
 		return result, err
@@ -218,7 +217,7 @@ func StartTestManager(mgr manager.Manager) chan struct{} {
 	stop := make(chan struct{})
 	go func() {
 		defer GinkgoRecover()
-		Expect(mgr.Start(stop)).NotTo(HaveOccurred())
+		Expect(mgr.Start(ctx)).To(BeNil())
 	}()
 	return stop
 }
@@ -277,7 +276,7 @@ func CleanUpCreatedResources(ccName, ccNamespace string) {
 	cc.Namespace = ccNamespace
 	type resourceToDelete struct {
 		name    string
-		objType runtime.Object
+		objType client.Object
 	}
 
 	resourcesToDelete := []resourceToDelete{
@@ -325,7 +324,7 @@ func getContainerByName(pod v1.PodSpec, containerName string) (v1.Container, boo
 	return v1.Container{}, false
 }
 
-func expectResourceIsDeleted(name types.NamespacedName, obj runtime.Object) {
+func expectResourceIsDeleted(name types.NamespacedName, obj client.Object) {
 	Eventually(func() metav1.StatusReason {
 		err := k8sClient.Get(context.Background(), name, obj)
 		if err != nil {
@@ -339,7 +338,7 @@ func expectResourceIsDeleted(name types.NamespacedName, obj runtime.Object) {
 	}, longTimeout, mediumRetry).Should(Equal(metav1.StatusReasonNotFound), fmt.Sprintf("%T %s should be deleted", obj, name))
 }
 
-func deleteResource(name types.NamespacedName, obj runtime.Object) error {
+func deleteResource(name types.NamespacedName, obj client.Object) error {
 	err := k8sClient.Get(context.Background(), name, obj)
 	if err != nil {
 		if errors.IsNotFound(err) {

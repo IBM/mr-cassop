@@ -41,7 +41,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sort"
 	"time"
 )
 
@@ -88,9 +87,7 @@ type CassandraClusterReconciler struct {
 // +kubebuilder:rbac:groups="batch",resources=jobs,verbs=get;list;watch;create;update;delete;patch
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings;roles;rolebindings,verbs=list;watch;get;create;update;delete
 
-func (r *CassandraClusterReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
-
+func (r *CassandraClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	res, err := r.reconcileWithContext(ctx, req)
 	if err != nil {
 		if statusErr, ok := errors.Cause(err).(*apierrors.StatusError); ok && statusErr.ErrStatus.Reason == metav1.StatusReasonConflict {
@@ -363,12 +360,11 @@ func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.Cass
 				for _, dc := range cc.Spec.DCs {
 					if entry.DC == dc.Name {
 						for j := 0; j < int(*dc.Replicas); j++ {
-							cc.Spec.Maintenance[i].Pods = append(cc.Spec.Maintenance[i].Pods, fmt.Sprintf("%s-%d", names.DC(cc.Name, dc.Name), j))
+							cc.Spec.Maintenance[i].Pods = append(cc.Spec.Maintenance[i].Pods, dbv1alpha1.PodName(fmt.Sprintf("%s-%d", names.DC(cc.Name, dc.Name), j)))
 						}
 					}
 				}
 			}
-			sort.Strings(cc.Spec.Maintenance[i].Pods)
 		}
 	}
 }

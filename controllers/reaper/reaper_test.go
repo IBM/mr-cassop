@@ -26,7 +26,7 @@ type test struct {
 	context        context.Context
 	handler        http.HandlerFunc
 	errorMatcher   types.GomegaMatcher
-	expectedResult interface{}
+	expectedResult bool
 	params         map[string]interface{}
 }
 
