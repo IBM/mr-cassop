@@ -18,10 +18,12 @@ env:
   DOCKER_PROXY_REGISTRY: ${{ secrets.DOCKER_PROXY_REGISTRY }}
   DOCKER_PROXY_USER: ${{ secrets.ARTIFACTORY_USER }}
   DOCKER_PROXY_PASS: ${{ secrets.ARTIFACTORY_PASS }}
+  IMAGE_PULL_SECRET: icm-coreeng-pull-secret
 
 jobs:
   docker_images:
     name: Docker Images
+    if: "!contains(github.event.commits[0].message, '[skip e2e]')"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -38,11 +40,11 @@ jobs:
           ibmcloud config --check-version=false
           ibmcloud plugin install -f container-registry
       - name: Authenticate with IBM Cloud CLI
-        uses: nick-invision/retry@fb3bca3fb54f6488d7508c8d1eeb64b94efd5a93 # v2.2.0
+        uses: nick-invision/retry@7c68161adf97a48beb850a595b8784ec57a98cbb # v2.4.0
         id: retry
-        continue-on-error: true
+        continue-on-error: false
         with:
-          timeout_seconds: 30
+          timeout_seconds: 60
           max_attempts: 3
           retry_on: error
           command: |
@@ -90,11 +92,11 @@ jobs:
           ibmcloud plugin install -f kubernetes-service
           ibmcloud plugin install -f container-registry
       - name: Authenticate with IBM Cloud CLI
-        uses: nick-invision/retry@fb3bca3fb54f6488d7508c8d1eeb64b94efd5a93 # v2.2.0
+        uses: nick-invision/retry@7c68161adf97a48beb850a595b8784ec57a98cbb # v2.4.0
         id: retry
-        continue-on-error: true
+        continue-on-error: false
         with:
-          timeout_seconds: 30
+          timeout_seconds: 60
           max_attempts: 3
           retry_on: error
           command: |
@@ -105,13 +107,17 @@ jobs:
             kubectl config current-context
             kubectl config set-context --current --namespace $IKS_NAMESPACE
       - name: Deploy C* operator to IKS
-        timeout-minutes: 15
-        run: |
-          helm install cassandra-operator-ci cassandra-operator \
-            --set "container.image=us.icr.io/icm-cassandra/cassandra-operator:$GITHUB_REF_SLUG" \
-            --set "container.imagePullSecret=icm-coreeng-pull-secret"
-          kubectl rollout status deployment cassandra-operator
-      - name: Deploy of the operator has failed, showing debug info
+        uses: nick-invision/retry@7c68161adf97a48beb850a595b8784ec57a98cbb # v2.4.0
+        with:
+          timeout_seconds: 60
+          max_attempts: 3
+          retry_on: error
+          command: |
+            helm install cassandra-operator-ci cassandra-operator \
+              --set "container.image=us.icr.io/icm-cassandra/cassandra-operator:$GITHUB_REF_SLUG" \
+              --set "container.imagePullSecret=$IMAGE_PULL_SECRET"
+            kubectl rollout status deployment cassandra-operator
+      - name: C* operator deployment has failed, showing debug...
         if: ${{ failure() }}
         run: |
           kubectl get deployments,po
@@ -127,9 +133,10 @@ jobs:
         run: |
           go test ./tests/e2e/ \
             -ginkgo.v -ginkgo.reportPassed -ginkgo.progress \
-            -test.v -test.timeout=0 \
-            -casNamespace="$IKS_NAMESPACE" \
-            -casRelease="cassandra-ci-e2e"
+            -test.v -test.timeout=0 -ginkgo.failFast \
+            -cassandraNamespace="$IKS_NAMESPACE" \
+            -cassandraRelease="cassandra-ci-e2e" \
+            -imagePullSecret="$IMAGE_PULL_SECRET"
       - name: Uninstall C* operator
         if: ${{ always() }}
         run: |

@@ -13,7 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-func (r *CassandraClusterReconciler) reconcileCassandraPodsConfigConfigMap(ctx context.Context, cc *v1alpha1.CassandraCluster) error {
+func (r *CassandraClusterReconciler) reconcileCassandraPodsConfigMap(ctx context.Context, cc *v1alpha1.CassandraCluster) error {
 
 	podList := &v1.PodList{}
 	cassandraClusterPodLabels := labels.ComponentLabels(cc, v1alpha1.CassandraClusterComponentCassandra)

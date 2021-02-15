@@ -5,15 +5,16 @@ import (
 	"context"
 	"fmt"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
+	"github.com/ibm/cassandra-operator/controllers/labels"
 	"io"
 	"io/ioutil"
-	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/portforward"
+	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/client-go/transport/spdy"
 	"net/http"
 	"net/url"
@@ -31,9 +32,14 @@ var (
 	}
 )
 
+type ExecResult struct {
+	stdout string
+	stderr string
+}
+
 func waitForPodsReadiness(namespace string, labels map[string]string) {
 	Eventually(func() bool {
-		podList := &corev1.PodList{}
+		podList := &v1.PodList{}
 		err = restClient.List(context.Background(), podList, client.InNamespace(namespace), client.MatchingLabels(labels))
 		Expect(err).To(Succeed())
 
@@ -54,7 +60,7 @@ func waitForPodsReadiness(namespace string, labels map[string]string) {
 
 func waitPodsTermination(namespace string, labels map[string]string) {
 	Eventually(func() bool {
-		podList := &corev1.PodList{}
+		podList := &v1.PodList{}
 		err = restClient.List(context.Background(), podList, client.InNamespace(namespace), client.MatchingLabels(labels))
 		Expect(err).To(Succeed())
 
@@ -79,11 +85,11 @@ func waitForCassandraClusterSchemaDeletion(namespace string, release string) {
 	}, time.Second*5).Should(Equal(metav1.StatusReasonNotFound), "Cassandra cluster CassandraCluster schema should be deleted")
 }
 
-func portForwardPod(namespace string, labels map[string]string, portMappings []string, restClientConfig *rest.Config) *portforward.PortForwarder {
+func portForwardPod(namespace string, labels map[string]string, portMappings []string) *portforward.PortForwarder {
 	rt, upgrader, err := spdy.RoundTripperFor(restClientConfig)
 	Expect(err).To(Succeed())
 
-	podList := &corev1.PodList{}
+	podList := &v1.PodList{}
 	err = restClient.List(context.Background(), podList, client.InNamespace(namespace), client.MatchingLabels(labels))
 	Expect(err).To(Succeed())
 	Expect(len(podList.Items)).ToNot(BeEquivalentTo(0), "pods not found for port forwarding")
@@ -107,7 +113,7 @@ func portForwardPod(namespace string, labels map[string]string, portMappings []s
 		}
 
 		if len(errOut.String()) != 0 {
-			Fail(fmt.Sprintf("Port forwarding failed: %s", errOut.String()))
+			Fail(fmt.Sprintf("Port forwarding failed. Error occurred: %s", errOut.String()))
 		} else if len(out.String()) != 0 {
 			_, err := fmt.Fprintf(GinkgoWriter, "Message from port forwarder: %s", out.String())
 			Expect(err).To(Succeed())
@@ -126,33 +132,42 @@ func portForwardPod(namespace string, labels map[string]string, portMappings []s
 	return pf
 }
 
-func doHTTPRequest(method string, url string) (error, []byte, int) {
+func doHTTPRequest(method string, url string) ([]byte, int, error) {
 
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
-		return err, nil, 0
+		return nil, 0, err
 	}
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return err, nil, 0
+		return nil, 0, err
 	}
 	defer resp.Body.Close()
 
 	// Parse response
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return err, nil, 0
+		return nil, 0, err
 	}
 
-	return err, body, resp.StatusCode
+	return body, resp.StatusCode, err
 }
 
-func findFirstRepairMapByKV(repair []map[string]interface{}, k string, v string) map[string]interface{} {
+func findFirstMapByKV(repair []map[string]interface{}, k string, v string) map[string]interface{} {
 	for _, iterMap := range repair {
 		// This works only if the key has value of type []interface(array in term of json) and we take only the first its element. That's why you can't specify more than 1 table per reaper repair in e2e tests.
 		if i := iterMap[k].([]interface{})[0]; i == v { // Extract string value from slice of interfaces in unstructured json
 			return iterMap
+		}
+	}
+	return nil
+}
+
+func findFirstElemByKey(m map[string]interface{}, key string) interface{} {
+	for k, v := range m {
+		if k == key {
+			return v
 		}
 	}
 	return nil
@@ -171,28 +186,98 @@ func testReaperRescheduleTime(reqTime time.Time, respTime time.Time, nowTime tim
 	Expect(respTime.YearDay()-reqTime.YearDay()).To(BeNumerically("<=", 7), "Year day difference should be less or equal 7.")
 }
 
-func getPodLogs(pod corev1.Pod, kubeClient *kubernetes.Clientset, podLogOpts corev1.PodLogOptions) (error, string) {
+func getPodLogs(pod v1.Pod, podLogOpts v1.PodLogOptions) (string, error) {
 	req := kubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &podLogOpts)
 	podLogs, err := req.Stream(context.Background())
 	if err != nil {
-		return err, ""
+		return "", err
 	}
 	defer podLogs.Close()
 
 	buff := new(bytes.Buffer)
 	_, err = io.Copy(buff, podLogs)
 	if err != nil {
-		return err, ""
+		return "", err
 	}
 	str := buff.String()
 
-	return err, str
+	return str, err
 }
 
-func readFile(file string) []byte {
+func readFile(file string) ([]byte, error) {
 	content, err := ioutil.ReadFile(file)
-	if err != nil {
-		log.Error(err, "Cannot read file ../../cassandra-operator/values.yaml")
+	return content, err
+}
+
+func execPod(podName string, namespace string, cmd []string) ExecResult {
+	req := kubeClient.CoreV1().RESTClient().Post().Resource("pods").Name(podName).
+		Namespace(namespace).SubResource("exec")
+	option := &v1.PodExecOptions{
+		Command: cmd,
+		Stdin:   false,
+		Stdout:  true,
+		Stderr:  true,
+		TTY:     false,
 	}
-	return content
+
+	req.VersionedParams(
+		option,
+		scheme.ParameterCodec,
+	)
+
+	exec, err := remotecommand.NewSPDYExecutor(restClientConfig, "POST", req.URL())
+	if err != nil {
+		Fail(fmt.Sprintf("Error occurred: %s", err))
+	}
+
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	err = exec.Stream(remotecommand.StreamOptions{
+		Stdout: stdout,
+		Stderr: stderr,
+		Tty:    false,
+	})
+
+	if err != nil {
+		Fail(fmt.Sprintf("Error occurred: %s", err))
+	}
+
+	return ExecResult{
+		stdout: fmt.Sprint(stdout),
+		stderr: fmt.Sprint(stderr),
+	}
+}
+
+func deployCassandraCluster(cassandraCluster *v1alpha1.CassandraCluster) {
+	By("Deploy cassandra cluster and all of its components")
+	Expect(restClient).ToNot(BeNil())
+
+	By("Cassandra cluster is starting...")
+	Expect(restClient.Create(context.Background(), cassandraCluster)).To(Succeed())
+
+	By("Checking prober pods readiness...")
+	waitForPodsReadiness(cassandraCluster.Namespace, proberPodLabels)
+
+	By("Checking cassandra cluster pods readiness...")
+	for _, dc := range cassandraCluster.Spec.DCs {
+		waitForPodsReadiness(cassandraCluster.Namespace, labels.WithDCLabel(cassandraClusterPodLabels, dc.Name))
+	}
+}
+
+func showPodLogs(labels map[string]string) {
+	podList := &v1.PodList{}
+	err = restClient.List(context.Background(), podList, client.InNamespace(cassandraNamespace), client.MatchingLabels(labels))
+	if err != nil {
+		Fail(fmt.Sprintf("Error occurred: %s", err))
+	}
+
+	podLogOpts := v1.PodLogOptions{TailLines: &tailLines}
+	for _, pod := range podList.Items {
+		fmt.Println("Logs from pod: ", pod.Name)
+		str, err := getPodLogs(pod, podLogOpts)
+		if err != nil {
+			Fail(fmt.Sprintf("Error occurred: %s", err))
+		}
+		fmt.Println(str)
+	}
 }

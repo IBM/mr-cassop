@@ -43,7 +43,9 @@ If all set correctly, you should see the components getting created.
 
 ## Tests
 
-To run tests, simply run `make test` from command line.
+### Integration and unit tests
+
+To run the tests, simply run `make test` from the command line.
 
 It will run the usual Go unit and integration tests, which utilize [testenv](https://book.kubebuilder.io/reference/envtest.html) to execute the test against on a semi-real Kubernetes cluster. `testenv` requires assets that are installed with `kubebuilder`, so it must installed first.
 
@@ -60,6 +62,25 @@ or
 `ginkgo -v -r ./tests/integration -- -enableOperatorLogs=true`
 
 if you use Ginkgo CLI.
+
+### E2E tests
+
+E2E tests run on a kubernetes cluster. These tests deploy the C* Custom Resource Definition (CRD) in the kubernetes cluster.
+>Please note: before running, make sure the C* operator is deployed in your namespace.
+
+To run the tests, use the following command and specify the additional command-line arguments described below:
+- `-cassandraNamespace` - kubernetes namespace
+- `-cassandraRelease` - release name
+- `-imagePullSecret` - imagePullSecret
+
+```bash
+go test ./tests/e2e/ \
+    -ginkgo.v -ginkgo.reportPassed -ginkgo.progress \
+    -test.v -test.timeout=0 \
+    -cassandraNamespace="<namespace>" \
+    -cassandraRelease="<release_name>>" \
+    -imagePullSecret="<image_pull_secret_name>"
+```
 
 ## Docs
 

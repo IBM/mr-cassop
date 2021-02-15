@@ -123,6 +123,10 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling maintenance configmap")
 	}
 
+	if err := r.reconcileCassandraPodsConfigMap(ctx, cc); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error reconciling Cassandra pods configmap")
+	}
+
 	if err := r.reconcileRolesSecret(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling roles secret")
 	}

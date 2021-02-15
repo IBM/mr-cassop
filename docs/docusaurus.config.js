@@ -61,9 +61,4 @@ module.exports = {
     [require.resolve('docusaurus-lunr-search'), { languages: ['en'], indexBaseUrl: true }],
     [require.resolve('@docusaurus/plugin-client-redirects'), { fromExtensions: ['html', 'md'] }],
   ],
-  customFields: {
-    commit: process.env.GIT_COMMIT || 'abcabcabcabcabcabcabcabcabcabcabcabcabca',
-    buildNumber: process.env.BUILD_NUMBER || '3333',
-    buildUrl: process.env.BUILD_URL || '#',
-  },
 };
