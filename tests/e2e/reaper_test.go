@@ -38,8 +38,6 @@ var _ = Describe("Cassandra cluster", func() {
 			}
 
 			// Generate repair schedules
-			// Please note: it's not possible to set more than 1 table per repair
-			// See bug report for the details: https://github.com/TheWeatherCompany/cassandra-operator/issues/108
 			reaperRepairs = append(reaperRepairs,
 				v1alpha1.Repair{
 					Keyspace:            testReaperKeyspace,

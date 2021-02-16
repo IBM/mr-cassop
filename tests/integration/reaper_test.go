@@ -43,11 +43,19 @@ var _ = Describe("reaper deployment", func() {
 							Name:     "dc1",
 							Replicas: proto.Int32(3),
 						},
+						{
+							Name:     "dc2",
+							Replicas: proto.Int32(3),
+						},
 					},
 					Reaper: &v1alpha1.Reaper{
 						DCs: []v1alpha1.DC{
 							{
 								Name:     "dc1",
+								Replicas: proto.Int32(1),
+							},
+							{
+								Name:     "dc2",
 								Replicas: proto.Int32(1),
 							},
 						},
@@ -59,7 +67,7 @@ var _ = Describe("reaper deployment", func() {
 									Tables:              []string{"events"},
 									ScheduleDaysBetween: 7,
 									ScheduleTriggerTime: "2020-11-15T14:00:00",
-									Datacenters:         []string{"dc1"},
+									Datacenters:         []string{"dc1, dc2"},
 									IncrementalRepair:   false,
 									RepairThreadCount:   2,
 									Intensity:           "1.0",

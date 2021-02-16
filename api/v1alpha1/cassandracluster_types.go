@@ -120,10 +120,10 @@ type ScheduleRepairs struct {
 type Repair struct {
 	Keyspace            string   `json:"keyspace" url:"keyspace"`
 	Owner               string   `json:"owner,omitempty" url:"owner"`
-	Tables              []string `json:"tables,omitempty" url:"tables"`
+	Tables              []string `json:"tables,omitempty" url:"tables,comma"`
 	ScheduleDaysBetween int32    `json:"scheduleDaysBetween,omitempty" url:"scheduleDaysBetween"`
 	ScheduleTriggerTime string   `json:"scheduleTriggerTime,omitempty" url:"scheduleTriggerTime"`
-	Datacenters         []string `json:"datacenters,omitempty" url:"datacenters"`
+	Datacenters         []string `json:"datacenters,omitempty" url:"datacenters,comma"`
 	IncrementalRepair   bool     `json:"incrementalRepair,omitempty" url:"incrementalRepair"`
 	// +kubebuilder:validation:Minimum:=1
 	// +kubebuilder:validation:Maximum:=4
