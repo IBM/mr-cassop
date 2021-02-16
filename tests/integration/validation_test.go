@@ -68,7 +68,7 @@ var _ = Describe("cassandracluster validation", func() {
 	})
 	Context("with required fields specified", func() {
 		It("should pass", func() {
-			initializeReadyCluster()
+
 			cc := &v1alpha1.CassandraCluster{
 				ObjectMeta: cassandraObjectMeta,
 				Spec: v1alpha1.CassandraClusterSpec{
@@ -81,6 +81,7 @@ var _ = Describe("cassandracluster validation", func() {
 					ImagePullSecretName: "pullSecretName",
 				},
 			}
+			Expect(initializeReadyCluster(cc)).ToNot(Succeed())
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
 
 		})
@@ -660,7 +661,6 @@ var _ = Describe("cassandracluster validation", func() {
 
 	Context("with all valid parameters", func() {
 		It("should pass validation", func() {
-			initializeReadyCluster()
 			cc := &v1alpha1.CassandraCluster{
 				ObjectMeta: cassandraObjectMeta,
 				Spec: v1alpha1.CassandraClusterSpec{
@@ -734,6 +734,7 @@ var _ = Describe("cassandracluster validation", func() {
 					},
 				},
 			}
+			Expect(initializeReadyCluster(cc)).ToNot(Succeed())
 			err := k8sClient.Create(ctx, cc)
 			Expect(err).ToNot(HaveOccurred())
 		})

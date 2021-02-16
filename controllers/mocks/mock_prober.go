@@ -47,18 +47,3 @@ func (mr *MockProberClientMockRecorder) Ready(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ready", reflect.TypeOf((*MockProberClient)(nil).Ready), ctx)
 }
-
-// ReadyAllDCs mocks base method
-func (m *MockProberClient) ReadyAllDCs(ctx context.Context) (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadyAllDCs", ctx)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ReadyAllDCs indicates an expected call of ReadyAllDCs
-func (mr *MockProberClientMockRecorder) ReadyAllDCs(ctx interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadyAllDCs", reflect.TypeOf((*MockProberClient)(nil).ReadyAllDCs), ctx)
-}

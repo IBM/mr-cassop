@@ -3,7 +3,6 @@ package integration
 import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
-	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/ibm/cassandra-operator/controllers/names"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -88,19 +87,7 @@ var _ = Describe("reaper deployment", func() {
 			It(tc.name, func() {
 				cc := tc.cc.DeepCopy()
 				Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-				mockProberClient.err = nil
-				mockProberClient.readyAllDCs = true
-				mockProberClient.ready = true
-				mockNodetoolClient.err = nil
-				mockReaperClient.err = nil
-				mockCQLClient.err = nil
-				mockCQLClient.cassandraRoles = []cql.Role{{Role: "cassandra", Super: true}}
-				mockCQLClient.keyspaces = []cql.Keyspace{{
-					Name: "system_auth",
-					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
-					},
-				}}
+				Expect(initializeReadyCluster(cc)).To(Succeed())
 				for _, dc := range cc.Spec.DCs {
 					deployment := &appsv1.Deployment{}
 					reaperLabels := map[string]string{

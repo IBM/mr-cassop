@@ -166,15 +166,23 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile maintenance")
 	}
 
-	readyAllDCs, err := proberClient.ReadyAllDCs(ctx)
-	if err != nil {
-		r.Log.Warnf("Prober request failed: %s. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
-		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
-	}
+	if !cc.Status.ReadyAllDCs {
+		for _, dc := range cc.Spec.DCs {
+			sts := &appsv1.StatefulSet{}
+			if r.Get(ctx, types.NamespacedName{Name: names.DC(cc.Name, dc.Name), Namespace: cc.Namespace}, sts) != nil {
+				r.Log.Warnf("Failed to get statefulset: %s. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
+				return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
+			}
 
-	if !readyAllDCs {
-		r.Log.Infof("Not all DCs are ready. Trying again in %s...", r.Cfg.RetryDelay)
-		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
+			if *dc.Replicas != sts.Status.ReadyReplicas {
+				r.Log.Infof("Not all DCs are ready. Trying again in %s...", r.Cfg.RetryDelay)
+				return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
+			}
+		}
+		cc.Status.ReadyAllDCs = true
+		if err := r.Status().Update(ctx, cc); err != nil {
+			return ctrl.Result{}, errors.Wrap(err, "Error updating status.readyAllDCs")
+		}
 	}
 
 	r.Log.Debug("All DCs are ready")

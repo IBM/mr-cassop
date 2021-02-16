@@ -595,6 +595,10 @@ spec:
                   - dc
                   type: object
                 type: array
+              readyAllDCs:
+                type: boolean
+            required:
+            - readyAllDCs
             type: object
         required:
         - spec

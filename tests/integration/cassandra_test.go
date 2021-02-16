@@ -56,7 +56,7 @@ var _ = Describe("cassandra statefulset deployment", func() {
 		It("should be created with defaulted values", func() {
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
 
-			initializeReadyCluster()
+			Expect(initializeReadyCluster(cc)).To(Succeed())
 			for _, dc := range cc.Spec.DCs {
 				sts := &appsv1.StatefulSet{}
 				cassandraLabels := map[string]string{
@@ -142,20 +142,7 @@ var _ = Describe("cassandra statefulset", func() {
 		It("should be created with volume claim template and without data volume", func() {
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
 
-			mockProberClient.err = nil
-			mockProberClient.readyAllDCs = true
-			mockProberClient.ready = true
-			mockNodetoolClient.err = nil
-			mockReaperClient.isRunning = true
-			mockReaperClient.clusterExists = true
-			mockCQLClient.err = nil
-			mockCQLClient.cassandraRoles = []cql.Role{{Role: "cassandra", Super: true}}
-			mockCQLClient.keyspaces = []cql.Keyspace{{
-				Name: "system_auth",
-				Replication: map[string]string{
-					"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
-				},
-			}}
+			Expect(initializeReadyCluster(cc)).To(Succeed())
 
 			for _, dc := range cc.Spec.DCs {
 				sts := &appsv1.StatefulSet{}
@@ -235,7 +222,6 @@ var _ = Describe("cassandra statefulset", func() {
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
 
 			mockProberClient.err = nil
-			mockProberClient.readyAllDCs = true
 			mockProberClient.ready = true
 			mockNodetoolClient.err = nil
 			mockReaperClient.err = nil

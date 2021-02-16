@@ -33,7 +33,7 @@ var _ = Describe("rf settings", func() {
 			}
 
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			initializeReadyCluster()
+			Expect(initializeReadyCluster(cc)).To(Succeed())
 			mockCQLClient.keyspaces = []cql.Keyspace{{
 				Name: "system_auth",
 				Replication: map[string]string{
@@ -41,10 +41,7 @@ var _ = Describe("rf settings", func() {
 				},
 			}}
 
-			Eventually(func() []cql.Keyspace {
-				keyspaces, _ := mockCQLClient.GetKeyspacesInfo()
-				return keyspaces
-			}, time.Second*5, time.Millisecond*100).Should(Equal([]cql.Keyspace{{
+			Eventually(mockCQLClient.GetKeyspacesInfo, time.Second*5, time.Millisecond*100).Should(Equal([]cql.Keyspace{{
 				Name: "system_auth",
 				Replication: map[string]string{
 					"class": "org.apache.cassandra.locator.NetworkTopologyStrategy",
@@ -78,7 +75,7 @@ var _ = Describe("rf settings", func() {
 			}
 
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			initializeReadyCluster()
+			Expect(initializeReadyCluster(cc)).To(Succeed())
 			mockCQLClient.keyspaces = []cql.Keyspace{
 				{
 					Name: "system_auth",
@@ -100,10 +97,7 @@ var _ = Describe("rf settings", func() {
 				},
 			}
 
-			Eventually(func() []cql.Keyspace {
-				keyspaces, _ := mockCQLClient.GetKeyspacesInfo()
-				return keyspaces
-			}, time.Second*5, time.Millisecond*100).Should(ContainElements([]cql.Keyspace{
+			Eventually(mockCQLClient.GetKeyspacesInfo, time.Second*15, time.Millisecond*100).Should(ContainElements([]cql.Keyspace{
 				{
 					Name: "system_auth",
 					Replication: map[string]string{
@@ -152,7 +146,7 @@ var _ = Describe("rf settings", func() {
 			}
 
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			initializeReadyCluster()
+			Expect(initializeReadyCluster(cc)).To(Succeed())
 			mockCQLClient.keyspaces = []cql.Keyspace{
 				{
 					Name: "system_auth",
@@ -226,7 +220,7 @@ var _ = Describe("rf settings", func() {
 			}
 
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			initializeReadyCluster()
+			Expect(initializeReadyCluster(cc)).To(Succeed())
 			mockCQLClient.keyspaces = []cql.Keyspace{
 				{
 					Name: "system_auth",
@@ -295,7 +289,7 @@ var _ = Describe("rf settings", func() {
 			}
 
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			initializeReadyCluster()
+			Expect(initializeReadyCluster(cc)).To(Succeed())
 			mockCQLClient.keyspaces = []cql.Keyspace{
 				{
 					Name: "system_auth",
@@ -317,10 +311,7 @@ var _ = Describe("rf settings", func() {
 				},
 			}
 
-			Eventually(func() []cql.Keyspace {
-				keyspaces, _ := mockCQLClient.GetKeyspacesInfo()
-				return keyspaces
-			}, time.Second*5, time.Millisecond*100).Should(ContainElements([]cql.Keyspace{
+			Eventually(mockCQLClient.GetKeyspacesInfo, time.Second*5, time.Millisecond*100).Should(ContainElements([]cql.Keyspace{
 				{
 					Name: "system_auth",
 					Replication: map[string]string{

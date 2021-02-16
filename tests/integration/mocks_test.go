@@ -6,12 +6,12 @@ import (
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/pkg/errors"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 type proberMock struct {
-	readyAllDCs bool
-	ready       bool
-	err         error
+	ready bool
+	err   error
 }
 
 type cqlMock struct {
@@ -33,10 +33,6 @@ type reaperMock struct {
 
 func (r proberMock) Ready(ctx context.Context) (bool, error) {
 	return r.ready, r.err
-}
-
-func (r proberMock) ReadyAllDCs(ctx context.Context) (bool, error) {
-	return r.readyAllDCs, r.err
 }
 
 func (c *cqlMock) Query(stmt string, values ...interface{}) error {
@@ -117,13 +113,12 @@ func (r *reaperMock) ScheduleRepair(ctx context.Context, clusterName string, rep
 	return r.err
 }
 
-func initializeReadyCluster() {
+func initializeReadyCluster(cc *dbv1alpha1.CassandraCluster) error {
 	mockProberClient.err = nil
-	mockProberClient.readyAllDCs = true
 	mockProberClient.ready = true
 	mockNodetoolClient.err = nil
 	mockReaperClient.err = nil
-	mockReaperClient.isRunning = true
+	mockReaperClient.isRunning = false
 	mockReaperClient.clusterExists = true
 	mockCQLClient.err = nil
 	mockCQLClient.cassandraRoles = []cql.Role{{Role: "cassandra", Super: true}}
@@ -133,4 +128,9 @@ func initializeReadyCluster() {
 			"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
 		},
 	}}
+	if err := k8sClient.Get(ctx, types.NamespacedName{Name: cc.Name, Namespace: cc.Namespace}, cc); err != nil {
+		return err
+	}
+	cc.Status.ReadyAllDCs = true
+	return k8sClient.Status().Update(ctx, cc)
 }

@@ -28,7 +28,7 @@ var _ = Describe("prober deployment", func() {
 	Context("when cassandracluster created with only required values", func() {
 		It("should be created with defaulted values", func() {
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			initializeReadyCluster()
+			Expect(initializeReadyCluster(cc)).To(Succeed())
 
 			deployment := &appsv1.Deployment{}
 			proberLabels := map[string]string{

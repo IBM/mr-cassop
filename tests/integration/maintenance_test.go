@@ -27,7 +27,7 @@ var _ = Describe("maintenance mode request", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			initializeReadyCluster()
+			Expect(initializeReadyCluster(cc)).To(Succeed())
 			actualCC := getCassandraCluster(cc)
 			Expect(actualCC.Spec.Maintenance).To(BeNil())
 			Expect(actualCC.Status.MaintenanceState).To(BeNil())
@@ -49,7 +49,7 @@ var _ = Describe("maintenance mode request", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			initializeReadyCluster()
+			Expect(initializeReadyCluster(cc)).To(Succeed())
 
 			When("pod is added to spec", func() {
 				actualCC := getCassandraCluster(cc)
@@ -91,7 +91,7 @@ var _ = Describe("maintenance mode request", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			initializeReadyCluster()
+			Expect(initializeReadyCluster(cc)).To(Succeed())
 
 			When("pod is added to spec", func() {
 				actualCC := getCassandraCluster(cc)
@@ -138,7 +138,7 @@ var _ = Describe("maintenance mode request", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			initializeReadyCluster()
+			Expect(initializeReadyCluster(cc)).To(Succeed())
 
 			When("pods are added to spec", func() {
 				actualCC := getCassandraCluster(cc)
@@ -199,7 +199,7 @@ var _ = Describe("maintenance mode request", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			initializeReadyCluster()
+			Expect(initializeReadyCluster(cc)).To(Succeed())
 
 			When("dc is added to spec", func() {
 				actualCC := getCassandraCluster(cc)
@@ -242,7 +242,7 @@ var _ = Describe("maintenance mode request", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			initializeReadyCluster()
+			Expect(initializeReadyCluster(cc)).To(Succeed())
 
 			When("pod is added to spec", func() {
 				actualCC := getCassandraCluster(cc)

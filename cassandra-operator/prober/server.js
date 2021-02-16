@@ -70,9 +70,9 @@ function responseNormalizer (response) {
   return response.value?.data || (typeof data === 'object' ? data : { url: reason.config.url, message: reason.message })
 }
 
-const getSeedsHostIps = _ => kprober.getPodsHostIps(CASSANDRA_LOCAL_SEEDS_HOSTNAMES).then(_.compact)
+const getSeedsHostIps = () => kprober.getPodsHostIps(CASSANDRA_LOCAL_SEEDS_HOSTNAMES).then(_.compact)
 
-server.get('/seedslocal', (req, res) => getSeedsHostIps().then(res.send)
+server.get('/seedslocal', (req, res) => getSeedsHostIps().then(ips => res.send(ips))
   .catch(err => res.status(httpStatus.INTERNAL_SERVER_ERROR).send(log.error('[/seedslocal] getSeedsHostIps failed:', err))))
 
 server.get('/seeds', (req, res) => {

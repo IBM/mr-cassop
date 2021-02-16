@@ -81,7 +81,6 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 			}, shortTimeout, shortRetry).ShouldNot(Succeed())
 
 			mockProberClient.ready = true
-			mockProberClient.readyAllDCs = false
 
 			By("should be created after prober becomes ready")
 			for _, dc := range cc.Spec.DCs {
@@ -109,7 +108,9 @@ source /etc/pods-config/${POD_NAME}.env
 			}, shortTimeout, shortRetry).ShouldNot(Succeed())
 
 			By("reaper should be deployed after DCs ready")
-			mockProberClient.readyAllDCs = true
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cc.Name, Namespace: cc.Namespace}, cc)).To(Succeed())
+			cc.Status.ReadyAllDCs = true
+			Expect(k8sClient.Status().Update(ctx, cc)).To(Succeed())
 			mockReaperClient.isRunning = false
 			mockReaperClient.err = nil
 			for _, dc := range cc.Spec.DCs {

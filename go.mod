@@ -8,7 +8,7 @@ require (
 	github.com/gocql/gocql v0.0.0-20201215165327-e49edf966d90
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/mock v1.4.4
-	github.com/google/go-cmp v0.5.2
+	github.com/google/go-cmp v0.5.4
 	github.com/google/go-querystring v1.0.0
 	github.com/onsi/ginkgo v1.14.2
 	github.com/onsi/gomega v1.10.4
