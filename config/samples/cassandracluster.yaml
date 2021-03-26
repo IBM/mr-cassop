@@ -37,6 +37,12 @@ spec:
     jolokia:
       image: ""
       imagePullPolicy: IfNotPresent
+    ingress:
+      domain: ""
+      secret: ""
+      annotations:
+        "ingress.bluemix.net/redirect-to-https": "True"
+    dcsIngressDomains: []
   reaper:
     image: ""
     imagePullPolicy: IfNotPresent
@@ -79,3 +85,11 @@ spec:
       - system_auth
       - system_distributed
       - system_traces
+  hostPort:
+    enabled: false
+    useExternalHostIP: false # If set to false host internal ip will be used
+    ports:
+      - intra
+      - cql
+      - jmx
+      - thrift

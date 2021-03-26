@@ -8,6 +8,7 @@ import (
 	"github.com/ibm/cassandra-operator/controllers/compare"
 	"github.com/ibm/cassandra-operator/controllers/labels"
 	"github.com/ibm/cassandra-operator/controllers/names"
+	"github.com/ibm/cassandra-operator/controllers/util"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -138,15 +139,15 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Co
 		ImagePullPolicy: cc.Spec.Cassandra.ImagePullPolicy,
 		Env: []v1.EnvVar{
 			{
-				Name: "POD_IP",
-				ValueFrom: &v1.EnvVarSource{
-					FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "status.podIP"},
-				},
-			},
-			{
 				Name: "POD_NAME",
 				ValueFrom: &v1.EnvVarSource{
 					FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.name"},
+				},
+			},
+			{
+				Name: "POD_UID",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.uid"},
 				},
 			},
 			{
@@ -158,29 +159,8 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Co
 				Value: dc.Name,
 			},
 			{
-				// In order for Cassandra to apply cassandra-rackdc.properties, otherwise this variable will have no effect.
-				Name:  "CASSANDRA_ENDPOINT_SNITCH",
-				Value: "GossipingPropertyFileSnitch",
-			},
-			{
-				Name:  "CASSANDRA_SEEDS",
-				Value: strings.Join(getSeedsList(cc), ","),
-			},
-			{
 				Name:  "CASSANDRA_LISTEN_ADDRESS",
 				Value: "auto",
-			},
-			{
-				Name: "CASSANDRA_BROADCAST_ADDRESS",
-				ValueFrom: &v1.EnvVarSource{
-					FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "status.podIP"},
-				},
-			},
-			{
-				Name: "CASSANDRA_BROADCAST_RPC_ADDRESS",
-				ValueFrom: &v1.EnvVarSource{
-					FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "status.podIP"},
-				},
 			},
 		},
 		Args: []string{
@@ -207,7 +187,8 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Co
 					Command: []string{
 						"bash",
 						"-c",
-						fmt.Sprintf("http --check-status --timeout 2 --body GET %s/healthz/$POD_IP", names.ProberService(cc.Name)),
+						"source /etc/pods-config/${POD_NAME}_${POD_UID}.env",
+						fmt.Sprintf("http --check-status --timeout 2 --body GET %s/healthz/$CASSANDRA_IP", names.ProberService(cc.Name)),
 					},
 				},
 			},
@@ -236,33 +217,7 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Co
 			cassandraDataVolumeMount(),
 			podsConfigVolumeMount(),
 		},
-		Ports: []v1.ContainerPort{
-			{
-				Name:          "intra",
-				ContainerPort: 7000,
-				Protocol:      v1.ProtocolTCP,
-			},
-			{
-				Name:          "tls",
-				ContainerPort: 7001,
-				Protocol:      v1.ProtocolTCP,
-			},
-			{
-				Name:          "jmx",
-				ContainerPort: jmxPort,
-				Protocol:      v1.ProtocolTCP,
-			},
-			{
-				Name:          "cql",
-				ContainerPort: cqlPort,
-				Protocol:      v1.ProtocolTCP,
-			},
-			{
-				Name:          "thrift",
-				ContainerPort: thriftPort,
-				Protocol:      v1.ProtocolTCP,
-			},
-		},
+		Ports:                    cassandraContainerPorts(cc),
 		TerminationMessagePath:   "/dev/termination-log",
 		TerminationMessagePolicy: v1.TerminationMessageReadFile,
 	}
@@ -302,22 +257,22 @@ func (r *CassandraClusterReconciler) reconcileDCService(ctx context.Context, cc 
 				{
 					Name:       "jmx",
 					Protocol:   v1.ProtocolTCP,
-					Port:       jmxPort,
-					TargetPort: intstr.FromInt(jmxPort),
+					Port:       dbv1alpha1.JmxPort,
+					TargetPort: intstr.FromInt(dbv1alpha1.JmxPort),
 					NodePort:   0,
 				},
 				{
 					Name:       "cql",
 					Protocol:   v1.ProtocolTCP,
-					Port:       cqlPort,
-					TargetPort: intstr.FromInt(cqlPort),
+					Port:       dbv1alpha1.CqlPort,
+					TargetPort: intstr.FromInt(dbv1alpha1.CqlPort),
 					NodePort:   0,
 				},
 				{
 					Name:       "thrift",
 					Protocol:   v1.ProtocolTCP,
-					Port:       thriftPort,
-					TargetPort: intstr.FromInt(thriftPort),
+					Port:       dbv1alpha1.ThriftPort,
+					TargetPort: intstr.FromInt(dbv1alpha1.ThriftPort),
 					NodePort:   0,
 				},
 			},
@@ -392,9 +347,9 @@ func getCassandraRunCommand(cc *dbv1alpha1.CassandraCluster) string {
 	}
 	commands = append(commands, "cp /etc/cassandra-configmaps/* $CASSANDRA_CONF")
 	commands = append(commands, "cp /etc/cassandra-configmaps/jvm.options $CASSANDRA_HOME")
-	commands = append(commands, "until stat /etc/pods-config/${POD_NAME}.env; do \"Waiting for pod configuration...\"; sleep 5; done")
-	commands = append(commands, "source /etc/pods-config/${POD_NAME}.env")
-	commands = append(commands, fmt.Sprintf("./docker-entrypoint.sh -R -f -Dcassandra.jmx.remote.port=%d -Dcom.sun.management.jmxremote.rmi.port=%d -Dcom.sun.management.jmxremote.authenticate=false -Djava.rmi.server.hostname=$POD_IP", jmxPort, jmxPort))
+	commands = append(commands, "COUNT=1; ATTEMPTS=14; until stat /etc/pods-config/${POD_NAME}_${POD_UID}.env || [[ $COUNT -eq $ATTEMPTS ]]; do echo -e \"Waiting... Attempt $(( COUNT++ ))...\"; sleep 5; done; [[ $COUNT -eq $ATTEMPTS ]] && echo \"Could not access mount\" && exit 1")
+	commands = append(commands, "source /etc/pods-config/${POD_NAME}_${POD_UID}.env")
+	commands = append(commands, fmt.Sprintf("./docker-entrypoint.sh -f -R -Dcassandra.jmx.remote.port=%d -Dcom.sun.management.jmxremote.rmi.port=%d -Dcom.sun.management.jmxremote.authenticate=false -Djava.rmi.server.hostname=$CASSANDRA_IP", dbv1alpha1.JmxPort, dbv1alpha1.JmxPort))
 	return strings.Join(commands, "\n") + "\n"
 }
 
@@ -528,4 +483,49 @@ func podsConfigVolumeMount() v1.VolumeMount {
 		Name:      "pods-config",
 		MountPath: "/etc/pods-config",
 	}
+}
+
+func cassandraContainerPorts(cc *dbv1alpha1.CassandraCluster) []v1.ContainerPort {
+	containerPorts := []v1.ContainerPort{
+		{
+			Name:          "intra",
+			ContainerPort: 7000,
+			Protocol:      v1.ProtocolTCP,
+			HostPort:      0,
+		},
+		{
+			Name:          "tls",
+			ContainerPort: 7001,
+			Protocol:      v1.ProtocolTCP,
+			HostPort:      0,
+		},
+		{
+			Name:          "jmx",
+			ContainerPort: dbv1alpha1.JmxPort,
+			Protocol:      v1.ProtocolTCP,
+			HostPort:      0,
+		},
+		{
+			Name:          "cql",
+			ContainerPort: dbv1alpha1.CqlPort,
+			Protocol:      v1.ProtocolTCP,
+			HostPort:      0,
+		},
+		{
+			Name:          "thrift",
+			ContainerPort: dbv1alpha1.ThriftPort,
+			Protocol:      v1.ProtocolTCP,
+			HostPort:      0,
+		},
+	}
+
+	if cc.Spec.HostPort.Enabled {
+		for i, port := range containerPorts {
+			if util.Contains(cc.Spec.HostPort.Ports, containerPorts[i].Name) {
+				containerPorts[i].HostPort = port.ContainerPort
+			}
+		}
+	}
+
+	return containerPorts
 }

@@ -1,3 +1,5 @@
+-include vars.mk
+
 SHELL ?= bash
 # Current Operator version
 VERSION ?= 0.0.1
@@ -26,9 +28,32 @@ endif
 
 all: manager
 
-# Run tests
-test: generate fmt vet manifests
-	go test ./... -coverprofile cover.out -coverpkg=./...
+# Run unit tests
+unit-tests:
+	go test ./controllers/ -coverprofile=unit.out -v -coverpkg=./...
+
+# Run integration tests
+integration-tests:
+	go test ./tests/integration -coverprofile=integration.out -v -coverpkg=./...
+
+# Run e2e tests
+e2e-tests:
+	go test ./tests/e2e/ \
+		-ginkgo.v -ginkgo.reportPassed -ginkgo.progress \
+		-test.v -test.timeout=30m -ginkgo.failFast \
+		-cassandraNamespace=$(K8S_NAMESPACE) \
+		-cassandraRelease=$(CASSANDRA_RELEASE_NAME) \
+		-imagePullSecret=$(IMAGE_PULL_SECRET) \
+		-ingressDomain=$(INGRESS_DOMAIN) \
+		-ingressSecret=$(INGRESS_SECRET)
+
+# Run all tests
+all-tests: unit-tests integration-tests e2e-tests
+
+# Run combined: unit and integration tests.
+tests: generate fmt vet manifests
+	go test ./controllers/... ./tests/integration -coverprofile=combined.out -v -coverpkg=./...
+
 
 # Build manager binary
 manager: generate fmt vet
@@ -55,8 +80,8 @@ deploy: manifests kustomize
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role output:rbac:none paths="./..." output:crd:artifacts:config=config/crd/bases
 	kustomize build $(ROOT_DIR)config/crd > $(ROOT_DIR)cassandra-operator/templates/customresourcedefinition.yaml
-
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=cassandra-operator paths="./..." output:crd:none output:rbac:stdout > $(ROOT_DIR)cassandra-operator/templates/clusterrole.yaml
+
 # Run go fmt against code
 fmt:
 	go fmt ./...
@@ -90,7 +115,7 @@ ifeq (, $(shell which controller-gen))
 	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
 	cd $$CONTROLLER_GEN_TMP_DIR ;\
 	go mod init tmp ;\
-	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1 ;\
+	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.5.0 ;\
 	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
 	}
 CONTROLLER_GEN=$(GOBIN)/controller-gen

@@ -1,10 +1,12 @@
 package e2e
 
 import (
+	"context"
 	"fmt"
 	"github.com/gocql/gocql"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/labels"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -110,12 +112,13 @@ var _ = Describe("Cassandra cluster", func() {
 			}
 
 			By("Port forwarding cql and jmx ports of cassandra pod...")
-			casPf := portForwardPod(cassandraNamespace, cassandraClusterPodLabels, []string{"9042:9042", "7199:7199"})
+
+			casPf := portForwardPod(cassandraNamespace, cassandraClusterPodLabels, []string{fmt.Sprintf("%d:%d", v1alpha1.CqlPort, v1alpha1.CqlPort), fmt.Sprintf("%d:%d", v1alpha1.JmxPort, v1alpha1.JmxPort)})
 			defer casPf.Close()
 
 			By("Connecting to Cassandra pod over cql...")
 			cluster := gocql.NewCluster("localhost")
-			cluster.Port = 9042
+			cluster.Port = v1alpha1.CqlPort
 			cluster.Keyspace = "system_auth"
 			cluster.ConnectTimeout = time.Second * 10
 			cluster.Timeout = time.Second * 10
@@ -131,12 +134,39 @@ var _ = Describe("Cassandra cluster", func() {
 			defer session.Close()
 
 			By("Running cql query: checking Cassandra version...")
-			if err := session.Query(`SELECT release_version FROM system.local`).Consistency(gocql.LocalQuorum).Scan(&releaseVersion); err != nil {
+			if err = session.Query(`SELECT release_version FROM system.local`).Consistency(gocql.LocalQuorum).Scan(&releaseVersion); err != nil {
 				Fail(fmt.Sprintf("Error occurred: %s", err))
 			}
 			cassandraVersion := fmt.Sprintf(strings.Split(cassandraImage, ":")[1])
 			cassandraVersion = fmt.Sprintf(strings.Split(cassandraVersion, "-")[0])
 			Expect(releaseVersion).To(Equal(cassandraVersion))
+
+			By("Running default rack name check...")
+			podList := &v1.PodList{}
+			err = restClient.List(context.Background(), podList, client.InNamespace(cassandraNamespace), client.MatchingLabels(cassandraClusterPodLabels))
+			if err != nil {
+				Fail(fmt.Sprintf("Error occured: %s", err))
+			}
+
+			cmd := []string{
+				"sh",
+				"-c",
+				"cat /etc/cassandra/cassandra-rackdc.properties | grep rack= | cut -f2 -d'='",
+			}
+
+			for _, p := range podList.Items {
+				podName := p.Name
+				r := execPod(podName, cassandraNamespace, cmd)
+
+				r.stdout = strings.TrimSuffix(r.stdout, "\n")
+				r.stdout = strings.TrimSpace(r.stdout)
+
+				if len(r.stderr) != 0 {
+					Fail(fmt.Sprintf("Error occurred: %s", r.stderr))
+				}
+
+				Expect(r.stdout).To(Equal("rack1"))
+			}
 
 			By("Port forwarding reaper API pod port...")
 			reaperPf := portForwardPod(cassandraNamespace, reaperPodLabels, []string{"8080:8080"})

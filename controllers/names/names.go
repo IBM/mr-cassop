@@ -28,6 +28,14 @@ func ProberSources(clusterName string) string {
 	return clusterName + "-cassandra-prober-sources"
 }
 
+func ProberIngress(clusterName string) string {
+	return clusterName + "-cassandra-prober"
+}
+
+func ProberIngressDomain(clusterName, ingressDomain string) string {
+	return clusterName + "-cassandra-prober" + "." + ingressDomain
+}
+
 func ReaperDeployment(clusterName, dcName string) string {
 	return DC(clusterName, dcName) + "-reaper"
 }

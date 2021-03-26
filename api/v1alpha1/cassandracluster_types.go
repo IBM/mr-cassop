@@ -30,11 +30,19 @@ const (
 	CassandraClusterComponentProber    = "prober"
 	CassandraClusterComponentReaper    = "reaper"
 	CassandraClusterComponentCassandra = "cassandra"
+
+	ProberContainerPort  = 8888
+	ProberServicePort    = 80
+	JolokiaContainerPort = 8080
+	CqlPort              = 9042
+	JmxPort              = 7199
+	ThriftPort           = 9160
 )
 
 var (
 	CassandraRole     = "cassandra"
 	CassandraPassword = "cassandra"
+	DefaultHostPorts  = []string{"tls", "cql"}
 )
 
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
@@ -54,9 +62,9 @@ type CassandraClusterSpec struct {
 	SystemKeyspaces     SystemKeyspaces                `json:"systemKeyspaces,omitempty"`
 	Prober              Prober                         `json:"prober,omitempty"`
 	Reaper              *Reaper                        `json:"reaper,omitempty"`
+	HostPort            HostPort                       `json:"hostPort,omitempty"`
 	//JMX                  JMX             `json:"jmx,omitempty"` //TODO part of auth  implementation
 	//NodetoolUser         string          `json:"nodetoolUser,omitempty"` //TODO part of auth implementation
-	//HostPort             HostPort        `json:"hostPort,omitempty"` //TODO part of hostport implementation
 	//Monitoring           Monitoring      `json:"monitoring,omitempty"` //TODO part of monitoring implementation
 	//JVM                  JVM             `json:"jvm,omitempty"`
 }
@@ -81,12 +89,13 @@ type Reaper struct {
 	AutoScheduling                         AutoScheduling          `json:"autoScheduling,omitempty"`
 }
 
-/*
-type HostPort struct {// TODO part of hostport implementation
-	Enabled   bool `json:"enabled"`
-	UseHostIP bool `json:"useHostIP,omitempty"`
+type HostPort struct {
+	Enabled           bool     `json:"enabled,omitempty"`
+	UseExternalHostIP bool     `json:"useExternalHostIP,omitempty"`
+	Ports             []string `json:"ports,omitempty"`
 }
 
+/*
 type Monitoring struct { // TODO part of monitoring implementation
 	Enabled bool  `json:"enabled"`
 	Port    int32 `json:"port"`
@@ -189,10 +198,12 @@ type Persistence struct {
 type Prober struct {
 	Image string `json:"image,omitempty"`
 	// +kubebuilder:validation:Enum=Always;Never;IfNotPresent
-	ImagePullPolicy v1.PullPolicy           `json:"imagePullPolicy,omitempty"`
-	Resources       v1.ResourceRequirements `json:"resources,omitempty"`
-	Debug           bool                    `json:"debug,omitempty"`
-	Jolokia         Jolokia                 `json:"jolokia,omitempty"`
+	ImagePullPolicy   v1.PullPolicy           `json:"imagePullPolicy,omitempty"`
+	Resources         v1.ResourceRequirements `json:"resources,omitempty"`
+	Debug             bool                    `json:"debug,omitempty"`
+	Jolokia           Jolokia                 `json:"jolokia,omitempty"`
+	Ingress           Ingress                 `json:"ingress,omitempty"`
+	DCsIngressDomains []string                `json:"dcsIngressDomains,omitempty"`
 }
 
 type Jolokia struct {
@@ -260,6 +271,12 @@ type CassandraClusterList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []CassandraCluster `json:"items"`
+}
+
+type Ingress struct {
+	Domain      string            `json:"domain,omitempty"`
+	Secret      string            `json:"secret,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 func init() {

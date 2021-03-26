@@ -40,11 +40,17 @@ func (r *CassandraClusterReconciler) reconcileProber(ctx context.Context, cc *db
 	}
 
 	if err := r.reconcileProberDeployment(ctx, cc); err != nil {
-		return errors.Wrap(err, "failed to reconcile deployment")
+		return errors.Wrap(err, "failed to reconcile prober deployment")
 	}
 
 	if err := r.reconcileProberService(ctx, cc); err != nil {
-		return errors.Wrap(err, "failed to reconcile service")
+		return errors.Wrap(err, "failed to reconcile prober service")
+	}
+
+	if cc.Spec.HostPort.Enabled {
+		if err := r.reconcileProberIngress(ctx, cc); err != nil {
+			return errors.Wrap(err, "failed to reconcile prober ingress")
+		}
 	}
 
 	return nil
@@ -203,26 +209,26 @@ func proberContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 			{Name: "POD_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}},
 			{Name: "LOCAL_DCS", Value: func(dcs interface{}) string { b, _ := json.Marshal(dcs); return string(b) }(cc.Spec.DCs)},
 			{Name: "DEBUG", Value: fmt.Sprintf("%t", cc.Spec.Prober.Debug)},
-			{Name: "HOSTPORT_ENABLED", Value: "false" /*fmt.Sprintf("%t", cc.Spec.HostPort.Enabled)*/}, //TODO part of hostport implementation
+			{Name: "HOSTPORT_ENABLED", Value: fmt.Sprintf("%t", cc.Spec.HostPort.Enabled)},
 			{Name: "CASSANDRA_ENDPOINT_LABELS", Value: klabels.FormatLabels(labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra))},
 			{Name: "CASSANDRA_LOCAL_SEEDS_HOSTNAMES", Value: strings.Join(getSeedsList(cc), ",")},
 			{Name: "CASSANDRA_NUM_SEEDS", Value: fmt.Sprintf("%d", cc.Spec.Cassandra.NumSeeds)},
-			{Name: "EXTERNAL_DCS_INGRESS_DOMAINS", Value: "[]"},
-			{Name: "ALL_DCS_INGRESS_DOMAINS", Value: "null"},
-			{Name: "LOCAL_DC_INGRESS_DOMAIN", Value: ""},
-			{Name: "JOLOKIA_PORT", Value: strconv.Itoa(jolokiaContainerPort)},
+			{Name: "EXTERNAL_DCS_INGRESS_DOMAINS", Value: filterDCsIngressDomains(cc.Spec.Prober.DCsIngressDomains, cc.Spec.Prober.Ingress.Domain)},
+			{Name: "ALL_DCS_INGRESS_DOMAINS", Value: validateDCsIngressDomains(cc.Spec.Prober.DCsIngressDomains)},
+			{Name: "LOCAL_DC_INGRESS_DOMAIN", Value: cc.Spec.Prober.Ingress.Domain},
+			{Name: "JOLOKIA_PORT", Value: strconv.Itoa(dbv1alpha1.JolokiaContainerPort)},
 			{Name: "JOLOKIA_RESPONSE_TIMEOUT", Value: "10000"},
 			{Name: "PROBER_SUBDOMAIN", Value: cc.Namespace + "-" + names.ProberDeployment(cc.Name)},
-			{Name: "SERVER_PORT", Value: strconv.Itoa(proberContainerPort)},
+			{Name: "SERVER_PORT", Value: strconv.Itoa(dbv1alpha1.ProberContainerPort)},
 			{Name: "JMX_POLL_PERIOD_SECONDS", Value: "10"},
-			{Name: "JMX_PROXY_URL", Value: fmt.Sprintf("http://localhost:%d/jolokia", jolokiaContainerPort)},
-			{Name: "JMX_PORT", Value: fmt.Sprintf("%d", jmxPort)},
+			{Name: "JMX_PROXY_URL", Value: fmt.Sprintf("http://localhost:%d/jolokia", dbv1alpha1.JolokiaContainerPort)},
+			{Name: "JMX_PORT", Value: fmt.Sprintf("%d", dbv1alpha1.JmxPort)},
 			{Name: "USERS_DIR", Value: cassandraRolesDir},
 		},
 		Ports: []v1.ContainerPort{
 			{
 				Name:          "prober-server",
-				ContainerPort: proberContainerPort,
+				ContainerPort: dbv1alpha1.ProberContainerPort,
 				Protocol:      v1.ProtocolTCP,
 			},
 		},
@@ -261,7 +267,7 @@ func jolokiaContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 		Ports: []v1.ContainerPort{
 			{
 				Name:          "jolokia",
-				ContainerPort: jolokiaContainerPort,
+				ContainerPort: dbv1alpha1.JolokiaContainerPort,
 				Protocol:      v1.ProtocolTCP,
 			},
 		},
@@ -280,5 +286,30 @@ func jolokiaContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 		},
 		TerminationMessagePath:   "/dev/termination-log",
 		TerminationMessagePolicy: v1.TerminationMessageReadFile,
+	}
+}
+
+func filterDCsIngressDomains(dcsIngressDomains []string, ingressDomain string) string {
+	var filteredDomains []string
+	for _, domain := range dcsIngressDomains {
+		if domain != ingressDomain {
+			filteredDomains = append(filteredDomains, domain)
+		}
+	}
+	encodedDomains, _ := json.Marshal(filteredDomains)
+	if encodedDomains != nil {
+		return string(encodedDomains)
+	} else {
+		return ""
+	}
+
+}
+
+func validateDCsIngressDomains(dcsIngressDomains []string) string {
+	b, _ := json.Marshal(dcsIngressDomains)
+	if b != nil {
+		return string(b)
+	} else {
+		return ""
 	}
 }

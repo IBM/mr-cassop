@@ -11,6 +11,7 @@ import (
 
 type proberMock struct {
 	ready bool
+	seeds []string
 	err   error
 }
 
@@ -33,6 +34,10 @@ type reaperMock struct {
 
 func (r proberMock) Ready(ctx context.Context) (bool, error) {
 	return r.ready, r.err
+}
+
+func (r proberMock) Seeds(ctx context.Context) ([]string, error) {
+	return r.seeds, r.err
 }
 
 func (c *cqlMock) Query(stmt string, values ...interface{}) error {

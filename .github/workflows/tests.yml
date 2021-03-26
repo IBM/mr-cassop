@@ -37,8 +37,11 @@ jobs:
       - uses: actions/checkout@v2
       - name: Get dependencies
         run: go mod download
-      - name: Run tests
-        run: go test ./controllers/... ./tests/integration -coverprofile=cover.out -v -coverpkg=./...
-      - name: Get current test coverage
+      - name: Run unit tests
+        run: make unit-tests
+      - name: Run integration tests
+        run: make integration-tests
+      - name: Get tests coverage
         run: |
-          go tool cover -func=cover.out | tail 1 | awk "{print \"Total coverage: \" \$3}"
+          go tool cover -func=unit.out | tail -n1 | awk "{print \"Unit tests coverage: \" \$3}"
+          go tool cover -func=integration.out | tail -n1 | awk "{print \"Integration tests coverage: \" \$3}"

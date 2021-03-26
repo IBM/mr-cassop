@@ -28,17 +28,17 @@ import (
 	"github.com/ibm/cassandra-operator/controllers/prober"
 	"github.com/ibm/cassandra-operator/controllers/reaper"
 	"go.uber.org/zap"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
 	"net/http"
 	"net/url"
 	"os"
-
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"time"
 
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers"
@@ -48,6 +48,15 @@ import (
 var (
 	Version = "undefined"
 	scheme  = runtime.NewScheme()
+
+	netTransport = &http.Transport{
+		TLSHandshakeTimeout: 5 * time.Second,
+	}
+
+	httpClient = &http.Client{
+		Transport: netTransport,
+		Timeout:   time.Second * 30,
+	}
 )
 
 const leaderElectionID = "cassandra-operator-leader-election-lock"
@@ -112,12 +121,12 @@ func main() {
 		Cfg:          *operatorConfig,
 		Clientset:    clientset,
 		RESTConfig:   restCfg,
-		ProberClient: func(url *url.URL) prober.ProberClient { return prober.NewProberClient(url) },
+		ProberClient: func(url *url.URL) prober.ProberClient { return prober.NewProberClient(url, httpClient) },
 		CqlClient:    func(cluster *gocql.ClusterConfig) (cql.CqlClient, error) { return cql.NewCQLClient(cluster) },
 		NodetoolClient: func(clientset *kubernetes.Clientset, config *rest.Config) nodetool.NodetoolClient {
 			return nodetool.NewNodetoolClient(clientset, config)
 		},
-		ReaperClient: func(url *url.URL) reaper.ReaperClient { return reaper.NewReaperClient(url, http.DefaultClient) },
+		ReaperClient: func(url *url.URL) reaper.ReaperClient { return reaper.NewReaperClient(url, httpClient) },
 	}
 	err = controllers.SetupCassandraReconciler(cassandraReconciler, mgr, logr)
 	if err != nil {

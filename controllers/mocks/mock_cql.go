@@ -5,35 +5,50 @@
 package mocks
 
 import (
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	cql "github.com/ibm/cassandra-operator/controllers/cql"
-	reflect "reflect"
 )
 
-// MockCqlClient is a mock of CqlClient interface
+// MockCqlClient is a mock of CqlClient interface.
 type MockCqlClient struct {
 	ctrl     *gomock.Controller
 	recorder *MockCqlClientMockRecorder
 }
 
-// MockCqlClientMockRecorder is the mock recorder for MockCqlClient
+// MockCqlClientMockRecorder is the mock recorder for MockCqlClient.
 type MockCqlClientMockRecorder struct {
 	mock *MockCqlClient
 }
 
-// NewMockCqlClient creates a new mock instance
+// NewMockCqlClient creates a new mock instance.
 func NewMockCqlClient(ctrl *gomock.Controller) *MockCqlClient {
 	mock := &MockCqlClient{ctrl: ctrl}
 	mock.recorder = &MockCqlClientMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockCqlClient) EXPECT() *MockCqlClientMockRecorder {
 	return m.recorder
 }
 
-// GetKeyspacesInfo mocks base method
+// CreateRole mocks base method.
+func (m *MockCqlClient) CreateRole(role cql.Role) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateRole", role)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CreateRole indicates an expected call of CreateRole.
+func (mr *MockCqlClientMockRecorder) CreateRole(role interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateRole", reflect.TypeOf((*MockCqlClient)(nil).CreateRole), role)
+}
+
+// GetKeyspacesInfo mocks base method.
 func (m *MockCqlClient) GetKeyspacesInfo() ([]cql.Keyspace, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetKeyspacesInfo")
@@ -42,27 +57,13 @@ func (m *MockCqlClient) GetKeyspacesInfo() ([]cql.Keyspace, error) {
 	return ret0, ret1
 }
 
-// GetKeyspacesInfo indicates an expected call of GetKeyspacesInfo
+// GetKeyspacesInfo indicates an expected call of GetKeyspacesInfo.
 func (mr *MockCqlClientMockRecorder) GetKeyspacesInfo() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKeyspacesInfo", reflect.TypeOf((*MockCqlClient)(nil).GetKeyspacesInfo))
 }
 
-// UpdateRF mocks base method
-func (m *MockCqlClient) UpdateRF(keyspaceName string, strategyOptions map[string]string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateRF", keyspaceName, strategyOptions)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// UpdateRF indicates an expected call of UpdateRF
-func (mr *MockCqlClientMockRecorder) UpdateRF(keyspaceName, strategyOptions interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateRF", reflect.TypeOf((*MockCqlClient)(nil).UpdateRF), keyspaceName, strategyOptions)
-}
-
-// GetRoles mocks base method
+// GetRoles mocks base method.
 func (m *MockCqlClient) GetRoles() ([]cql.Role, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRoles")
@@ -71,41 +72,13 @@ func (m *MockCqlClient) GetRoles() ([]cql.Role, error) {
 	return ret0, ret1
 }
 
-// GetRoles indicates an expected call of GetRoles
+// GetRoles indicates an expected call of GetRoles.
 func (mr *MockCqlClientMockRecorder) GetRoles() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRoles", reflect.TypeOf((*MockCqlClient)(nil).GetRoles))
 }
 
-// CreateRole mocks base method
-func (m *MockCqlClient) CreateRole(role cql.Role) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateRole", role)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// CreateRole indicates an expected call of CreateRole
-func (mr *MockCqlClientMockRecorder) CreateRole(role interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateRole", reflect.TypeOf((*MockCqlClient)(nil).CreateRole), role)
-}
-
-// UpdateRole mocks base method
-func (m *MockCqlClient) UpdateRole(role cql.Role) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateRole", role)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// UpdateRole indicates an expected call of UpdateRole
-func (mr *MockCqlClientMockRecorder) UpdateRole(role interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateRole", reflect.TypeOf((*MockCqlClient)(nil).UpdateRole), role)
-}
-
-// Query mocks base method
+// Query mocks base method.
 func (m *MockCqlClient) Query(stmt string, values ...interface{}) error {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{stmt}
@@ -117,9 +90,37 @@ func (m *MockCqlClient) Query(stmt string, values ...interface{}) error {
 	return ret0
 }
 
-// Query indicates an expected call of Query
+// Query indicates an expected call of Query.
 func (mr *MockCqlClientMockRecorder) Query(stmt interface{}, values ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{stmt}, values...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Query", reflect.TypeOf((*MockCqlClient)(nil).Query), varargs...)
+}
+
+// UpdateRF mocks base method.
+func (m *MockCqlClient) UpdateRF(keyspaceName string, strategyOptions map[string]string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateRF", keyspaceName, strategyOptions)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateRF indicates an expected call of UpdateRF.
+func (mr *MockCqlClientMockRecorder) UpdateRF(keyspaceName, strategyOptions interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateRF", reflect.TypeOf((*MockCqlClient)(nil).UpdateRF), keyspaceName, strategyOptions)
+}
+
+// UpdateRole mocks base method.
+func (m *MockCqlClient) UpdateRole(role cql.Role) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateRole", role)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateRole indicates an expected call of UpdateRole.
+func (mr *MockCqlClientMockRecorder) UpdateRole(role interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateRole", reflect.TypeOf((*MockCqlClient)(nil).UpdateRole), role)
 }

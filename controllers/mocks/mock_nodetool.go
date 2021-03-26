@@ -5,35 +5,36 @@
 package mocks
 
 import (
+	reflect "reflect"
+
 	gomock "github.com/golang/mock/gomock"
 	v1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
-	reflect "reflect"
 )
 
-// MockNodetoolClient is a mock of NodetoolClient interface
+// MockNodetoolClient is a mock of NodetoolClient interface.
 type MockNodetoolClient struct {
 	ctrl     *gomock.Controller
 	recorder *MockNodetoolClientMockRecorder
 }
 
-// MockNodetoolClientMockRecorder is the mock recorder for MockNodetoolClient
+// MockNodetoolClientMockRecorder is the mock recorder for MockNodetoolClient.
 type MockNodetoolClientMockRecorder struct {
 	mock *MockNodetoolClient
 }
 
-// NewMockNodetoolClient creates a new mock instance
+// NewMockNodetoolClient creates a new mock instance.
 func NewMockNodetoolClient(ctrl *gomock.Controller) *MockNodetoolClient {
 	mock := &MockNodetoolClient{ctrl: ctrl}
 	mock.recorder = &MockNodetoolClientMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use
+// EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockNodetoolClient) EXPECT() *MockNodetoolClientMockRecorder {
 	return m.recorder
 }
 
-// RepairKeyspace mocks base method
+// RepairKeyspace mocks base method.
 func (m *MockNodetoolClient) RepairKeyspace(cc *v1alpha1.CassandraCluster, keyspace string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RepairKeyspace", cc, keyspace)
@@ -41,7 +42,7 @@ func (m *MockNodetoolClient) RepairKeyspace(cc *v1alpha1.CassandraCluster, keysp
 	return ret0
 }
 
-// RepairKeyspace indicates an expected call of RepairKeyspace
+// RepairKeyspace indicates an expected call of RepairKeyspace.
 func (mr *MockNodetoolClientMockRecorder) RepairKeyspace(cc, keyspace interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RepairKeyspace", reflect.TypeOf((*MockNodetoolClient)(nil).RepairKeyspace), cc, keyspace)

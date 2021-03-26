@@ -62,7 +62,7 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 				{Name: "CASSANDRA_ENDPOINT_LABELS", Value: "cassandra-cluster-component=cassandra,cassandra-cluster-instance=test-cassandra-cluster"},
 				{Name: "CASSANDRA_LOCAL_SEEDS_HOSTNAMES", Value: "test-cassandra-cluster-cassandra-dc1-0.test-cassandra-cluster-cassandra-dc1.default.svc.cluster.local,test-cassandra-cluster-cassandra-dc1-1.test-cassandra-cluster-cassandra-dc1.default.svc.cluster.local,test-cassandra-cluster-cassandra-dc2-0.test-cassandra-cluster-cassandra-dc2.default.svc.cluster.local,test-cassandra-cluster-cassandra-dc2-1.test-cassandra-cluster-cassandra-dc2.default.svc.cluster.local"},
 				{Name: "CASSANDRA_NUM_SEEDS", Value: "2"},
-				{Name: "EXTERNAL_DCS_INGRESS_DOMAINS", Value: "[]"},
+				{Name: "EXTERNAL_DCS_INGRESS_DOMAINS", Value: "null"},
 				{Name: "ALL_DCS_INGRESS_DOMAINS", Value: "null"},
 				{Name: "LOCAL_DC_INGRESS_DOMAIN", Value: ""},
 				{Name: "JOLOKIA_PORT", Value: "8080"},
@@ -95,9 +95,9 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 					"-c",
 					`cp /etc/cassandra-configmaps/* $CASSANDRA_CONF
 cp /etc/cassandra-configmaps/jvm.options $CASSANDRA_HOME
-until stat /etc/pods-config/${POD_NAME}.env; do "Waiting for pod configuration..."; sleep 5; done
-source /etc/pods-config/${POD_NAME}.env
-./docker-entrypoint.sh -R -f -Dcassandra.jmx.remote.port=7199 -Dcom.sun.management.jmxremote.rmi.port=7199 -Dcom.sun.management.jmxremote.authenticate=false -Djava.rmi.server.hostname=$POD_IP
+COUNT=1; ATTEMPTS=14; until stat /etc/pods-config/${POD_NAME}_${POD_UID}.env || [[ $COUNT -eq $ATTEMPTS ]]; do echo -e "Waiting... Attempt $(( COUNT++ ))..."; sleep 5; done; [[ $COUNT -eq $ATTEMPTS ]] && echo "Could not access mount" && exit 1
+source /etc/pods-config/${POD_NAME}_${POD_UID}.env
+./docker-entrypoint.sh -f -R -Dcassandra.jmx.remote.port=7199 -Dcom.sun.management.jmxremote.rmi.port=7199 -Dcom.sun.management.jmxremote.authenticate=false -Djava.rmi.server.hostname=$CASSANDRA_IP
 `,
 				}))
 			}

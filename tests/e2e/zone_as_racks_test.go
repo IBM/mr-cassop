@@ -6,13 +6,13 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"strings"
-
-	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
 var _ = Describe("Cassandra cluster", func() {
+
 	Context("When zones as racks configuration is enabled", func() {
 		It("Should be enabled and worker zone value match rack name", func() {
 			newCassandraCluster := cassandraCluster.DeepCopy()
@@ -43,12 +43,13 @@ var _ = Describe("Cassandra cluster", func() {
 				podName := p.Name
 				nodeName := p.Spec.NodeName
 				r := execPod(podName, cassandraNamespace, cmd)
-				if len(r.stderr) != 0 {
-					Fail(fmt.Sprintf("Error occurred: %s", r.stderr))
-				}
 
 				r.stdout = strings.TrimSuffix(r.stdout, "\n")
 				r.stdout = strings.TrimSpace(r.stdout)
+
+				if len(r.stderr) != 0 {
+					Fail(fmt.Sprintf("Error occurred: %s", r.stderr))
+				}
 
 				for _, n := range nodeList.Items {
 					if n.Name == nodeName {

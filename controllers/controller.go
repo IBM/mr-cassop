@@ -45,12 +45,6 @@ import (
 )
 
 const (
-	proberContainerPort  = 8888
-	jolokiaContainerPort = 8080
-	cqlPort              = 9042
-	jmxPort              = 7199
-	thriftPort           = 9160
-
 	cassandraRolesDir           = "/etc/cassandra-roles"
 	maintenanceDir              = "/etc/maintenance"
 	cassandraCommitLogDir       = "/var/lib/cassandra-commitlog"
@@ -81,6 +75,7 @@ type CassandraClusterReconciler struct {
 // +kubebuilder:rbac:groups="",resources=pods/status,verbs=get;patch;update
 // +kubebuilder:rbac:groups="",resources=pods/exec,verbs=create
 // +kubebuilder:rbac:groups=apps,resources=deployments;statefulsets,verbs=list;get;watch;create;update;delete
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=services;serviceaccounts,verbs=list;watch;create;update;delete
 // +kubebuilder:rbac:groups="",resources=endpoints,verbs=list;watch
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
@@ -123,7 +118,13 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling maintenance configmap")
 	}
 
-	if err := r.reconcileCassandraPodsConfigMap(ctx, cc); err != nil {
+	proberUrl, err := url.Parse(fmt.Sprintf("http://%s.%s.svc.cluster.local", names.ProberService(cc.Name), cc.Namespace))
+	if err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error parsing prober client url")
+	}
+	proberClient := r.ProberClient(proberUrl)
+
+	if err := r.reconcileCassandraPodsConfigMap(ctx, cc, proberClient); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling Cassandra pods configmap")
 	}
 
@@ -138,11 +139,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	if err := r.reconcileProber(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling prober")
 	}
-	proberUrl, err := url.Parse(fmt.Sprintf("http://%s.%s.svc.cluster.local", names.ProberService(cc.Name), cc.Namespace))
-	if err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Error parsing prober client url")
-	}
-	proberClient := r.ProberClient(proberUrl)
+
 	proberReady, err := proberClient.Ready(ctx)
 	if err != nil {
 		r.Log.Warnf("Prober ping request failed: %s. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
@@ -378,6 +375,10 @@ func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.Cass
 				}
 			}
 		}
+	}
+
+	if cc.Spec.HostPort.Enabled && len(cc.Spec.HostPort.Ports) == 0 {
+		cc.Spec.HostPort.Ports = dbv1alpha1.DefaultHostPorts
 	}
 }
 

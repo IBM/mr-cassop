@@ -30,8 +30,10 @@ var cassandraImage string
 var cassandraNamespace string
 var cassandraRelease string
 var imagePullSecret string
+var ingressDomain string
+var ingressSecret string
 
-var tailLines int64 = 10
+var tailLines int64 = 30
 var statusCode int
 
 var operatorPodLabel map[string]string
@@ -78,6 +80,8 @@ func init() {
 	flag.StringVar(&cassandraNamespace, "cassandraNamespace", "default", "Set the namespace for e2e tests run.")
 	flag.StringVar(&cassandraRelease, "cassandraRelease", "e2e-tests", "Set the cassandra cluster release name for e2e tests run.")
 	flag.StringVar(&imagePullSecret, "imagePullSecret", "all-icr-io", "Set the imagePullSecret.")
+	flag.StringVar(&ingressDomain, "ingressDomain", "", "Set the ingress domain.")
+	flag.StringVar(&ingressSecret, "ingressSecret", "", "Set the ingress secret name.")
 }
 
 func TestCassandraCluster(t *testing.T) {

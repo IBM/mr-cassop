@@ -1,6 +1,6 @@
 module github.com/ibm/cassandra-operator
 
-go 1.13
+go 1.15
 
 require (
 	github.com/caarlos0/env/v6 v6.2.1

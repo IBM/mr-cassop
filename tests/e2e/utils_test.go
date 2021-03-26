@@ -268,16 +268,18 @@ func showPodLogs(labels map[string]string) {
 	podList := &v1.PodList{}
 	err = restClient.List(context.Background(), podList, client.InNamespace(cassandraNamespace), client.MatchingLabels(labels))
 	if err != nil {
-		Fail(fmt.Sprintf("Error occurred: %s", err))
+		fmt.Println("Unable to get pods. Error: ", err)
 	}
 
-	podLogOpts := v1.PodLogOptions{TailLines: &tailLines}
 	for _, pod := range podList.Items {
 		fmt.Println("Logs from pod: ", pod.Name)
-		str, err := getPodLogs(pod, podLogOpts)
-		if err != nil {
-			Fail(fmt.Sprintf("Error occurred: %s", err))
+
+		for _, container := range pod.Spec.Containers {
+			str, err := getPodLogs(pod, v1.PodLogOptions{TailLines: &tailLines, Container: container.Name})
+			if err != nil {
+				continue
+			}
+			fmt.Println(str)
 		}
-		fmt.Println(str)
 	}
 }

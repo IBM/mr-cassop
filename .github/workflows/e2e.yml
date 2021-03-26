@@ -19,6 +19,7 @@ env:
   DOCKER_PROXY_USER: ${{ secrets.ARTIFACTORY_USER }}
   DOCKER_PROXY_PASS: ${{ secrets.ARTIFACTORY_PASS }}
   IMAGE_PULL_SECRET: icm-coreeng-pull-secret
+  CASSANDRA_RELEASE_NAME: e2e-tests-ci
 
 jobs:
   docker_images:
@@ -131,12 +132,7 @@ jobs:
         run: go mod download
       - name: Run e2e tests
         run: |
-          go test ./tests/e2e/ \
-            -ginkgo.v -ginkgo.reportPassed -ginkgo.progress \
-            -test.v -test.timeout=0 -ginkgo.failFast \
-            -cassandraNamespace="$IKS_NAMESPACE" \
-            -cassandraRelease="cassandra-ci-e2e" \
-            -imagePullSecret="$IMAGE_PULL_SECRET"
+          make e2e-tests
       - name: Uninstall C* operator
         if: ${{ always() }}
         run: |

@@ -5,6 +5,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	nwv1 "k8s.io/api/networking/v1"
 	rbac "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -45,6 +46,8 @@ var (
 	configMapOpts = []cmp.Option{cmpopts.IgnoreFields(v1.ConfigMap{}, sharedIgnoreMetadata...)}
 
 	secretOpts = []cmp.Option{cmpopts.IgnoreFields(v1.Secret{}, sharedIgnoreMetadata...)}
+
+	ingressOpts = []cmp.Option{cmpopts.IgnoreFields(nwv1.Ingress{}, sharedIgnoreMetadata...), cmpopts.IgnoreFields(nwv1.Ingress{}, sharedIgnoreStatus...)}
 )
 
 // EqualStatefulSet compares 2 statefulsets for equality
@@ -143,4 +146,12 @@ func EqualSecret(actual, desired *v1.Secret) bool {
 
 func DiffSecret(actual, desired *v1.Secret) string {
 	return cmp.Diff(actual, desired, append(secretOpts, cmpopts.IgnoreFields(v1.Secret{}, "Data"))...)
+}
+
+func EqualIngress(actual, desired *nwv1.Ingress) bool {
+	return cmp.Equal(actual, desired, ingressOpts...)
+}
+
+func DiffIngress(actual, desired *nwv1.Ingress) string {
+	return cmp.Diff(actual, desired, ingressOpts...)
 }
