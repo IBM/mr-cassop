@@ -45,16 +45,6 @@ func (r *CassandraClusterReconciler) reconcileReaper(ctx context.Context, cc *db
 		return errors.Wrap(err, "Error reconciling reaper cql configmap")
 	}
 
-	for _, dc := range cc.Spec.DCs {
-		if err := r.reconcileReaperDeployment(ctx, cc, dc); err != nil {
-			return errors.Wrap(err, "Failed to reconcile reaper deployment")
-		}
-	}
-
-	if err := r.reconcileReaperService(ctx, cc); err != nil {
-		return errors.Wrap(err, "Failed to reconcile reaper service")
-	}
-
 	return nil
 }
 
@@ -76,7 +66,7 @@ func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Conte
 			Labels:    reaperLabels,
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: proto.Int32(1),
+			Replicas: proto.Int32(dbv1alpha1.ReaperReplicasNumber),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: reaperLabels,
 			},

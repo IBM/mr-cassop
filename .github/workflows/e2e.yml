@@ -76,7 +76,7 @@ jobs:
         uses: softprops/turnstyle@2da824432fd1b605d097378101a35779dc3cd35a # v1
         with:
           poll-interval-seconds: 10
-          abort-after-seconds: 3600
+          abort-after-seconds: 7200
           same-branch-only: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

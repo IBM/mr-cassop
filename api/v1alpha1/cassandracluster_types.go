@@ -37,6 +37,8 @@ const (
 	CqlPort              = 9042
 	JmxPort              = 7199
 	ThriftPort           = 9160
+
+	ReaperReplicasNumber = 1
 )
 
 var (

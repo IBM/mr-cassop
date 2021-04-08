@@ -113,11 +113,15 @@ source /etc/pods-config/${POD_NAME}_${POD_UID}.env
 			Expect(k8sClient.Status().Update(ctx, cc)).To(Succeed())
 			mockReaperClient.isRunning = false
 			mockReaperClient.err = nil
-			for _, dc := range cc.Spec.DCs {
-				reaperDeployment := &appsv1.Deployment{}
-				Eventually(func() error {
-					return k8sClient.Get(context.Background(), types.NamespacedName{Name: names.ReaperDeployment(cc.Name, dc.Name), Namespace: cc.Namespace}, reaperDeployment)
-				}, mediumTimeout, mediumRetry).Should(Succeed())
+
+			for index, dc := range cc.Spec.DCs {
+				// Check if first reaper deployment has been created
+				if index == 0 {
+					// Wait for the operator to create the first reaper deployment
+					validateNumberOfDeployments(cc.Namespace, reaperDeploymentLabels, 1)
+				}
+
+				reaperDeployment := markDeploymentAsReady(types.NamespacedName{Name: names.ReaperDeployment(cc.Name, dc.Name), Namespace: cc.Namespace})
 
 				Expect(reaperDeployment.Spec.Template.Spec.Containers[0].Args).Should(Equal([]string{
 					"sh",

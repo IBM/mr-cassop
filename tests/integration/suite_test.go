@@ -83,6 +83,11 @@ var (
 		Namespace: "default",
 		Name:      "test-cassandra-cluster",
 	}
+
+	reaperDeploymentLabels = map[string]string{
+		dbv1alpha1.CassandraClusterComponent: dbv1alpha1.CassandraClusterComponentReaper,
+		dbv1alpha1.CassandraClusterInstance:  cassandraObjectMeta.Name,
+	}
 )
 
 const (
@@ -368,4 +373,29 @@ func getVolumeByName(volumes []v1.Volume, volumeName string) (v1.Volume, bool) {
 	}
 
 	return v1.Volume{}, false
+}
+
+func markDeploymentAsReady(namespacedName types.NamespacedName) *apps.Deployment {
+	deployment := &apps.Deployment{}
+
+	Eventually(func() error {
+		return k8sClient.Get(ctx, namespacedName, deployment)
+	}, mediumTimeout, mediumRetry).Should(Succeed())
+
+	deployment.Status.Replicas = *deployment.Spec.Replicas
+	deployment.Status.ReadyReplicas = *deployment.Spec.Replicas
+
+	err := k8sClient.Status().Update(ctx, deployment)
+	Expect(err).ToNot(HaveOccurred())
+
+	return deployment
+}
+
+func validateNumberOfDeployments(namespace string, labels map[string]string, number int) {
+	Eventually(func() bool {
+		reaperDeployments := &apps.DeploymentList{}
+		err := k8sClient.List(ctx, reaperDeployments, client.InNamespace(namespace), client.MatchingLabels(labels))
+		Expect(err).NotTo(HaveOccurred())
+		return len(reaperDeployments.Items) == number
+	}, longTimeout, mediumRetry).Should(BeTrue())
 }

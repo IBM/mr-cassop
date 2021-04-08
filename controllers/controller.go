@@ -207,6 +207,30 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	if err = r.reconcileReaper(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling reaper")
 	}
+
+	for index, dc := range cc.Spec.DCs {
+		if err = r.reconcileReaperDeployment(ctx, cc, dc); err != nil {
+			return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile reaper deployment")
+		}
+
+		if err := r.reconcileReaperService(ctx, cc); err != nil {
+			return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile reaper service")
+		}
+
+		if index == 0 { // Wait for 1st reaper deployment to finish, otherwise we can get an error 'Schema migration is locked by another instance'
+			reaperDeployment := &appsv1.Deployment{}
+			err = r.Get(ctx, types.NamespacedName{Name: names.ReaperDeployment(cc.Name, dc.Name), Namespace: cc.Namespace}, reaperDeployment)
+			if err != nil {
+				return ctrl.Result{}, errors.Wrap(err, "Failed to get reaper deployment")
+			}
+
+			if reaperDeployment.Status.ReadyReplicas != dbv1alpha1.ReaperReplicasNumber {
+				r.Log.Infof("Waiting for the first reaper deployment to be ready. Trying again in %s...", r.Cfg.RetryDelay)
+				return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
+			}
+		}
+	}
+
 	reaperServiceUrl, err := url.Parse(fmt.Sprintf("http://%s.%s.svc.cluster.local:8080", names.ReaperService(cc.Name), cc.Namespace))
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error parsing reaper service url")

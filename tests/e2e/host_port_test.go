@@ -15,6 +15,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+var _ = Describe("Cassandra cluster", func() {
+	Context("When hostPort enabled and UseExternalHostIP set to false", func() {
+		It("Should be enabled and internal node ip should match cassandra ip", func() {
+			testBroadcastAddress(false)
+		})
+	})
+	// Disable test while UseExternalHostIP: true isn't implemented in prober
+	//Context("When hostPort enabled and UseExternalHostIP set to true", func() {
+	//	It("Should be enabled and external node ip should match cassandra ip", func() {
+	//		testBroadcastAddress(true)
+	//	})
+	//})
+})
+
 func newCassandraCluster(useExternalHostIP bool) *v1alpha1.CassandraCluster {
 	newCassandraCluster := cassandraCluster.DeepCopy()
 	newCassandraCluster.Spec.HostPort.Enabled = true
@@ -100,17 +114,3 @@ func testBroadcastAddress(useExternalHostIP bool) {
 		checkBroadcastAddressOnAllPods(podList, nodeList, addressType, cmd)
 	}
 }
-
-var _ = Describe("Cassandra cluster", func() {
-	Context("When hostPort enabled and UseExternalHostIP set to false", func() {
-		It("Should be enabled and internal node ip should match cassandra ip", func() {
-			testBroadcastAddress(false)
-		})
-	})
-	// Disable test while UseExternalHostIP: true isn't implemented in prober
-	//Context("When hostPort enabled and UseExternalHostIP set to true", func() {
-	//	It("Should be enabled and external node ip should match cassandra ip", func() {
-	//		testBroadcastAddress(true)
-	//	})
-	//})
-})

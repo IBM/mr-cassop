@@ -6,7 +6,6 @@ import (
 	"github.com/ibm/cassandra-operator/controllers/names"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -96,29 +95,33 @@ var _ = Describe("reaper deployment", func() {
 				cc := tc.cc.DeepCopy()
 				Expect(k8sClient.Create(ctx, cc)).To(Succeed())
 				Expect(initializeReadyCluster(cc)).To(Succeed())
-				for _, dc := range cc.Spec.DCs {
-					deployment := &appsv1.Deployment{}
+				for index, dc := range cc.Spec.DCs {
 					reaperLabels := map[string]string{
 						"cassandra-cluster-component": "reaper",
 						"cassandra-cluster-instance":  "test-cassandra-cluster",
 						"cassandra-cluster-dc":        dc.Name,
 						"datacenter":                  dc.Name,
 					}
-					Eventually(func() error {
-						return k8sClient.Get(ctx, types.NamespacedName{Name: names.ReaperDeployment(cc.Name, dc.Name), Namespace: cc.Namespace}, deployment)
-					}, mediumTimeout, mediumRetry).Should(Succeed())
 
-					Expect(deployment.Labels).To(BeEquivalentTo(reaperLabels))
-					Expect(deployment.Spec.Replicas).To(Equal(proto.Int32(1)))
-					Expect(deployment.Spec.Selector.MatchLabels).To(BeEquivalentTo(reaperLabels))
-					Expect(deployment.Spec.Template.Labels).To(Equal(reaperLabels))
-					Expect(deployment.OwnerReferences[0].Controller).To(Equal(proto.Bool(true)))
-					Expect(deployment.OwnerReferences[0].Kind).To(Equal("CassandraCluster"))
-					Expect(deployment.OwnerReferences[0].APIVersion).To(Equal("db.ibm.com/v1alpha1"))
-					Expect(deployment.OwnerReferences[0].Name).To(Equal(cc.Name))
-					Expect(deployment.OwnerReferences[0].BlockOwnerDeletion).To(Equal(proto.Bool(true)))
+					// Check if first reaper deployment has been created
+					if index == 0 {
+						// Wait for the operator to create the first reaper deployment
+						validateNumberOfDeployments(cc.Namespace, reaperDeploymentLabels, 1)
+					}
 
-					reaperContainer, found := getContainerByName(deployment.Spec.Template.Spec, "reaper")
+					reaperDeployment := markDeploymentAsReady(types.NamespacedName{Name: names.ReaperDeployment(cc.Name, dc.Name), Namespace: cc.Namespace})
+
+					Expect(reaperDeployment.Labels).To(BeEquivalentTo(reaperLabels))
+					Expect(reaperDeployment.Spec.Replicas).To(Equal(proto.Int32(v1alpha1.ReaperReplicasNumber)))
+					Expect(reaperDeployment.Spec.Selector.MatchLabels).To(BeEquivalentTo(reaperLabels))
+					Expect(reaperDeployment.Spec.Template.Labels).To(Equal(reaperLabels))
+					Expect(reaperDeployment.OwnerReferences[0].Controller).To(Equal(proto.Bool(true)))
+					Expect(reaperDeployment.OwnerReferences[0].Kind).To(Equal("CassandraCluster"))
+					Expect(reaperDeployment.OwnerReferences[0].APIVersion).To(Equal("db.ibm.com/v1alpha1"))
+					Expect(reaperDeployment.OwnerReferences[0].Name).To(Equal(cc.Name))
+					Expect(reaperDeployment.OwnerReferences[0].BlockOwnerDeletion).To(Equal(proto.Bool(true)))
+
+					reaperContainer, found := getContainerByName(reaperDeployment.Spec.Template.Spec, "reaper")
 					Expect(found).To(BeTrue())
 					Expect(reaperContainer.Image).To(Equal(operatorConfig.DefaultReaperImage), "default values")
 					Expect(reaperContainer.ImagePullPolicy).To(Equal(v1.PullIfNotPresent), "default values")
