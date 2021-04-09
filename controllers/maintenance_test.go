@@ -81,7 +81,7 @@ func mockedRunningCassandraPod(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC, i 
 				cassandraContainer(cc, dc),
 			},
 			InitContainers: []v1.Container{
-				maintenanceContainer(cc, dc),
+				maintenanceContainer(cc),
 			},
 			ImagePullSecrets: imagePullSecrets(cc),
 			Volumes: []v1.Volume{
@@ -314,7 +314,7 @@ func TestGetPod(t *testing.T) {
 						cassandraContainer(baseCC, baseCC.Spec.DCs[0]),
 					},
 					InitContainers: []v1.Container{
-						maintenanceContainer(baseCC, baseCC.Spec.DCs[0]),
+						maintenanceContainer(baseCC),
 					},
 				},
 			},

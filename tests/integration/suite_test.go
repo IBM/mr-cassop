@@ -234,12 +234,6 @@ func createOperatorConfigMaps() {
 			Namespace: operatorConfig.Namespace,
 		},
 	}
-	proberSourcesCM := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.OperatorProberSourcesCM(),
-			Namespace: operatorConfig.Namespace,
-		},
-	}
 	cassConfigCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      names.OperatorCassandraConfigCM(),
@@ -257,7 +251,6 @@ func createOperatorConfigMaps() {
 	}
 
 	Expect(k8sClient.Create(ctx, scriptsCM)).To(Succeed())
-	Expect(k8sClient.Create(ctx, proberSourcesCM)).To(Succeed())
 	Expect(k8sClient.Create(ctx, cassConfigCM)).To(Succeed())
 	Expect(k8sClient.Create(ctx, shiroConfigCM)).To(Succeed())
 }
@@ -290,7 +283,6 @@ func CleanUpCreatedResources(ccName, ccNamespace string) {
 		{name: names.ProberServiceAccount(cc.Name), objType: &v1.ServiceAccount{}},
 		{name: names.ProberRole(cc.Name), objType: &rbac.Role{}},
 		{name: names.ProberRoleBinding(cc.Name), objType: &rbac.RoleBinding{}},
-		{name: names.ProberSources(cc.Name), objType: &v1.ConfigMap{}},
 		{name: names.ReaperService(cc.Name), objType: &v1.Service{}},
 		{name: names.ReaperCqlConfigMap(cc.Name), objType: &v1.ConfigMap{}},
 		{name: names.ShiroConfigMap(cc.Name), objType: &v1.ConfigMap{}},

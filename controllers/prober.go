@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/gogo/protobuf/proto"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/compare"
@@ -14,18 +17,15 @@ import (
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	klabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"strconv"
-	"strings"
 )
 
 func (r *CassandraClusterReconciler) reconcileProber(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
-	if err := r.reconcileProberSourcesConfigMap(ctx, cc); err != nil {
-		return errors.Wrap(err, "Error reconciling prober sources configmap")
-	}
+	// if err := r.reconcileProberSourcesConfigMap(ctx, cc); err != nil {
+	// 	return errors.Wrap(err, "Error reconciling prober sources configmap")
+	// }
 
 	if err := r.reconcileProberServiceAccount(ctx, cc); err != nil {
 		return errors.Wrap(err, "Error reconciling prober serviceaccount")
@@ -87,15 +87,6 @@ func (r *CassandraClusterReconciler) reconcileProberDeployment(ctx context.Conte
 					ImagePullSecrets: imagePullSecrets(cc),
 					Volumes: []v1.Volume{
 						rolesVolume(cc),
-						{
-							Name: "app",
-							VolumeSource: v1.VolumeSource{ConfigMap: &v1.ConfigMapVolumeSource{
-								LocalObjectReference: v1.LocalObjectReference{
-									Name: names.ProberSources(cc.Name),
-								},
-								DefaultMode: proto.Int32(v1.SecretVolumeSourceDefaultMode),
-							}},
-						},
 					},
 					RestartPolicy:                 v1.RestartPolicyAlways,
 					TerminationGracePeriodSeconds: proto.Int64(30),
@@ -203,14 +194,11 @@ func proberContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 		Name:            "prober",
 		Image:           cc.Spec.Prober.Image,
 		ImagePullPolicy: cc.Spec.Prober.ImagePullPolicy,
-		Args:            []string{"npm", "start"},
 		Resources:       cc.Spec.Prober.Resources,
 		Env: []v1.EnvVar{
 			{Name: "POD_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}},
-			{Name: "LOCAL_DCS", Value: func(dcs interface{}) string { b, _ := json.Marshal(dcs); return string(b) }(cc.Spec.DCs)},
 			{Name: "DEBUG", Value: fmt.Sprintf("%t", cc.Spec.Prober.Debug)},
 			{Name: "HOSTPORT_ENABLED", Value: fmt.Sprintf("%t", cc.Spec.HostPort.Enabled)},
-			{Name: "CASSANDRA_ENDPOINT_LABELS", Value: klabels.FormatLabels(labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra))},
 			{Name: "CASSANDRA_LOCAL_SEEDS_HOSTNAMES", Value: strings.Join(getSeedsList(cc), ",")},
 			{Name: "CASSANDRA_NUM_SEEDS", Value: fmt.Sprintf("%d", cc.Spec.Cassandra.NumSeeds)},
 			{Name: "EXTERNAL_DCS_INGRESS_DOMAINS", Value: filterDCsIngressDomains(cc.Spec.Prober.DCsIngressDomains, cc.Spec.Prober.Ingress.Domain)},
@@ -223,7 +211,7 @@ func proberContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 			{Name: "JMX_POLL_PERIOD_SECONDS", Value: "10"},
 			{Name: "JMX_PROXY_URL", Value: fmt.Sprintf("http://localhost:%d/jolokia", dbv1alpha1.JolokiaContainerPort)},
 			{Name: "JMX_PORT", Value: fmt.Sprintf("%d", dbv1alpha1.JmxPort)},
-			{Name: "USERS_DIR", Value: cassandraRolesDir},
+			{Name: "ROLES_DIR", Value: cassandraRolesDir},
 		},
 		Ports: []v1.ContainerPort{
 			{
@@ -247,12 +235,8 @@ func proberContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 		},
 		VolumeMounts: []v1.VolumeMount{
 			rolesVolumeMount(),
-			{
-				Name:      "app",
-				MountPath: "/usr/local/app",
-			},
 		},
-		WorkingDir:               "/usr/local/app",
+		WorkingDir:               "/",
 		TerminationMessagePath:   "/dev/termination-log",
 		TerminationMessagePolicy: v1.TerminationMessageReadFile,
 	}

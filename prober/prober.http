@@ -1,0 +1,30 @@
+GET http://localhost:8888/healthz/10.244.0.22
+Accept: application/json
+
+###
+POST http://localhost:8080/jolokia
+Content-Type: application/json
+
+[
+{
+  "type":      "read",
+  "mbean":     "org.apache.cassandra.net:type=FailureDetector",
+  "attribute": "SimpleStates",
+  "target": {
+    "url": "service:jmx:rmi:///jndi/rmi://10.244.0.22:7199/jmxrmi",
+    "user": "cassandra",
+    "password": "cassandra"
+  }
+}
+]
+
+###
+GET http://localhost:8888/ping
+Accept: application/json
+
+###
+GET http://localhost:8080/jolokia
+Accept: application/json
+
+###
+

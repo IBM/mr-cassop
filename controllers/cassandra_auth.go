@@ -33,7 +33,7 @@ func createCassandraAuth(cc *dbv1alpha1.CassandraCluster) v1.Container {
 			{Name: "CASSANDRA_JMX_AUTH", Value: "true" /*strconv.FormatBool(cc.Spec.JMX.Authentication == "local_files" || cc.Spec.JMX.Authentication == "internal")*/},
 			{Name: "CASSANDRA_JMX_SSL", Value: "false" /*strconv.FormatBool(cc.Spec.JMX.SSL)*/},
 			{Name: "CASSANDRA_INTERNAL_AUTH", Value: "true" /*strconv.FormatBool(cc.Spec.Cassandra.InternalAuth || cc.Spec.JMX.Authentication == "internal")*/},
-			{Name: "USERS_DIR", Value: cassandraRolesDir},
+			{Name: "ROLES_DIR", Value: cassandraRolesDir},
 		},
 		VolumeMounts:             sharedVolumeMounts(),
 		TerminationMessagePath:   "/dev/termination-log",

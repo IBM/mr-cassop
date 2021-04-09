@@ -13,7 +13,7 @@ nt_fallback() {
 
 find_nodetool_user() {
   if [[ "${CASSANDRA_JMX_AUTH}" == 'true' ]]; then
-    for fn in $(find "${USERS_DIR}" -type f); do
+    for fn in $(find "${ROLES_DIR}" -type f); do
       read -r pw nt <<< $(jq -cr '[.password, .nodetoolUser] | "\(.[0]) \(.[1])"' ${fn})
       NODETOOL_USER=$(basename "${fn}")
       NODETOOL_PASSWORD="${pw}"
@@ -29,7 +29,7 @@ find_nodetool_user() {
 }
 
 find_cassandra_user() {
-  for fn in $(find "${USERS_DIR}" -type f); do
+  for fn in $(find "${ROLES_DIR}" -type f); do
     read -r pw super <<< $(jq -cr '[.password, .super] | "\(.[0]) \(.[1])"' ${fn})
     CASSANDRA_USER=$(basename "${fn}")
     CASSANDRA_PASSWORD="${pw}"

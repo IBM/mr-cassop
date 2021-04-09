@@ -58,14 +58,20 @@ jobs:
           registry: ${{ env.DOCKER_PROXY_REGISTRY }}
           username: ${{ env.DOCKER_PROXY_USER }}
           password: ${{ env.DOCKER_PROXY_PASS }}
-      - name: Build Image
+      - name: Build Images
         run: |
           docker build -t "us.icr.io/icm-cassandra/cassandra-operator:$GITHUB_REF_SLUG" \
             --build-arg "VERSION=$GITHUB_REF_SLUG" \
             --build-arg "DOCKER_PROXY_REGISTRY=$DOCKER_PROXY_REGISTRY/" \
             -f Dockerfile .
-      - name: Push Image to ICR
-        run: docker push "us.icr.io/icm-cassandra/cassandra-operator:$GITHUB_REF_SLUG"
+          docker build -t "us.icr.io/icm-cassandra/cassandra-prober:$GITHUB_REF_SLUG" \
+            --build-arg "VERSION=$GITHUB_REF_SLUG" \
+            --build-arg "DOCKER_PROXY_REGISTRY=$DOCKER_PROXY_REGISTRY/" \
+            -f prober/Dockerfile prober/
+      - name: Push Images to ICR
+        run: |
+          docker push "us.icr.io/icm-cassandra/cassandra-operator:$GITHUB_REF_SLUG"
+          docker push "us.icr.io/icm-cassandra/cassandra-prober:$GITHUB_REF_SLUG"
   e2e_tests:
     name: E2e Tests
     needs: [docker_images]
@@ -116,6 +122,7 @@ jobs:
           command: |
             helm install cassandra-operator-ci cassandra-operator \
               --set "container.image=us.icr.io/icm-cassandra/cassandra-operator:$GITHUB_REF_SLUG" \
+              --set "proberImage=us.icr.io/icm-cassandra/cassandra-prober:$GITHUB_REF_SLUG" \
               --set "container.imagePullSecret=$IMAGE_PULL_SECRET"
             kubectl rollout status deployment cassandra-operator
       - name: C* operator deployment has failed, showing debug...
@@ -139,16 +146,18 @@ jobs:
           helm uninstall cassandra-operator-ci
       # We have below logic bc when multiple tags exist for the same image digest within a repository, the ibmcloud cr image-rm command removes the underlying image and all its tags. See details: https://cloud.ibm.com/docs/container-registry-cli-plugin?topic=container-registry-cli-plugin-containerregcli#bx_cr_image_rm
       # We can also add a check if commit message contains `no_image_del` then skip the image deletion step
-      - name: Cleanup Image
+      - name: Cleanup Images
         if: ${{ always() && github.event_name != 'release' }}
         run: |
-          image_digest=$(ibmcloud cr image-list --restrict icm-cassandra --format "{{if and (eq .Repository \"us.icr.io/icm-cassandra/cassandra-operator\") (eq .Tag \"$GITHUB_REF_SLUG\")}}{{.Digest}}{{end}}" --no-trunc)
-          image_tags=$(ibmcloud cr image-digests --restrict icm-cassandra --format "{{if and (eq .Digest \"$image_digest\")}}{{.Tags}}{{end}}" | sed -e 's/\[//g' -e 's/\]//g')
-          image_tags_arr=($image_tags)
-          echo "image tags: ${image_tags_arr[@]}, number: ${#image_tags_arr[@]}"
-          if (( ${#image_tags_arr[@]} > 1 )); then
-            ibmcloud cr image-untag "us.icr.io/icm-cassandra/cassandra-operator:$GITHUB_REF_SLUG"
-          else
-            ibmcloud cr image-rm "us.icr.io/icm-cassandra/cassandra-operator:$GITHUB_REF_SLUG"
-          fi
+          for image_name in cassandra-operator cassandra-prober; do
+            image_digest=$(ibmcloud cr image-list --restrict icm-cassandra --format "{{if and (eq .Repository \"us.icr.io/icm-cassandra/$image_name\") (eq .Tag \"$GITHUB_REF_SLUG\")}}{{.Digest}}{{end}}" --no-trunc)
+            image_tags=$(ibmcloud cr image-digests --restrict icm-cassandra --format "{{if and (eq .Digest \"$image_digest\")}}{{.Tags}}{{end}}" | sed -e 's/\[//g' -e 's/\]//g')
+            image_tags_arr=($image_tags)
+            echo "image tags: ${image_tags_arr[@]}, number: ${#image_tags_arr[@]}"
+            if (( ${#image_tags_arr[@]} > 1 )); then
+              ibmcloud cr image-untag "us.icr.io/icm-cassandra/$image_name:$GITHUB_REF_SLUG"
+            else
+              ibmcloud cr image-rm "us.icr.io/icm-cassandra/$image_name:$GITHUB_REF_SLUG"
+            fi
+          done
 #     Add a slack notification about successful or failed releases

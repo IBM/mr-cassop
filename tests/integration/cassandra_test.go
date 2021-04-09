@@ -20,7 +20,6 @@ var _ = Describe("operator configmaps", func() {
 		It("should exist", func() {
 			operatorConfigMaps := []string{
 				names.OperatorCassandraConfigCM(),
-				names.OperatorProberSourcesCM(),
 				names.OperatorScriptsCM(),
 				names.OperatorShiroCM(),
 			}

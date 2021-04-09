@@ -1,6 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: cassandra-operator-prober-sources-configmap
-  namespace: {{ .Release.Namespace }}
-data: {{ (.Files.Glob "prober/*").AsConfig | nindent 2 }}

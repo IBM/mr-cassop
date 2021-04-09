@@ -67,7 +67,7 @@ func cassandraDCConfigVolume(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC) v1.V
 				LocalObjectReference: v1.LocalObjectReference{
 					Name: names.ConfigMap(cc.Name),
 				},
-				DefaultMode: proto.Int32(0644),
+				DefaultMode: proto.Int32(v1.SecretVolumeSourceDefaultMode),
 			},
 		},
 	}

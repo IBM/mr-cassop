@@ -24,10 +24,6 @@ func ProberServiceAccount(clusterName string) string {
 	return clusterName + "-cassandra-prober-serviceaccount"
 }
 
-func ProberSources(clusterName string) string {
-	return clusterName + "-cassandra-prober-sources"
-}
-
 func ProberIngress(clusterName string) string {
 	return clusterName + "-cassandra-prober"
 }
@@ -90,10 +86,6 @@ func PodsConfigConfigmap(clusterName string) string {
 
 func OperatorScriptsCM() string {
 	return cassandraOperator + "-scripts-configmap"
-}
-
-func OperatorProberSourcesCM() string {
-	return cassandraOperator + "-prober-sources-configmap"
 }
 
 func OperatorCassandraConfigCM() string {

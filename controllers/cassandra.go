@@ -21,10 +21,6 @@ import (
 	"strings"
 )
 
-const (
-	CassandraEndpointLabels = "cassandra-cluster-component=cassandra"
-)
-
 func (r *CassandraClusterReconciler) reconcileCassandra(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
 	for _, dc := range cc.Spec.DCs {
 		err := r.reconcileDCService(ctx, cc, dc)
@@ -104,7 +100,7 @@ func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) *ap
 						cassandraContainer(cc, dc),
 					},
 					InitContainers: []v1.Container{
-						maintenanceContainer(cc, dc),
+						maintenanceContainer(cc),
 					},
 					ImagePullSecrets: imagePullSecrets(cc),
 					Volumes: []v1.Volume{
@@ -410,7 +406,7 @@ func cassandraVolumeClaimTemplates(cc *dbv1alpha1.CassandraCluster) []v1.Persist
 	return volumeClaims
 }
 
-func maintenanceContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Container {
+func maintenanceContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 	memory := resource.MustParse("200Mi")
 	cpu := resource.MustParse("0.5")
 	return v1.Container{
@@ -472,7 +468,7 @@ func podsConfigVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
 				LocalObjectReference: v1.LocalObjectReference{
 					Name: names.PodsConfigConfigmap(cc.Name),
 				},
-				DefaultMode: proto.Int32(0644),
+				DefaultMode: proto.Int32(v1.SecretVolumeSourceDefaultMode),
 			},
 		},
 	}

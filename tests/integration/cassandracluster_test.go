@@ -56,10 +56,8 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 			}, mediumTimeout, mediumRetry).Should(Succeed())
 			Expect(proberDeployment.Spec.Template.Spec.Containers[0].Env).To(BeEquivalentTo([]v1.EnvVar{
 				{Name: "POD_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}},
-				{Name: "LOCAL_DCS", Value: "[{\"name\":\"dc1\",\"replicas\":3},{\"name\":\"dc2\",\"replicas\":3}]"},
 				{Name: "DEBUG", Value: "false"},
 				{Name: "HOSTPORT_ENABLED", Value: "false"},
-				{Name: "CASSANDRA_ENDPOINT_LABELS", Value: "cassandra-cluster-component=cassandra,cassandra-cluster-instance=test-cassandra-cluster"},
 				{Name: "CASSANDRA_LOCAL_SEEDS_HOSTNAMES", Value: "test-cassandra-cluster-cassandra-dc1-0.test-cassandra-cluster-cassandra-dc1.default.svc.cluster.local,test-cassandra-cluster-cassandra-dc1-1.test-cassandra-cluster-cassandra-dc1.default.svc.cluster.local,test-cassandra-cluster-cassandra-dc2-0.test-cassandra-cluster-cassandra-dc2.default.svc.cluster.local,test-cassandra-cluster-cassandra-dc2-1.test-cassandra-cluster-cassandra-dc2.default.svc.cluster.local"},
 				{Name: "CASSANDRA_NUM_SEEDS", Value: "2"},
 				{Name: "EXTERNAL_DCS_INGRESS_DOMAINS", Value: "null"},
@@ -72,7 +70,7 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 				{Name: "JMX_POLL_PERIOD_SECONDS", Value: "10"},
 				{Name: "JMX_PROXY_URL", Value: "http://localhost:8080/jolokia"},
 				{Name: "JMX_PORT", Value: "7199"},
-				{Name: "USERS_DIR", Value: "/etc/cassandra-roles"},
+				{Name: "ROLES_DIR", Value: "/etc/cassandra-roles"},
 			}))
 
 			By("cassandra dcs should not exist until prober is ready")
