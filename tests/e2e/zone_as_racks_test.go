@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -23,15 +22,11 @@ var _ = Describe("Cassandra cluster", func() {
 			By("Check zones as racks")
 			podList := &v1.PodList{}
 			err = restClient.List(context.Background(), podList, client.InNamespace(cassandraNamespace), client.MatchingLabels(cassandraClusterPodLabels))
-			if err != nil {
-				Fail(fmt.Sprintf("Error occurred: %s", err))
-			}
+			Expect(err).ToNot(HaveOccurred())
 
 			nodeList := &v1.NodeList{}
 			err = restClient.List(context.Background(), nodeList)
-			if err != nil {
-				Fail(fmt.Sprintf("Error occurred: %s", err))
-			}
+			Expect(err).ToNot(HaveOccurred())
 
 			cmd := []string{
 				"sh",
@@ -46,10 +41,7 @@ var _ = Describe("Cassandra cluster", func() {
 
 				r.stdout = strings.TrimSuffix(r.stdout, "\n")
 				r.stdout = strings.TrimSpace(r.stdout)
-
-				if len(r.stderr) != 0 {
-					Fail(fmt.Sprintf("Error occurred: %s", r.stderr))
-				}
+				Expect(len(r.stderr)).To(Equal(0))
 
 				for _, n := range nodeList.Items {
 					if n.Name == nodeName {

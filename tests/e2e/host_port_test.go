@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
@@ -48,10 +47,7 @@ func execOnPod(podName string, cmd []string) string {
 
 	r.stdout = strings.TrimSuffix(r.stdout, "\n")
 	r.stdout = strings.TrimSpace(r.stdout)
-
-	if len(r.stderr) != 0 {
-		Fail(fmt.Sprintf("Error occurred: %s", r.stderr))
-	}
+	Expect(len(r.stderr)).To(Equal(0))
 
 	return r.stdout
 }
@@ -61,17 +57,15 @@ func checkBroadcastAddressOnAllPods(podList *v1.PodList, nodeList *v1.NodeList, 
 		podName := pod.Name
 		nodeName := pod.Spec.NodeName
 
-		var nodeNotFound = true
+		var nodeFound = false
 		for _, node := range nodeList.Items {
 			if node.Name == nodeName {
 				cassandraIP := util.GetNodeIP(addressType, node.Status.Addresses)
 				Expect(execOnPod(podName, cmd)).To(Equal(cassandraIP))
-				nodeNotFound = false
+				nodeFound = true
 			}
 		}
-		if nodeNotFound {
-			Fail(fmt.Sprintf("Matching node not found for pod.Spec.NodeName: %s", nodeName))
-		}
+		Expect(nodeFound).To(BeTrue())
 	}
 }
 
@@ -86,15 +80,11 @@ func testBroadcastAddress(useExternalHostIP bool) {
 	By("Check hostPort")
 	podList := &v1.PodList{}
 	err = restClient.List(context.Background(), podList, client.InNamespace(cassandraNamespace), client.MatchingLabels(cassandraClusterPodLabels))
-	if err != nil {
-		Fail(fmt.Sprintf("Error occured: %s", err))
-	}
+	Expect(err).ToNot(HaveOccurred())
 
 	nodeList := &v1.NodeList{}
 	err = restClient.List(context.Background(), nodeList)
-	if err != nil {
-		Fail(fmt.Sprintf("Error occured: %s", err))
-	}
+	Expect(err).ToNot(HaveOccurred())
 
 	cmds := [][]string{
 		{

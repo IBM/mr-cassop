@@ -6,10 +6,9 @@ import (
 	"github.com/gocql/gocql"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/labels"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"encoding/json"
 	v1 "k8s.io/api/core/v1"
@@ -24,16 +23,24 @@ var _ = Describe("Cassandra cluster", func() {
 
 	Context("When reaper repair schedules are enabled and set", func() {
 		It("should be enabled and all set", func() {
-			var currentTime = time.Now().UTC()
-			var reaperRepairs []v1alpha1.Repair
-			var testReaperKeyspace = "reaper_db"
-			var reaperRequestTimeLayout = "2006-01-02T15:04:05"
-			var reaperResponseTimeLayout = "2006-01-02T15:04:05Z"
-			var respBody []byte
-			var responseData map[string]interface{}
-			var responsesData []map[string]interface{}
-			var releaseVersion string
-			var dcs []string
+			var (
+				currentTime                      = time.Now().UTC()
+				testScheduleReaperKeyspace       = "reaper_db"
+				reaperRequestTimeLayout          = "2006-01-02T15:04:05"
+				reaperResponseTimeLayout         = "2006-01-02T15:04:05Z"
+				testRepairReaperKeyspace         = "cycling"
+				testRepairReaperTable            = "cyclist_alt_stats"
+				intensity                        = "1.0"
+				repairParallelism                = "sequential"
+				segmentCount                     = 10
+				repairThreadCount          int32 = 4
+				reaperRepairs              []v1alpha1.Repair
+				respBody                   []byte
+				responseData               map[string]interface{}
+				responsesData              []map[string]interface{}
+				releaseVersion             string
+				dcs                        []string
+			)
 
 			for _, dc := range cassandraDCs {
 				dcs = append(dcs, dc.Name)
@@ -42,46 +49,46 @@ var _ = Describe("Cassandra cluster", func() {
 			// Generate repair schedules
 			reaperRepairs = append(reaperRepairs,
 				v1alpha1.Repair{
-					Keyspace:            testReaperKeyspace,
+					Keyspace:            testScheduleReaperKeyspace,
 					Owner:               "cassandra",
 					Tables:              []string{"snapshot"},
 					ScheduleDaysBetween: 7,
 					ScheduleTriggerTime: currentTime.AddDate(0, 0, 5).Format(reaperRequestTimeLayout),
 					Datacenters:         dcs,
 					IncrementalRepair:   false,
-					RepairThreadCount:   4,
-					Intensity:           "1.0",
-					RepairParallelism:   "sequential",
+					RepairThreadCount:   repairThreadCount,
+					Intensity:           intensity,
+					RepairParallelism:   repairParallelism,
 				},
 				v1alpha1.Repair{
-					Keyspace:            testReaperKeyspace,
+					Keyspace:            testScheduleReaperKeyspace,
 					Owner:               "cassandra",
 					Tables:              []string{"schema_migration"},
 					ScheduleDaysBetween: 7,
 					ScheduleTriggerTime: currentTime.AddDate(0, 0, -5).Format(reaperRequestTimeLayout),
 					Datacenters:         dcs,
 					IncrementalRepair:   false,
-					RepairThreadCount:   4,
-					Intensity:           "1.0",
-					RepairParallelism:   "sequential",
+					RepairThreadCount:   repairThreadCount,
+					Intensity:           intensity,
+					RepairParallelism:   repairParallelism,
 				},
 				v1alpha1.Repair{
-					Keyspace:            testReaperKeyspace,
+					Keyspace:            testScheduleReaperKeyspace,
 					Owner:               "cassandra",
 					Tables:              []string{"cluster"},
 					ScheduleDaysBetween: 7,
 					ScheduleTriggerTime: currentTime.Add(time.Hour * 2).Format(reaperRequestTimeLayout),
 					Datacenters:         dcs,
 					IncrementalRepair:   false,
-					RepairThreadCount:   4,
-					Intensity:           "1.0",
-					RepairParallelism:   "sequential",
+					RepairThreadCount:   repairThreadCount,
+					Intensity:           intensity,
+					RepairParallelism:   repairParallelism,
 				})
 
 			newCassandraCluster := cassandraCluster.DeepCopy()
 			newCassandraCluster.Spec.Reaper = &v1alpha1.Reaper{
 				ImagePullPolicy:                        "IfNotPresent",
-				Keyspace:                               testReaperKeyspace,
+				Keyspace:                               testScheduleReaperKeyspace,
 				DCs:                                    cassandraDCs,
 				DatacenterAvailability:                 "each",
 				IncrementalRepair:                      false,
@@ -134,19 +141,27 @@ var _ = Describe("Cassandra cluster", func() {
 			defer session.Close()
 
 			By("Running cql query: checking Cassandra version...")
-			if err = session.Query(`SELECT release_version FROM system.local`).Consistency(gocql.LocalQuorum).Scan(&releaseVersion); err != nil {
-				Fail(fmt.Sprintf("Error occurred: %s", err))
-			}
+			err = session.Query(`SELECT release_version FROM system.local`).Consistency(gocql.LocalQuorum).Scan(&releaseVersion)
+			Expect(err).ToNot(HaveOccurred())
+
 			cassandraVersion := fmt.Sprintf(strings.Split(cassandraImage, ":")[1])
 			cassandraVersion = fmt.Sprintf(strings.Split(cassandraVersion, "-")[0])
 			Expect(releaseVersion).To(Equal(cassandraVersion))
 
+			By("Running cql query: creating test keyspace...")
+			cqlQuery := `CREATE KEYSPACE IF NOT EXISTS %s WITH REPLICATION = { 'class' : 'NetworkTopologyStrategy', '%s' : 3 }`
+			err = session.Query(fmt.Sprintf(cqlQuery, testRepairReaperKeyspace, cassandraDCs[0].Name)).Exec()
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Running cql query: creating test table...")
+			cqlQuery = `CREATE TABLE %s.%s ( id UUID PRIMARY KEY, lastname text, birthday timestamp, nationality text, weight text, height text )`
+			err = session.Query(fmt.Sprintf(cqlQuery, testRepairReaperKeyspace, testRepairReaperTable)).Exec()
+			Expect(err).ToNot(HaveOccurred())
+
 			By("Running default rack name check...")
 			podList := &v1.PodList{}
 			err = restClient.List(context.Background(), podList, client.InNamespace(cassandraNamespace), client.MatchingLabels(cassandraClusterPodLabels))
-			if err != nil {
-				Fail(fmt.Sprintf("Error occured: %s", err))
-			}
+			Expect(err).ToNot(HaveOccurred())
 
 			cmd := []string{
 				"sh",
@@ -160,37 +175,32 @@ var _ = Describe("Cassandra cluster", func() {
 
 				r.stdout = strings.TrimSuffix(r.stdout, "\n")
 				r.stdout = strings.TrimSpace(r.stdout)
-
-				if len(r.stderr) != 0 {
-					Fail(fmt.Sprintf("Error occurred: %s", r.stderr))
-				}
-
+				Expect(len(r.stderr)).To(Equal(0))
 				Expect(r.stdout).To(Equal("rack1"))
 			}
 
 			By("Port forwarding reaper API pod port...")
-			reaperPf := portForwardPod(cassandraNamespace, reaperPodLabels, []string{"8080:8080"})
+			reaperPf := portForwardPod(cassandraNamespace, reaperPodLabels, []string{"9999:8080"})
 			defer reaperPf.Close()
 
 			By("Checking cassandra cluster name in reaper...")
 			// Check C* cluster name from reaper API
-			respBody, _, err = doHTTPRequest("GET", "http://localhost:8080/cluster/"+cassandraRelease)
-			if err != nil {
-				Fail(fmt.Sprintf("Error occurred: %s", err))
-			}
+			respBody, _, err = doHTTPRequest("GET", "http://localhost:9999/cluster/"+cassandraRelease)
+			Expect(err).ToNot(HaveOccurred())
 
 			err = json.Unmarshal(respBody, &responseData)
-			if err != nil {
-				Fail(fmt.Sprintf("Error occurred: %s", err))
-			}
+			Expect(err).ToNot(HaveOccurred())
 
 			Expect(responseData["name"]).To(Equal(cassandraRelease))
 
-			By("Triggering reaper job and checking it's completion status...")
 			By("Creating reaper job...")
-
 			Eventually(func() bool {
-				respBody, statusCode, err = doHTTPRequest("POST", "http://localhost:8080/repair_run?clusterName="+cassandraRelease+"&keyspace="+testReaperKeyspace+"&tables=leader&owner=cassandra&segmentCount=10&repairParallelism=sequential&incrementalRepair=false&intensity=1.0&repairThreadCount=4&datacenters="+strings.Join(dcs[:], ","))
+				respBody, statusCode, err = doHTTPRequest(
+					"POST", "http://localhost:9999/repair_run?clusterName="+cassandraRelease+
+						"&keyspace="+testRepairReaperKeyspace+"&owner=cassandra&tables="+testRepairReaperTable+
+						"&incrementalRepair=false&repairThreadCount="+fmt.Sprintf("%d", repairThreadCount)+
+						"&repairParallelism="+repairParallelism+"&incrementalRepair=false&intensity="+intensity+
+						"&datacenters="+strings.Join(dcs[:], ",")+"&segmentCount="+fmt.Sprintf("%d", segmentCount))
 				if statusCode != 201 || err != nil {
 					return false
 				}
@@ -202,7 +212,7 @@ var _ = Describe("Cassandra cluster", func() {
 
 			By("Starting reaper job...")
 			Eventually(func() bool {
-				_, statusCode, err = doHTTPRequest("PUT", "http://localhost:8080/repair_run/"+responseData["id"].(string)+"/state/RUNNING")
+				_, statusCode, err = doHTTPRequest("PUT", "http://localhost:9999/repair_run/"+fmt.Sprintf("%s", responseData["id"])+"/state/RUNNING")
 				if statusCode != 200 || err != nil {
 					return false
 				}
@@ -212,7 +222,7 @@ var _ = Describe("Cassandra cluster", func() {
 
 			By("Getting reaper job status...")
 			Eventually(func() bool {
-				respBody, _, err = doHTTPRequest("GET", "http://localhost:8080/repair_run/"+responseData["id"].(string))
+				respBody, _, err = doHTTPRequest("GET", "http://localhost:9999/repair_run/"+fmt.Sprintf("%s", responseData["id"]))
 				if err != nil {
 					return false
 				}
@@ -227,40 +237,31 @@ var _ = Describe("Cassandra cluster", func() {
 				}
 
 				return true
-			}, time.Minute*5, time.Second*5).Should(BeTrue(), "Reaper job should be finished")
+			}, time.Minute*15, time.Second*15).Should(BeTrue(), "Reaper job should be finished")
 
 			By("Checking reaper job rescheduling logic...")
 			// Get response with array of maps with reaper repairs
 			Eventually(func() bool {
-				respBody, statusCode, err = doHTTPRequest("GET", "http://localhost:8080/repair_schedule?clusterName="+cassandraRelease+"&keyspace="+testReaperKeyspace)
+				respBody, statusCode, err = doHTTPRequest("GET", "http://localhost:9999/repair_schedule?clusterName="+cassandraRelease+"&keyspace="+testScheduleReaperKeyspace)
 				if statusCode != 200 || err != nil {
 					return false
 				}
 
 				err = json.Unmarshal(respBody, &responsesData)
-				if err != nil {
-					Fail(fmt.Sprintf("Error occurred: %s", err))
-				}
+				Expect(err).ToNot(HaveOccurred())
 
-				if len(responsesData) == 0 {
-					return false
-				}
+				return len(responsesData) != 0
 
-				return true
 			}, time.Minute*2, time.Second*5).Should(BeTrue(), "Reaper repairs should be received.")
 
 			By("Checking rescheduled times...")
 			for _, reaperRepair := range reaperRepairs {
 				parsedReaperReqTime, err := time.Parse(reaperRequestTimeLayout, reaperRepair.ScheduleTriggerTime)
-				if err != nil {
-					Fail(fmt.Sprintf("Error occurred: %s", err))
-				}
+				Expect(err).ToNot(HaveOccurred())
 
 				repairResponse := findFirstMapByKV(responsesData, "column_families", reaperRepair.Tables[0])
 				parsedReaperRespTime, err := time.Parse(reaperResponseTimeLayout, repairResponse["next_activation"].(string))
-				if err != nil {
-					Fail(fmt.Sprintf("Error occurred: %s", err))
-				}
+				Expect(err).ToNot(HaveOccurred())
 
 				fmt.Println("Processing schedule for tables: ", repairResponse["column_families"], "...")
 				testReaperRescheduleTime(parsedReaperReqTime, parsedReaperRespTime, currentTime)

@@ -226,9 +226,7 @@ func execPod(podName string, namespace string, cmd []string) ExecResult {
 	)
 
 	exec, err := remotecommand.NewSPDYExecutor(restClientConfig, "POST", req.URL())
-	if err != nil {
-		Fail(fmt.Sprintf("Error occurred: %s", err))
-	}
+	Expect(err).ToNot(HaveOccurred())
 
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
@@ -237,10 +235,7 @@ func execPod(podName string, namespace string, cmd []string) ExecResult {
 		Stderr: stderr,
 		Tty:    false,
 	})
-
-	if err != nil {
-		Fail(fmt.Sprintf("Error occurred: %s", err))
-	}
+	Expect(err).ToNot(HaveOccurred())
 
 	return ExecResult{
 		stdout: fmt.Sprint(stdout),

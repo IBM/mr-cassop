@@ -108,35 +108,25 @@ var _ = BeforeSuite(func(done Done) {
 
 	By("Getting C* image name...")
 	content, err := readFile(valuesFile)
-	if err != nil {
-		Fail(fmt.Sprintf("Error occurred: %s", err))
-	}
+	Expect(err).ToNot(HaveOccurred())
 
 	valuesYaml := make(map[string]interface{})
 
 	err = yaml.Unmarshal(content, &valuesYaml)
-	if err != nil {
-		Fail(fmt.Sprintf("Error occurred: %s", err))
-	}
+	Expect(err).ToNot(HaveOccurred())
 
 	cassandraImage = fmt.Sprint(findFirstElemByKey(valuesYaml, "cassandraImage"))
 
 	By("Configuring API Clients for REST...")
 	restClientConfig, err = ctrl.GetConfig()
-	if err != nil {
-		Fail(fmt.Sprintf("Error occurred: %s", err))
-	}
+	Expect(err).ToNot(HaveOccurred())
 
 	restClient, err = client.New(restClientConfig, client.Options{Scheme: scheme.Scheme})
-	if err != nil {
-		Fail(fmt.Sprintf("Error occurred: %s", err))
-	}
+	Expect(err).ToNot(HaveOccurred())
 
 	// Create client test. We use kubernetes package bc currently only it has GetLogs method.
 	kubeClient, err = kubernetes.NewForConfig(restClientConfig)
-	if err != nil {
-		Fail(fmt.Sprintf("Error occurred: %s", err))
-	}
+	Expect(err).ToNot(HaveOccurred())
 
 	cassandraCluster = &v1alpha1.CassandraCluster{
 		ObjectMeta: cassandraObjectMeta,
@@ -168,9 +158,7 @@ var _ = AfterEach(func() {
 
 		podList := &v1.PodList{}
 		err = restClient.List(context.Background(), podList, client.InNamespace(cassandraNamespace))
-		if err != nil {
-			Fail(fmt.Sprintf("Error occurred: %s", err))
-		}
+		Expect(err).ToNot(HaveOccurred())
 
 		for _, pod := range podList.Items {
 			fmt.Println("Pod: ", pod.Name, " Status: ", pod.Status.Phase)
