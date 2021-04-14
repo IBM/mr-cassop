@@ -65,10 +65,10 @@ type CassandraClusterSpec struct {
 	Prober              Prober                         `json:"prober,omitempty"`
 	Reaper              *Reaper                        `json:"reaper,omitempty"`
 	HostPort            HostPort                       `json:"hostPort,omitempty"`
+	JVM                 JVM                            `json:"jvm,omitempty"`
 	//JMX                  JMX             `json:"jmx,omitempty"` //TODO part of auth  implementation
 	//NodetoolUser         string          `json:"nodetoolUser,omitempty"` //TODO part of auth implementation
 	//Monitoring           Monitoring      `json:"monitoring,omitempty"` //TODO part of monitoring implementation
-	//JVM                  JVM             `json:"jvm,omitempty"`
 }
 
 type Reaper struct {
@@ -97,22 +97,21 @@ type HostPort struct {
 	Ports             []string `json:"ports,omitempty"`
 }
 
-/*
-type Monitoring struct { // TODO part of monitoring implementation
-	Enabled bool  `json:"enabled"`
-	Port    int32 `json:"port"`
-}
+//type Monitoring struct { // TODO part of monitoring implementation
+//	Enabled bool  `json:"enabled"`
+//	Port    int32 `json:"port"`
+//}
 
-type JVM struct { // TODO implement usage of those parameters
-	MaxHeapSize                    string   `json:"maxHeapSize,omitempty"`
-	HeapNewSize                    string   `json:"heapNewSize,omitempty"`
-	MigrationTaskWaitSeconds       int32    `json:"migrationTaskWaitSeconds,omitempty"`
-	RingDelayMS                    int32    `json:"ringDelayMS,omitempty"`
-	MaxGCPauseMillis               int32    `json:"maxGCPauseMillis,omitempty"`
-	G1RSetUpdatingPauseTimePercent int32    `json:"g1RSetUpdatingPauseTimePercent,omitempty"`
-	InitiatingHeapOccupancyPercent int32    `json:"initiatingHeapOccupancyPercent,omitempty"`
+type JVM struct {
+	MaxHeapSize string `json:"maxHeapSize,omitempty"`
+	HeapNewSize string `json:"heapNewSize,omitempty"`
+	// TODO implement usage of those parameters
+	//MigrationTaskWaitSeconds       int32    `json:"migrationTaskWaitSeconds,omitempty"`
+	//RingDelayMS                    int32    `json:"ringDelayMS,omitempty"`
+	//MaxGCPauseMillis               int32    `json:"maxGCPauseMillis,omitempty"`
+	//G1RSetUpdatingPauseTimePercent int32    `json:"g1RSetUpdatingPauseTimePercent,omitempty"`
+	//InitiatingHeapOccupancyPercent int32    `json:"initiatingHeapOccupancyPercent,omitempty"`
 }
-*/
 
 //type JMX struct { //TODO usage of those parrameters should be fully implemented during auth implementation
 //	// Authentication available options: false, local_files, internal

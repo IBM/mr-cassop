@@ -158,6 +158,16 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Co
 				Name:  "CASSANDRA_LISTEN_ADDRESS",
 				Value: "auto",
 			},
+			// If not defined the MAX_HEAP_SIZE value will be generated in Cassandra image by cassandra-env.sh script on startup
+			{
+				Name:  "MAX_HEAP_SIZE",
+				Value: cc.Spec.JVM.MaxHeapSize,
+			},
+			// If not defined the HEAP_NEWSIZE value will be generated in Cassandra image by cassandra-env.sh script on startup
+			{
+				Name:  "HEAP_NEWSIZE",
+				Value: cc.Spec.JVM.HeapNewSize,
+			},
 		},
 		Args: []string{
 			"bash",

@@ -43,6 +43,10 @@ var cassandraClusterPodLabels map[string]string
 var reaperPodLabels map[string]string
 
 var cassandraResources = v1.ResourceRequirements{
+	Limits: v1.ResourceList{
+		v1.ResourceMemory: resource.MustParse("1.5Gi"),
+		v1.ResourceCPU:    resource.MustParse("1"),
+	},
 	Requests: v1.ResourceList{
 		v1.ResourceMemory: resource.MustParse("1.5Gi"),
 		v1.ResourceCPU:    resource.MustParse("1"),
@@ -145,6 +149,9 @@ var _ = BeforeSuite(func(done Done) {
 				Jolokia: v1alpha1.Jolokia{
 					ImagePullPolicy: "IfNotPresent",
 				},
+			},
+			JVM: v1alpha1.JVM{
+				MaxHeapSize: "1024M",
 			},
 		},
 	}

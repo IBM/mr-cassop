@@ -299,6 +299,13 @@ spec:
               imagePullSecretName:
                 minLength: 1
                 type: string
+              jvm:
+                properties:
+                  heapNewSize:
+                    type: string
+                  maxHeapSize:
+                    type: string
+                type: object
               maintenance:
                 items:
                   properties:
