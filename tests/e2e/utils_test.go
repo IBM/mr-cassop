@@ -113,7 +113,7 @@ func portForwardPod(namespace string, labels map[string]string, portMappings []s
 		}
 
 		if len(errOut.String()) != 0 {
-			Fail(fmt.Sprintf("Port forwarding failed. Error occurred: %s", errOut.String()))
+			Fail(fmt.Sprintf("Port forwarding failed. Error: %s", errOut.String()))
 		} else if len(out.String()) != 0 {
 			_, err := fmt.Fprintf(GinkgoWriter, "Message from port forwarder: %s", out.String())
 			Expect(err).To(Succeed())
@@ -154,10 +154,11 @@ func doHTTPRequest(method string, url string) ([]byte, int, error) {
 	return body, resp.StatusCode, err
 }
 
-func findFirstMapByKV(repair []map[string]interface{}, k string, v string) map[string]interface{} {
+func findFirstMapByKV(repair []map[string]interface{}, k string, v []string) map[string]interface{} {
 	for _, iterMap := range repair {
-		// This works only if the key has value of type []interface(array in term of json) and we take only the first its element. That's why you can't specify more than 1 table per reaper repair in e2e tests.
-		if i := iterMap[k].([]interface{})[0]; i == v { // Extract string value from slice of interfaces in unstructured json
+		str1 := fmt.Sprintf("%v", iterMap[k].([]interface{}))
+		str2 := fmt.Sprintf("%v", v)
+		if str1 == str2 {
 			return iterMap
 		}
 	}

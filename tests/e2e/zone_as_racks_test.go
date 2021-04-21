@@ -52,4 +52,33 @@ var _ = Describe("Cassandra cluster", func() {
 			}
 		})
 	})
+	Context("When zones as racks configuration is disabled", func() {
+		It("Should be disabled and default rack name is set", func() {
+			newCassandraCluster := cassandraCluster.DeepCopy()
+			newCassandraCluster.Spec.Cassandra.ZonesAsRacks = false
+
+			deployCassandraCluster(newCassandraCluster)
+
+			By("Check default rack name...")
+			podList := &v1.PodList{}
+			err = restClient.List(context.Background(), podList, client.InNamespace(cassandraNamespace), client.MatchingLabels(cassandraClusterPodLabels))
+			Expect(err).ToNot(HaveOccurred())
+
+			cmd := []string{
+				"sh",
+				"-c",
+				"cat /etc/cassandra/cassandra-rackdc.properties | grep rack= | cut -f2 -d'='",
+			}
+
+			for _, p := range podList.Items {
+				podName := p.Name
+				r := execPod(podName, cassandraNamespace, cmd)
+
+				r.stdout = strings.TrimSuffix(r.stdout, "\n")
+				r.stdout = strings.TrimSpace(r.stdout)
+				Expect(len(r.stderr)).To(Equal(0))
+				Expect(r.stdout).To(Equal("rack1"))
+			}
+		})
+	})
 })

@@ -7,6 +7,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	v1 "k8s.io/api/core/v1"
+	apixv1Client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -21,62 +22,62 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var err error
-var restClient client.Client
-var restClientConfig *rest.Config
-var kubeClient *kubernetes.Clientset
+var (
+	restClient          client.Client
+	restClientConfig    *rest.Config
+	kubeClient          *kubernetes.Clientset
+	cassandraObjectMeta metav1.ObjectMeta
+	cassandraCluster    *v1alpha1.CassandraCluster
 
-var cassandraImage string
-var cassandraNamespace string
-var cassandraRelease string
-var imagePullSecret string
-var ingressDomain string
-var ingressSecret string
+	err                error
+	cassandraImage     string
+	cassandraNamespace string
+	cassandraRelease   string
+	imagePullSecret    string
+	ingressDomain      string
+	ingressSecret      string
+	tailLines          int64 = 30
+	statusCode         int
 
-var tailLines int64 = 30
-var statusCode int
+	operatorPodLabel          map[string]string
+	cassandraDeploymentLabel  map[string]string
+	proberPodLabels           map[string]string
+	cassandraClusterPodLabels map[string]string
+	reaperPodLabels           map[string]string
 
-var operatorPodLabel map[string]string
-var cassandraDeploymentLabel map[string]string
-var proberPodLabels map[string]string
-var cassandraClusterPodLabels map[string]string
-var reaperPodLabels map[string]string
+	cassandraResources = v1.ResourceRequirements{
+		Limits: v1.ResourceList{
+			v1.ResourceMemory: resource.MustParse("1.5Gi"),
+			v1.ResourceCPU:    resource.MustParse("1"),
+		},
+		Requests: v1.ResourceList{
+			v1.ResourceMemory: resource.MustParse("1.5Gi"),
+			v1.ResourceCPU:    resource.MustParse("1"),
+		},
+	}
 
-var cassandraResources = v1.ResourceRequirements{
-	Limits: v1.ResourceList{
-		v1.ResourceMemory: resource.MustParse("1.5Gi"),
-		v1.ResourceCPU:    resource.MustParse("1"),
-	},
-	Requests: v1.ResourceList{
-		v1.ResourceMemory: resource.MustParse("1.5Gi"),
-		v1.ResourceCPU:    resource.MustParse("1"),
-	},
-}
+	proberResources = v1.ResourceRequirements{
+		Limits: v1.ResourceList{
+			v1.ResourceMemory: resource.MustParse("256Mi"),
+			v1.ResourceCPU:    resource.MustParse("200m"),
+		},
+		Requests: v1.ResourceList{
+			v1.ResourceMemory: resource.MustParse("256Mi"),
+			v1.ResourceCPU:    resource.MustParse("200m"),
+		},
+	}
 
-var proberResources = v1.ResourceRequirements{
-	Limits: v1.ResourceList{
-		v1.ResourceMemory: resource.MustParse("256Mi"),
-		v1.ResourceCPU:    resource.MustParse("200m"),
-	},
-	Requests: v1.ResourceList{
-		v1.ResourceMemory: resource.MustParse("256Mi"),
-		v1.ResourceCPU:    resource.MustParse("200m"),
-	},
-}
-
-var cassandraDCs = []v1alpha1.DC{
-	{
-		Name:     "dc1",
-		Replicas: proto.Int32(3),
-	},
-	{
-		Name:     "dc2",
-		Replicas: proto.Int32(3),
-	},
-}
-
-var cassandraObjectMeta metav1.ObjectMeta
-var cassandraCluster *v1alpha1.CassandraCluster
+	cassandraDCs = []v1alpha1.DC{
+		{
+			Name:     "dc1",
+			Replicas: proto.Int32(3),
+		},
+		{
+			Name:     "dc2",
+			Replicas: proto.Int32(3),
+		},
+	}
+)
 
 const valuesFile = "../../cassandra-operator/values.yaml"
 
@@ -127,6 +128,15 @@ var _ = BeforeSuite(func(done Done) {
 
 	restClient, err = client.New(restClientConfig, client.Options{Scheme: scheme.Scheme})
 	Expect(err).ToNot(HaveOccurred())
+
+	By("Checking if CRD is deployed...")
+	apixClient, err := apixv1Client.NewForConfig(restClientConfig)
+	Expect(err).ToNot(HaveOccurred())
+	cassandraCRD := apixClient.CustomResourceDefinitions()
+	crd, err := cassandraCRD.Get(context.Background(), "cassandraclusters.db.ibm.com", metav1.GetOptions{TypeMeta: metav1.TypeMeta{}})
+	if err != nil || crd == nil {
+		Fail(fmt.Sprintf("Cassandra operator is not deployed in the cluster. Error: %s", err))
+	}
 
 	// Create client test. We use kubernetes package bc currently only it has GetLogs method.
 	kubeClient, err = kubernetes.NewForConfig(restClientConfig)
