@@ -1,3 +1,5 @@
+
+---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -628,6 +630,10 @@ spec:
                   - dc
                   type: object
                 type: array
+              nodesBroadcastAddresses:
+                additionalProperties:
+                  type: string
+                type: object
               readyAllDCs:
                 type: boolean
             required:

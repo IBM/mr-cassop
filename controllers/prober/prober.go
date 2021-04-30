@@ -1,17 +1,22 @@
 package prober
 
 import (
+	"bytes"
 	"context"
-	"github.com/pkg/errors"
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"strings"
+
+	"github.com/pkg/errors"
+	"golang.org/x/net/context/ctxhttp"
 )
 
 type ProberClient interface {
 	Ready(ctx context.Context) (bool, error)
-	Seeds(ctx context.Context) ([]string, error)
+	GetSeeds(ctx context.Context, host string) ([]string, error)
+	UpdateSeeds(ctx context.Context, seeds []string) error
 }
 
 type proberClient struct {
@@ -27,35 +32,19 @@ func (p proberClient) url(path string) string {
 	return p.baseUrl.String() + path
 }
 
-func (p proberClient) Ready(ctx context.Context) (bool, error) {
-	route := p.url("/ping")
-	proberReq, err := http.NewRequestWithContext(ctx, http.MethodGet, route, nil)
-	if err != nil {
-		return false, errors.Wrap(err, "Can't create request")
-	}
-
-	resp, err := p.client.Do(proberReq)
+func (p *proberClient) Ready(ctx context.Context) (bool, error) {
+	resp, err := ctxhttp.Get(ctx, p.client, p.url("/ping"))
 	if err != nil {
 		return false, errors.Wrap(err, "Request to prober failed")
 	}
 
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return false, nil
-	}
-
-	return true, nil
+	return resp.StatusCode == http.StatusOK, nil
 }
 
-func (p proberClient) Seeds(ctx context.Context) ([]string, error) {
-	route := p.url("/seeds")
-	proberReq, err := http.NewRequestWithContext(ctx, http.MethodGet, route, nil)
-	if err != nil {
-		return []string{}, errors.Wrap(err, "Can't create request")
-	}
-
-	resp, err := p.client.Do(proberReq)
+func (p *proberClient) GetSeeds(ctx context.Context, host string) ([]string, error) {
+	resp, err := ctxhttp.Get(ctx, p.client, fmt.Sprintf("https://%s/localseeds", host))
 	if err != nil {
 		return []string{}, errors.Wrap(err, "Request to prober failed")
 	}
@@ -63,7 +52,8 @@ func (p proberClient) Seeds(ctx context.Context) ([]string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return []string{}, errors.Wrap(nil, "Response status is not ok")
+		return []string{}, fmt.Errorf("response status %q (code %v) is not %q",
+			http.StatusText(resp.StatusCode), resp.StatusCode, http.StatusText(http.StatusOK))
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
@@ -71,11 +61,24 @@ func (p proberClient) Seeds(ctx context.Context) ([]string, error) {
 		return []string{}, errors.Wrap(err, "Unable to read response body")
 	}
 
-	respBody := string(body)
-
-	if len(respBody) == 0 {
-		return []string{}, errors.Wrap(nil, "Prober response body is empty")
+	var seeds []string
+	if err := json.Unmarshal(body, &seeds); err != nil {
+		return []string{}, errors.Wrap(err, "Error unmarshalling response body")
 	}
 
-	return strings.Split(respBody, ","), nil
+	return seeds, nil
+}
+
+func (p *proberClient) UpdateSeeds(ctx context.Context, seeds []string) error {
+	body, _ := json.Marshal(seeds)
+	req, err := http.NewRequest(http.MethodPut, p.url("/localseeds"), bytes.NewReader(body))
+	if err != nil {
+		return errors.Wrap(err, "Can't create request")
+	}
+
+	if _, err := ctxhttp.Do(ctx, p.client, req); err != nil {
+		return errors.Wrap(err, "PUT Request to prober failed")
+	}
+
+	return nil
 }

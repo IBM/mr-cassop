@@ -34,6 +34,21 @@ func (m *MockProberClient) EXPECT() *MockProberClientMockRecorder {
 	return m.recorder
 }
 
+// GetSeeds mocks base method.
+func (m *MockProberClient) GetSeeds(ctx context.Context, host string) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSeeds", ctx, host)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSeeds indicates an expected call of GetSeeds.
+func (mr *MockProberClientMockRecorder) GetSeeds(ctx, host interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSeeds", reflect.TypeOf((*MockProberClient)(nil).GetSeeds), ctx, host)
+}
+
 // Ready mocks base method.
 func (m *MockProberClient) Ready(ctx context.Context) (bool, error) {
 	m.ctrl.T.Helper()
@@ -49,17 +64,16 @@ func (mr *MockProberClientMockRecorder) Ready(ctx interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ready", reflect.TypeOf((*MockProberClient)(nil).Ready), ctx)
 }
 
-// Seeds mocks base method.
-func (m *MockProberClient) Seeds(ctx context.Context) ([]string, error) {
+// UpdateSeeds mocks base method.
+func (m *MockProberClient) UpdateSeeds(ctx context.Context, seeds []string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Seeds", ctx)
-	ret0, _ := ret[0].([]string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret := m.ctrl.Call(m, "UpdateSeeds", ctx, seeds)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
-// Seeds indicates an expected call of Seeds.
-func (mr *MockProberClientMockRecorder) Seeds(ctx interface{}) *gomock.Call {
+// UpdateSeeds indicates an expected call of UpdateSeeds.
+func (mr *MockProberClientMockRecorder) UpdateSeeds(ctx, seeds interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Seeds", reflect.TypeOf((*MockProberClient)(nil).Seeds), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSeeds", reflect.TypeOf((*MockProberClient)(nil).UpdateSeeds), ctx, seeds)
 }

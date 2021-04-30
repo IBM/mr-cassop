@@ -2,21 +2,22 @@ package e2e
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/gocql/gocql"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
-	"strings"
 
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/labels"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"encoding/json"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
-	"time"
 )
 
 // We call init function from assigned `Describe` function, in such way we can avoid using init() {} in this file
@@ -95,13 +96,9 @@ var _ = Describe("Cassandra cluster", func() {
 				RepairIntensity:                        "1.0",
 				RepairManagerSchedulingIntervalSeconds: 0,
 				Resources: v1.ResourceRequirements{
-					Limits: v1.ResourceList{
-						v1.ResourceMemory: resource.MustParse("512Mi"),
-						v1.ResourceCPU:    resource.MustParse("1"),
-					},
 					Requests: v1.ResourceList{
 						v1.ResourceMemory: resource.MustParse("512Mi"),
-						v1.ResourceCPU:    resource.MustParse("1"),
+						v1.ResourceCPU:    resource.MustParse("0.5"),
 					},
 				},
 			}
@@ -193,8 +190,7 @@ var _ = Describe("Cassandra cluster", func() {
 					return false
 				}
 
-				err = json.Unmarshal(respBody, &responseData)
-				return err == nil
+				return json.Unmarshal(respBody, &responseData) == nil
 
 			}, time.Minute*2, time.Second*5).Should(BeTrue(), "Reaper job should be created")
 
@@ -210,13 +206,12 @@ var _ = Describe("Cassandra cluster", func() {
 
 			By("Getting reaper job status...")
 			Eventually(func() bool {
-				respBody, _, err = doHTTPRequest("GET", "http://localhost:9999/repair_run/"+fmt.Sprintf("%s", responseData["id"]))
+				respBody, _, err = doHTTPRequest("GET", "http://localhost:9999/repair_run/"+fmt.Sprint(responseData["id"]))
 				if err != nil {
 					return false
 				}
 
-				err = json.Unmarshal(respBody, &responseData)
-				if err != nil {
+				if json.Unmarshal(respBody, &responseData) != nil {
 					return false
 				}
 

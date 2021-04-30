@@ -20,12 +20,11 @@ var _ = Describe("Cassandra cluster", func() {
 			testBroadcastAddress(false)
 		})
 	})
-	// Disable test while UseExternalHostIP: true isn't implemented in prober
-	//Context("When hostPort enabled and UseExternalHostIP set to true", func() {
-	//	It("Should be enabled and external node ip should match cassandra ip", func() {
-	//		testBroadcastAddress(true)
-	//	})
-	//})
+	Context("When hostPort enabled and UseExternalHostIP set to true", func() {
+		It("Should be enabled and external node ip should match broadcast ip", func() {
+			testBroadcastAddress(true)
+		})
+	})
 })
 
 func newCassandraCluster(useExternalHostIP bool) *v1alpha1.CassandraCluster {
@@ -96,7 +95,7 @@ func testBroadcastAddress(useExternalHostIP bool) {
 		//{
 		//	"sh",
 		//	"-c",
-		//	"source /etc/pods-config/${POD_NAME}_${POD_UID}.env && echo $CASSANDRA_BROADCAST_ADDRESS",
+		//	"source /etc/pods-config/${POD_NAME}_${POD_UID}.sh && echo $CASSANDRA_BROADCAST_ADDRESS",
 		//},
 	}
 

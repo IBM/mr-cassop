@@ -2,11 +2,12 @@ package controllers
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/names"
 	v1 "k8s.io/api/core/v1"
-	"strconv"
-	"strings"
 )
 
 func reaperEnvironment(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC) []v1.EnvVar {
@@ -23,7 +24,7 @@ func reaperEnvironment(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC) []v1.EnvVa
 		{Name: "REAPER_CASS_CLUSTER_NAME", Value: "cassandra"},
 		{Name: "REAPER_STORAGE_TYPE", Value: "cassandra"},
 		// TODO: "REAPER_CASS_NATIVE_PROTOCOL_SSL_ENCRYPTION_ENABLED": strconv.FormatBool(cassandraYaml["client_encryption_options"].(map[string]interface{})["enabled"].(bool)),
-		// `-Dssl.enable` is for JMX, where `cassandra.client.tls.jvm.args` is for both jmx and cql TLS client auth
+		//   `-Dssl.enable` is for JMX, where `cassandra.client.tls.jvm.args` is for both jmx and cql TLS client auth
 		{Name: "REAPER_CASS_KEYSPACE", Value: cc.Spec.Reaper.Keyspace},
 		{Name: "REAPER_CASS_PORT", Value: "9042"},
 		{Name: "JAVA_OPTS", Value: javaOpts(cc)},

@@ -2,6 +2,7 @@ package integration
 
 import (
 	"context"
+
 	"github.com/gocql/gocql"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
@@ -36,8 +37,12 @@ func (r proberMock) Ready(ctx context.Context) (bool, error) {
 	return r.ready, r.err
 }
 
-func (r proberMock) Seeds(ctx context.Context) ([]string, error) {
+func (r proberMock) GetSeeds(ctx context.Context, host string) ([]string, error) {
 	return r.seeds, r.err
+}
+
+func (r proberMock) UpdateSeeds(ctx context.Context, seeds []string) error {
+	return r.err
 }
 
 func (c *cqlMock) Query(stmt string, values ...interface{}) error {

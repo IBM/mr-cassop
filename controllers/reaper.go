@@ -3,6 +3,11 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"math"
+	"path/filepath"
+	"strings"
+	"time"
+
 	"github.com/gogo/protobuf/proto"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/compare"
@@ -17,11 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"math"
-	"path/filepath"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"strings"
-	"time"
 )
 
 const (
@@ -333,18 +334,8 @@ func reaperVolumes(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) []v1.Volum
 	}
 }
 
-func getReaperSeed(cc *dbv1alpha1.CassandraCluster) string {
-	seed := ""
-	//if len(cc.Spec.Config.Seeds) > 0 {
-	//	seed = cc.Spec.Config.Seeds[0]
-	//} else {
-	seed = getSeed(cc, cc.Spec.DCs[0].Name, 0)
-	//}
-	return seed
-}
-
 func (r CassandraClusterReconciler) reaperInitialization(ctx context.Context, cc *dbv1alpha1.CassandraCluster, reaperClient reaper.ReaperClient) error {
-	seed := getReaperSeed(cc)
+	seed := getSeedHostname(cc, cc.Spec.DCs[0].Name, 0, true)
 	clusterExists, err := reaperClient.ClusterExists(ctx, cc.Name)
 	if err != nil {
 		return err

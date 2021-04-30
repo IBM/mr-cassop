@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/google/go-querystring/query"
-	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"net/http"
 	"net/url"
+
+	"github.com/google/go-querystring/query"
+	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
+	"golang.org/x/net/context/ctxhttp"
 )
 
 type reaperClient struct {
@@ -43,12 +45,7 @@ func (r reaperClient) url(path string) string {
 }
 
 func (r reaperClient) IsRunning(ctx context.Context) (bool, error) {
-	route := r.url("/ping")
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, route, nil)
-	if err != nil {
-		return false, err
-	}
-	resp, err := r.client.Do(req)
+	resp, err := ctxhttp.Get(ctx, r.client, r.url("/ping"))
 	if err != nil {
 		return false, err
 	}
@@ -57,12 +54,7 @@ func (r reaperClient) IsRunning(ctx context.Context) (bool, error) {
 }
 
 func (r reaperClient) ClusterExists(ctx context.Context, clusterName string) (bool, error) {
-	route := r.url("/cluster/" + clusterName)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, route, nil)
-	if err != nil {
-		return false, err
-	}
-	resp, err := r.client.Do(req)
+	resp, err := ctxhttp.Get(ctx, r.client, r.url("/cluster/" + clusterName))
 	if err != nil {
 		return false, err
 	}

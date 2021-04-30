@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+
 	"github.com/gogo/protobuf/proto"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/compare"
@@ -18,7 +19,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"strings"
 )
 
 func (r *CassandraClusterReconciler) reconcileCassandra(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
@@ -193,8 +193,8 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Co
 					Command: []string{
 						"bash",
 						"-c",
-						"source /etc/pods-config/${POD_NAME}_${POD_UID}.env",
-						fmt.Sprintf("http --check-status --timeout 2 --body GET %s/healthz/$CASSANDRA_IP", names.ProberService(cc.Name)),
+						"source /etc/pods-config/${POD_NAME}_${POD_UID}.sh && " +
+							fmt.Sprintf("http --check-status --timeout 2 --body GET %s/healthz/$CASSANDRA_BROADCAST_ADDRESS", names.ProberService(cc.Name)),
 					},
 				},
 			},
@@ -324,39 +324,55 @@ func (r *CassandraClusterReconciler) reconcileDCService(ctx context.Context, cc 
 	return nil
 }
 
-func getSeedsList(cc *dbv1alpha1.CassandraCluster) []string {
+func getLocalSeedsHostnames(cc *dbv1alpha1.CassandraCluster) []string {
 	seedsList := make([]string, 0)
 	for _, dc := range cc.Spec.DCs {
-		seedsCount := *dc.Replicas
-		if seedsCount > cc.Spec.Cassandra.NumSeeds {
-			seedsCount = cc.Spec.Cassandra.NumSeeds
+		numSeeds := cc.Spec.Cassandra.NumSeeds
+		if numSeeds >= *dc.Replicas { // don't configure all dc's nodes as seeds
+			numSeeds = *dc.Replicas - 1 // minimum of 1 non-seed node
+			if *dc.Replicas <= 1 {      // unless dc.Replicas only has 1 or 0 nodes
+				numSeeds = *dc.Replicas
+			}
 		}
 
-		for i := int32(0); i < seedsCount; i++ {
-			seedsList = append(seedsList, getSeed(cc, dc.Name, i))
+		for i := int32(0); i < numSeeds; i++ {
+			seed := getSeedHostname(cc, dc.Name, i, !cc.Spec.HostPort.Enabled)
+			if cc.Spec.HostPort.Enabled {
+				seed = cc.Status.NodesBroadcastAddresses[seed]
+			}
+			seedsList = append(seedsList, seed)
 		}
 	}
 
 	return seedsList
 }
 
-func getSeed(cc *dbv1alpha1.CassandraCluster, dcName string, replicaNum int32) string {
-	return fmt.Sprintf(
-		"%s-%d.%s.%s.svc.cluster.local",
-		names.DC(cc.Name, dcName), replicaNum, names.DCService(cc.Name, dcName), cc.Namespace)
+func getSeedHostname(cc *dbv1alpha1.CassandraCluster, dcName string, podSuffix int32, isFQDN bool) string {
+	svc := names.DC(cc.Name, dcName)
+	if isFQDN {
+		return fmt.Sprintf("%s-%d.%s.%s.svc.cluster.local", svc, podSuffix, svc, cc.Namespace)
+	}
+	return fmt.Sprintf("%s-%d", svc, podSuffix)
 }
 
 func getCassandraRunCommand(cc *dbv1alpha1.CassandraCluster) string {
-	commands := make([]string, 0)
+	var arg string
 	if cc.Spec.Cassandra.PurgeGossip {
-		commands = append(commands, "[[ -d /var/lib/cassandra/data/system ]] && find /var/lib/cassandra/data/system -mindepth 1 -maxdepth 1 -name 'peers*' -type d -exec rm -rf {} \\;")
+		arg += `rm -rf /var/lib/cassandra/data/system/peers*`
 	}
-	commands = append(commands, "cp /etc/cassandra-configmaps/* $CASSANDRA_CONF")
-	commands = append(commands, "cp /etc/cassandra-configmaps/jvm.options $CASSANDRA_HOME")
-	commands = append(commands, "COUNT=1; ATTEMPTS=14; until stat /etc/pods-config/${POD_NAME}_${POD_UID}.env || [[ $COUNT -eq $ATTEMPTS ]]; do echo -e \"Waiting... Attempt $(( COUNT++ ))...\"; sleep 5; done; [[ $COUNT -eq $ATTEMPTS ]] && echo \"Could not access mount\" && exit 1")
-	commands = append(commands, "source /etc/pods-config/${POD_NAME}_${POD_UID}.env")
-	commands = append(commands, fmt.Sprintf("./docker-entrypoint.sh -f -R -Dcassandra.jmx.remote.port=%d -Dcom.sun.management.jmxremote.rmi.port=%d -Dcom.sun.management.jmxremote.authenticate=false -Djava.rmi.server.hostname=$CASSANDRA_IP", dbv1alpha1.JmxPort, dbv1alpha1.JmxPort))
-	return strings.Join(commands, "\n") + "\n"
+	arg += `
+cp /etc/cassandra-configmaps/* $CASSANDRA_CONF
+cp /etc/cassandra-configmaps/jvm.options $CASSANDRA_HOME
+COUNT=1; ATTEMPTS=14
+until stat /etc/pods-config/${POD_NAME}_${POD_UID}.sh; do
+  [[ $COUNT -eq $ATTEMPTS ]] && echo "Could not access mount" && exit 1
+  echo -e "Waiting... Attempt $(( COUNT++ ))..."
+  sleep 5
+done
+source /etc/pods-config/${POD_NAME}_${POD_UID}.sh
+`
+	arg += fmt.Sprintf("./docker-entrypoint.sh -f -R -Dcassandra.jmx.remote.port=%d -Dcom.sun.management.jmxremote.rmi.port=%d -Dcom.sun.management.jmxremote.authenticate=false -Djava.rmi.server.hostname=$CASSANDRA_BROADCAST_ADDRESS", dbv1alpha1.JmxPort, dbv1alpha1.JmxPort)
+	return arg
 }
 
 func imagePullSecrets(cc *dbv1alpha1.CassandraCluster) []v1.LocalObjectReference {

@@ -13,7 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-type Client struct {
+type client struct {
 	url string
 	*http.Client
 }
@@ -24,10 +24,10 @@ type Response struct {
 	Error          string
 }
 
-type JmxObject struct{ Mbean, Attribute string }
+type jmxRequest struct{ Type, Mbean, Attribute string }
 
-func NewClient(host, port string, timeout time.Duration) Client {
-	return Client{
+func NewClient(host, port string, timeout time.Duration) client {
+	return client{
 		url:    fmt.Sprintf("http://%s:%s/jolokia", host, port),
 		Client: &http.Client{Timeout: timeout},
 	}
@@ -37,13 +37,12 @@ func jmxUrl(ip, port string) string {
 	return fmt.Sprintf("service:jmx:rmi:///jndi/rmi:/%s:%s/jmxrmi", ip, port)
 }
 
-func (j *Client) Post(body []byte) ([]byte, error) {
+func (j *client) Post(body []byte) ([]byte, error) {
 	resp, err := j.Client.Post(j.url, runtime.ContentTypeJSON, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-
 	responseBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
@@ -56,16 +55,15 @@ func (j *Client) Post(body []byte) ([]byte, error) {
 	return responseBody, err
 }
 
-func RequestBody(jmxObject JmxObject, user, password, port string, ips ...string) []byte {
+func ProxyRequests(request jmxRequest, user, password, port string, ips ...string) []byte {
 	type Target struct{ Url, User, Password string }
 	type Request struct {
-		Type string
-		JmxObject
+		jmxRequest
 		Target Target
 	}
 	reqs := make([]Request, 0, len(ips))
 	for _, ip := range ips {
-		r := Request{"read", jmxObject, Target{jmxUrl(ip, port), user, password}}
+		r := Request{request, Target{jmxUrl(ip, port), user, password}}
 		reqs = append(reqs, r)
 	}
 

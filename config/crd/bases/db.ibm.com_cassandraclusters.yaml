@@ -630,6 +630,10 @@ spec:
                   - dc
                   type: object
                 type: array
+              nodesBroadcastAddresses:
+                additionalProperties:
+                  type: string
+                type: object
               readyAllDCs:
                 type: boolean
             required:

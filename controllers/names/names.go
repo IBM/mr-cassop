@@ -1,5 +1,7 @@
 package names
 
+import "fmt"
+
 const (
 	cassandraOperator = "cassandra-operator"
 )
@@ -28,8 +30,12 @@ func ProberIngress(clusterName string) string {
 	return clusterName + "-cassandra-prober"
 }
 
-func ProberIngressDomain(clusterName, ingressDomain string) string {
-	return clusterName + "-cassandra-prober" + "." + ingressDomain
+func ProberIngressSubdomain(clusterName, namespace string) string {
+	return fmt.Sprintf("%s-%s", namespace, ProberService(clusterName))
+}
+
+func ProberIngressDomain(clusterName, ingressDomain, namespace string) string {
+	return fmt.Sprintf("%s.%s", ProberIngressSubdomain(clusterName, namespace), ingressDomain)
 }
 
 func ReaperDeployment(clusterName, dcName string) string {

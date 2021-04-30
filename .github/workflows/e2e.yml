@@ -123,6 +123,7 @@ jobs:
             helm install cassandra-operator-ci cassandra-operator \
               --set "container.image=us.icr.io/icm-cassandra/cassandra-operator:$GITHUB_REF_SLUG" \
               --set "proberImage=us.icr.io/icm-cassandra/cassandra-prober:$GITHUB_REF_SLUG" \
+              --set "logFormat=console" \
               --set "container.imagePullSecret=$IMAGE_PULL_SECRET"
             kubectl rollout status deployment cassandra-operator
       - name: C* operator deployment has failed, showing debug...

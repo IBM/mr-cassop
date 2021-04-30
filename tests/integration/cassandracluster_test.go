@@ -3,6 +3,8 @@ package integration
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
@@ -12,7 +14,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"strings"
 )
 
 var _ = Describe("prober, statefulsets and reaper", func() {
@@ -57,18 +58,9 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 			Expect(proberDeployment.Spec.Template.Spec.Containers[0].Env).To(BeEquivalentTo([]v1.EnvVar{
 				{Name: "POD_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}},
 				{Name: "DEBUG", Value: "false"},
-				{Name: "HOSTPORT_ENABLED", Value: "false"},
-				{Name: "CASSANDRA_LOCAL_SEEDS_HOSTNAMES", Value: "test-cassandra-cluster-cassandra-dc1-0.test-cassandra-cluster-cassandra-dc1.default.svc.cluster.local,test-cassandra-cluster-cassandra-dc1-1.test-cassandra-cluster-cassandra-dc1.default.svc.cluster.local,test-cassandra-cluster-cassandra-dc2-0.test-cassandra-cluster-cassandra-dc2.default.svc.cluster.local,test-cassandra-cluster-cassandra-dc2-1.test-cassandra-cluster-cassandra-dc2.default.svc.cluster.local"},
-				{Name: "CASSANDRA_NUM_SEEDS", Value: "2"},
-				{Name: "EXTERNAL_DCS_INGRESS_DOMAINS", Value: "null"},
-				{Name: "ALL_DCS_INGRESS_DOMAINS", Value: "null"},
-				{Name: "LOCAL_DC_INGRESS_DOMAIN", Value: ""},
 				{Name: "JOLOKIA_PORT", Value: "8080"},
-				{Name: "JOLOKIA_RESPONSE_TIMEOUT", Value: "10000"},
-				{Name: "PROBER_SUBDOMAIN", Value: "default-test-cassandra-cluster-cassandra-prober"},
 				{Name: "SERVER_PORT", Value: "8888"},
 				{Name: "JMX_POLL_PERIOD_SECONDS", Value: "10"},
-				{Name: "JMX_PROXY_URL", Value: "http://localhost:8080/jolokia"},
 				{Name: "JMX_PORT", Value: "7199"},
 				{Name: "ROLES_DIR", Value: "/etc/cassandra-roles"},
 			}))
@@ -91,12 +83,17 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 				Expect(sts.Spec.Template.Spec.Containers[0].Args).To(BeEquivalentTo([]string{
 					"bash",
 					"-c",
-					`cp /etc/cassandra-configmaps/* $CASSANDRA_CONF
+					`
+cp /etc/cassandra-configmaps/* $CASSANDRA_CONF
 cp /etc/cassandra-configmaps/jvm.options $CASSANDRA_HOME
-COUNT=1; ATTEMPTS=14; until stat /etc/pods-config/${POD_NAME}_${POD_UID}.env || [[ $COUNT -eq $ATTEMPTS ]]; do echo -e "Waiting... Attempt $(( COUNT++ ))..."; sleep 5; done; [[ $COUNT -eq $ATTEMPTS ]] && echo "Could not access mount" && exit 1
-source /etc/pods-config/${POD_NAME}_${POD_UID}.env
-./docker-entrypoint.sh -f -R -Dcassandra.jmx.remote.port=7199 -Dcom.sun.management.jmxremote.rmi.port=7199 -Dcom.sun.management.jmxremote.authenticate=false -Djava.rmi.server.hostname=$CASSANDRA_IP
-`,
+COUNT=1; ATTEMPTS=14
+until stat /etc/pods-config/${POD_NAME}_${POD_UID}.sh; do
+  [[ $COUNT -eq $ATTEMPTS ]] && echo "Could not access mount" && exit 1
+  echo -e "Waiting... Attempt $(( COUNT++ ))..."
+  sleep 5
+done
+source /etc/pods-config/${POD_NAME}_${POD_UID}.sh
+./docker-entrypoint.sh -f -R -Dcassandra.jmx.remote.port=7199 -Dcom.sun.management.jmxremote.rmi.port=7199 -Dcom.sun.management.jmxremote.authenticate=false -Djava.rmi.server.hostname=$CASSANDRA_BROADCAST_ADDRESS`,
 				}))
 			}
 

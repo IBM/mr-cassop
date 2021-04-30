@@ -19,7 +19,7 @@ type nodeState struct {
 	jolokia.EndpointStates
 }
 
-type UserAuth struct {
+type userAuth struct {
 	user, password string
 }
 
@@ -32,10 +32,10 @@ var (
 	jolokiaClient           = jolokia.NewClient("localhost", jolokiaPort, pollingIntervalDuration/2)
 	nodeStates              = map[string]nodeState{}
 	dcIsPolled              = map[string]bool{}
-	fallbackAuth            = UserAuth{"cassandra", "cassandra"}
+	fallbackAuth            = userAuth{"cassandra", "cassandra"}
 	isFallbackAuth          = true
 	// TODO: set userAuth using file watcher
-	auth UserAuth
+	auth userAuth
 )
 
 func processReadinessProbe(podIp string, broadcastIp string) (bool, []string) {
@@ -75,7 +75,7 @@ func updateNodeStates() {
 	}
 }
 
-func getUserAuth() UserAuth {
+func getUserAuth() userAuth {
 	if isFallbackAuth {
 		return fallbackAuth
 	}
@@ -90,7 +90,7 @@ func updateNodesRequest() error {
 
 	// Construct Cassandra request for each polled ip
 	auth := getUserAuth()
-	body := jolokia.RequestBody(jolokia.CassandraStates, auth.user, auth.password, jmxPort, polledIps...)
+	body := jolokia.ProxyRequests(jolokia.CassandraStates, auth.user, auth.password, jmxPort, polledIps...)
 
 	jmxResponses, err := jolokiaClient.Post(body)
 	if err != nil {

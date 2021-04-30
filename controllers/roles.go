@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/gogo/protobuf/proto"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/compare"

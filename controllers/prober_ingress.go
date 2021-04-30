@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/compare"
 	"github.com/ibm/cassandra-operator/controllers/labels"
@@ -30,13 +31,13 @@ func (r *CassandraClusterReconciler) reconcileProberIngress(ctx context.Context,
 			DefaultBackend:   nil,
 			TLS: []nwv1.IngressTLS{
 				{
-					Hosts:      []string{names.ProberIngressDomain(cc.Name, cc.Spec.Prober.Ingress.Domain)},
+					Hosts:      []string{names.ProberIngressDomain(cc.Name, cc.Spec.Prober.Ingress.Domain, cc.Namespace)},
 					SecretName: cc.Spec.Prober.Ingress.Secret,
 				},
 			},
 			Rules: []nwv1.IngressRule{
 				{
-					Host: names.ProberIngressDomain(cc.Name, cc.Spec.Prober.Ingress.Domain),
+					Host: names.ProberIngressDomain(cc.Name, cc.Spec.Prober.Ingress.Domain, cc.Namespace),
 					IngressRuleValue: nwv1.IngressRuleValue{
 						HTTP: &nwv1.HTTPIngressRuleValue{
 							Paths: []nwv1.HTTPIngressPath{

@@ -2,16 +2,10 @@ package controllers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/gogo/protobuf/proto"
-	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
-	"github.com/ibm/cassandra-operator/controllers/compare"
-	"github.com/ibm/cassandra-operator/controllers/labels"
-	"github.com/ibm/cassandra-operator/controllers/names"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -20,13 +14,14 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
+	"github.com/ibm/cassandra-operator/controllers/compare"
+	"github.com/ibm/cassandra-operator/controllers/labels"
+	"github.com/ibm/cassandra-operator/controllers/names"
 )
 
 func (r *CassandraClusterReconciler) reconcileProber(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
-	// if err := r.reconcileProberSourcesConfigMap(ctx, cc); err != nil {
-	// 	return errors.Wrap(err, "Error reconciling prober sources configmap")
-	// }
-
 	if err := r.reconcileProberServiceAccount(ctx, cc); err != nil {
 		return errors.Wrap(err, "Error reconciling prober serviceaccount")
 	}
@@ -198,18 +193,9 @@ func proberContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 		Env: []v1.EnvVar{
 			{Name: "POD_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}},
 			{Name: "DEBUG", Value: fmt.Sprintf("%t", cc.Spec.Prober.Debug)},
-			{Name: "HOSTPORT_ENABLED", Value: fmt.Sprintf("%t", cc.Spec.HostPort.Enabled)},
-			{Name: "CASSANDRA_LOCAL_SEEDS_HOSTNAMES", Value: strings.Join(getSeedsList(cc), ",")},
-			{Name: "CASSANDRA_NUM_SEEDS", Value: fmt.Sprintf("%d", cc.Spec.Cassandra.NumSeeds)},
-			{Name: "EXTERNAL_DCS_INGRESS_DOMAINS", Value: filterDCsIngressDomains(cc.Spec.Prober.DCsIngressDomains, cc.Spec.Prober.Ingress.Domain)},
-			{Name: "ALL_DCS_INGRESS_DOMAINS", Value: validateDCsIngressDomains(cc.Spec.Prober.DCsIngressDomains)},
-			{Name: "LOCAL_DC_INGRESS_DOMAIN", Value: cc.Spec.Prober.Ingress.Domain},
 			{Name: "JOLOKIA_PORT", Value: strconv.Itoa(dbv1alpha1.JolokiaContainerPort)},
-			{Name: "JOLOKIA_RESPONSE_TIMEOUT", Value: "10000"},
-			{Name: "PROBER_SUBDOMAIN", Value: cc.Namespace + "-" + names.ProberDeployment(cc.Name)},
 			{Name: "SERVER_PORT", Value: strconv.Itoa(dbv1alpha1.ProberContainerPort)},
 			{Name: "JMX_POLL_PERIOD_SECONDS", Value: "10"},
-			{Name: "JMX_PROXY_URL", Value: fmt.Sprintf("http://localhost:%d/jolokia", dbv1alpha1.JolokiaContainerPort)},
 			{Name: "JMX_PORT", Value: fmt.Sprintf("%d", dbv1alpha1.JmxPort)},
 			{Name: "ROLES_DIR", Value: cassandraRolesDir},
 		},
@@ -270,30 +256,5 @@ func jolokiaContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 		},
 		TerminationMessagePath:   "/dev/termination-log",
 		TerminationMessagePolicy: v1.TerminationMessageReadFile,
-	}
-}
-
-func filterDCsIngressDomains(dcsIngressDomains []string, ingressDomain string) string {
-	var filteredDomains []string
-	for _, domain := range dcsIngressDomains {
-		if domain != ingressDomain {
-			filteredDomains = append(filteredDomains, domain)
-		}
-	}
-	encodedDomains, _ := json.Marshal(filteredDomains)
-	if encodedDomains != nil {
-		return string(encodedDomains)
-	} else {
-		return ""
-	}
-
-}
-
-func validateDCsIngressDomains(dcsIngressDomains []string) string {
-	b, _ := json.Marshal(dcsIngressDomains)
-	if b != nil {
-		return string(b)
-	} else {
-		return ""
 	}
 }

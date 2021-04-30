@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 
@@ -13,14 +14,9 @@ import (
 )
 
 var (
-	log = ctrl.Log.WithName("prober-server")
-	serverPort                   = os.Getenv("SERVER_PORT")
-	//localDcIngressDomain         = os.Getenv("LOCAL_DC_INGRESS_DOMAIN")
-	//proberSubdomain              = os.Getenv("PROBER_SUBDOMAIN")
-	//cassandraLocalSeedsHostnames = splitHostnames(strings.Split(os.Getenv("CASSANDRA_LOCAL_SEEDS_HOSTNAMES"), ","))
-	//externalDcsIngressDomains    = os.Getenv("EXTERNAL_DCS_INGRESS_DOMAINS")
-	//allDcsIngressDomains         = os.Getenv("ALL_DCS_INGRESS_DOMAINS")
-	//localDcs                     = os.Getenv("LOCAL_DCS")
+	log        = ctrl.Log.WithName("prober-server")
+	serverPort = os.Getenv("SERVER_PORT")
+	seeds      []string
 )
 
 func setupRoutes(router *httprouter.Router) {
@@ -28,26 +24,17 @@ func setupRoutes(router *httprouter.Router) {
 	router.GET("/ping", ping)
 	//router.GET("/readydc/:dc?", readyDc)
 	//router.GET("/readyalldcs", readyAllDcs)
-	//router.GET("/startdcinit/:dc", readyAllDcs)
-	//router.GET("/localseeds", localSeeds)
-	//router.GET("/seeds", seeds)
+	router.GET("/localseeds", getSeeds)
+	router.PUT("/localseeds", putSeeds)
 }
-
-//func splitHostnames(hostnames []string) []string {
-//	firstNames := make([]string, 0)
-//	for _, name := range hostnames {
-//		firstNames = append(firstNames, strings.Split(name, ".")[0])
-//	}
-//	return firstNames
-//}
 
 func healthCheck(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	broadcastIp := ps.ByName("broadcastip")
-	log.V(1).Info("health check called", "host", r.RemoteAddr, "broadcastIP", broadcastIp)
 	isReady, states := processReadinessProbe(r.RemoteAddr, broadcastIp)
 	if isReady {
 		w.WriteHeader(http.StatusOK)
 	} else {
+		log.V(1).Info("health check failed", "host", r.RemoteAddr, "broadcastIP", broadcastIp, "isReady", isReady)
 		w.WriteHeader(http.StatusNotFound)
 	}
 	response, _ := json.Marshal(states)
@@ -65,14 +52,23 @@ func ping(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 //func readyAllDcs(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 //
 //}
-//
-//func localSeeds(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-//
-//}
-//
-//func seeds(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-//
-//}
+
+func getSeeds(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
+	response, _ := json.Marshal(seeds)
+	w.Write(response)
+}
+
+func putSeeds(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	var s []string
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	} else if json.Unmarshal(body, &s) != nil {
+		w.WriteHeader(http.StatusBadRequest)
+	} else {
+		seeds = s
+	}
+}
 
 func main() {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)).V(1))

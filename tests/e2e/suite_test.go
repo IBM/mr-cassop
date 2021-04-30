@@ -4,6 +4,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"testing"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	v1 "k8s.io/api/core/v1"
@@ -16,7 +18,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
-	"testing"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -57,10 +58,6 @@ var (
 	}
 
 	proberResources = v1.ResourceRequirements{
-		Limits: v1.ResourceList{
-			v1.ResourceMemory: resource.MustParse("256Mi"),
-			v1.ResourceCPU:    resource.MustParse("200m"),
-		},
 		Requests: v1.ResourceList{
 			v1.ResourceMemory: resource.MustParse("256Mi"),
 			v1.ResourceCPU:    resource.MustParse("200m"),
@@ -153,11 +150,12 @@ var _ = BeforeSuite(func(done Done) {
 				NumSeeds:        2,
 			},
 			Prober: v1alpha1.Prober{
-				ImagePullPolicy: "IfNotPresent",
+				ImagePullPolicy: v1.PullAlways,
 				Resources:       proberResources,
 				Debug:           false,
 				Jolokia: v1alpha1.Jolokia{
 					ImagePullPolicy: "IfNotPresent",
+					Resources: proberResources,
 				},
 			},
 			JVM: v1alpha1.JVM{
@@ -169,7 +167,7 @@ var _ = BeforeSuite(func(done Done) {
 	close(done)
 }, 60) // Set a timeout for function execution
 
-var _ = AfterEach(func() {
+var _ = JustAfterEach(func() {
 	if CurrentGinkgoTestDescription().Failed {
 		fmt.Printf("Test failed! Collecting diags just after failed test in %s\n", CurrentGinkgoTestDescription().TestText)
 
@@ -187,7 +185,9 @@ var _ = AfterEach(func() {
 		showPodLogs(operatorPodLabel)
 		showPodLogs(cassandraDeploymentLabel)
 	}
+})
 
+var _ = AfterEach(func() {
 	By("Removing cassandra cluster...")
 	Expect(restClient.DeleteAllOf(context.Background(), &v1alpha1.CassandraCluster{}, client.InNamespace(cassandraNamespace))).To(Succeed())
 

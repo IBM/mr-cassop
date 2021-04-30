@@ -26,6 +26,8 @@ WORKDIR /
 
 RUN addgroup --gid 901 cassandra-operator && adduser --uid 901 --gid 901 cassandra-operator
 
+# Copy CA certificates to prevent x509: certificate signed by unknown authority errors
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=builder /workspace/bin/cassandra-operator .
 USER cassandra-operator
 

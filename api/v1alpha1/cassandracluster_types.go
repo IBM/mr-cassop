@@ -249,8 +249,9 @@ type SystemKeyspaceDC struct {
 
 // CassandraClusterStatus defines the observed state of CassandraCluster
 type CassandraClusterStatus struct {
-	MaintenanceState []Maintenance `json:"maintenanceState,omitempty"`
-	ReadyAllDCs      bool          `json:"readyAllDCs"`
+	MaintenanceState        []Maintenance     `json:"maintenanceState,omitempty"`
+	ReadyAllDCs             bool              `json:"readyAllDCs"`
+	NodesBroadcastAddresses map[string]string `json:"nodesBroadcastAddresses,omitempty"`
 }
 
 // +kubebuilder:object:root=true
