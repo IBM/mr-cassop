@@ -51,6 +51,10 @@ const (
 	defaultCQLConfigMapLabelKey = "cql-scripts"
 )
 
+var (
+	singleStackIPFamilyPolicy = v1.IPFamilyPolicySingleStack
+)
+
 // CassandraClusterReconciler reconciles a CassandraCluster object
 type CassandraClusterReconciler struct {
 	client.Client

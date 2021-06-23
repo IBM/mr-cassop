@@ -39,6 +39,7 @@ func (r *CassandraClusterReconciler) reconcileConfigMap(ctx context.Context, des
 			actualCM.Labels = desiredCM.Labels
 			actualCM.Data = desiredCM.Data
 			actualCM.Annotations = desiredCM.Annotations
+			actualCM.OwnerReferences = desiredCM.OwnerReferences
 			if err = r.Update(ctx, actualCM); err != nil {
 				return errors.Wrapf(err, "Could not update %s", desiredCM.Name)
 			}

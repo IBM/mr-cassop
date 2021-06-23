@@ -284,6 +284,8 @@ func (r *CassandraClusterReconciler) reconcileDCService(ctx context.Context, cc 
 			},
 			ClusterIP:                v1.ClusterIPNone,
 			Type:                     v1.ServiceTypeClusterIP,
+			IPFamilies:               []v1.IPFamily{v1.IPv4Protocol},
+			IPFamilyPolicy:           &singleStackIPFamilyPolicy,
 			SessionAffinity:          v1.ServiceAffinityNone,
 			PublishNotReadyAddresses: true,
 			Selector:                 svcLabels,
@@ -307,6 +309,7 @@ func (r *CassandraClusterReconciler) reconcileDCService(ctx context.Context, cc 
 	} else {
 		// ClusterIP is immutable once created, so always enforce the same as existing
 		desiredService.Spec.ClusterIP = actualService.Spec.ClusterIP
+		desiredService.Spec.ClusterIPs = []string{actualService.Spec.ClusterIP}
 		if !compare.EqualService(desiredService, actualService) {
 			r.Log.Infof("Updating service for DC %q", dc.Name)
 			r.Log.Debugf(compare.DiffService(actualService, desiredService))

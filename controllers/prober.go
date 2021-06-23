@@ -136,8 +136,10 @@ func (r *CassandraClusterReconciler) reconcileProberService(ctx context.Context,
 			Namespace: cc.Namespace,
 		},
 		Spec: v1.ServiceSpec{
-			Type:     v1.ServiceTypeClusterIP,
-			Selector: labels.CombinedComponentLabels(cc, dbv1alpha1.CassandraClusterComponentProber),
+			Type:           v1.ServiceTypeClusterIP,
+			Selector:       labels.CombinedComponentLabels(cc, dbv1alpha1.CassandraClusterComponentProber),
+			IPFamilies:     []v1.IPFamily{v1.IPv4Protocol},
+			IPFamilyPolicy: &singleStackIPFamilyPolicy,
 			Ports: []v1.ServicePort{
 				{
 					Port:       80,
@@ -167,6 +169,7 @@ func (r *CassandraClusterReconciler) reconcileProberService(ctx context.Context,
 	} else {
 		// ClusterIP is immutable once created, so always enforce the same as existing
 		desiredService.Spec.ClusterIP = actualService.Spec.ClusterIP
+		desiredService.Spec.ClusterIPs = []string{actualService.Spec.ClusterIP}
 		if !compare.EqualService(desiredService, actualService) {
 			r.Log.Info("Updating prober service")
 			r.Log.Debugf(compare.DiffService(actualService, desiredService))
