@@ -26,8 +26,7 @@ var _ = Describe("maintenance mode request", func() {
 					ImagePullSecretName: "pull-secret-name",
 				},
 			}
-			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			Expect(initializeReadyCluster(cc)).To(Succeed())
+			createReadyCluster(cc)
 			actualCC := getCassandraCluster(cc)
 			Expect(actualCC.Spec.Maintenance).To(BeNil())
 			Expect(actualCC.Status.MaintenanceState).To(BeNil())
@@ -48,8 +47,7 @@ var _ = Describe("maintenance mode request", func() {
 					ImagePullSecretName: "pull-secret-name",
 				},
 			}
-			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			Expect(initializeReadyCluster(cc)).To(Succeed())
+			createReadyCluster(cc)
 
 			When("pod is added to spec", func() {
 				actualCC := getCassandraCluster(cc)
@@ -90,8 +88,7 @@ var _ = Describe("maintenance mode request", func() {
 					ImagePullSecretName: "pull-secret-name",
 				},
 			}
-			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			Expect(initializeReadyCluster(cc)).To(Succeed())
+			createReadyCluster(cc)
 
 			When("pod is added to spec", func() {
 				actualCC := getCassandraCluster(cc)
@@ -137,8 +134,7 @@ var _ = Describe("maintenance mode request", func() {
 					ImagePullSecretName: "pull-secret-name",
 				},
 			}
-			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			Expect(initializeReadyCluster(cc)).To(Succeed())
+			createReadyCluster(cc)
 
 			When("pods are added to spec", func() {
 				actualCC := getCassandraCluster(cc)
@@ -198,8 +194,7 @@ var _ = Describe("maintenance mode request", func() {
 					ImagePullSecretName: "pull-secret-name",
 				},
 			}
-			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			Expect(initializeReadyCluster(cc)).To(Succeed())
+			createReadyCluster(cc)
 
 			When("dc is added to spec", func() {
 				actualCC := getCassandraCluster(cc)
@@ -241,8 +236,7 @@ var _ = Describe("maintenance mode request", func() {
 					ImagePullSecretName: "pull-secret-name",
 				},
 			}
-			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			Expect(initializeReadyCluster(cc)).To(Succeed())
+			createReadyCluster(cc)
 
 			When("pod is added to spec", func() {
 				actualCC := getCassandraCluster(cc)

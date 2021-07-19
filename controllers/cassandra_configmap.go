@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/labels"
@@ -52,11 +53,8 @@ func (r *CassandraClusterReconciler) reconcileCassandraConfigMap(ctx context.Con
 	if err := controllerutil.SetControllerReference(cc, desiredCM, r.Scheme); err != nil {
 		return errors.Wrap(err, "Cannot set controller reference")
 	}
-	if err = r.reconcileConfigMap(ctx, desiredCM); err != nil {
-		return err
-	}
 
-	return nil
+	return r.reconcileConfigMap(ctx, desiredCM)
 }
 
 func cassandraDCConfigVolume(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC) v1.Volume {

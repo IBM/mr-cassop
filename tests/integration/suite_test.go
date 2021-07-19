@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"github.com/go-logr/zapr"
 	"github.com/gocql/gocql"
-	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
+	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers"
 	"github.com/ibm/cassandra-operator/controllers/config"
 	"github.com/ibm/cassandra-operator/controllers/cql"
@@ -48,10 +48,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -85,8 +85,8 @@ var (
 	}
 
 	reaperDeploymentLabels = map[string]string{
-		dbv1alpha1.CassandraClusterComponent: dbv1alpha1.CassandraClusterComponentReaper,
-		dbv1alpha1.CassandraClusterInstance:  cassandraObjectMeta.Name,
+		v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentReaper,
+		v1alpha1.CassandraClusterInstance:  cassandraObjectMeta.Name,
 	}
 )
 
@@ -100,18 +100,16 @@ const (
 )
 
 func init() {
-	flag.BoolVar(&enableOperatorLogs, "enableOperatorLogs", false, "set tot true to print operator logs during tests")
+	flag.BoolVar(&enableOperatorLogs, "enableOperatorLogs", false, "set to true to print operator logs during tests")
 }
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 
-	RunSpecsWithDefaultAndCustomReporters(t,
-		"Controller Suite",
-		[]Reporter{printer.NewlineReporter{}})
+	RunSpecs(t, "Controller Suite")
 }
 
-var _ = BeforeSuite(func(done Done) {
+var _ = BeforeSuite(func() {
 	var err error
 
 	if enableOperatorLogs {
@@ -130,7 +128,7 @@ var _ = BeforeSuite(func(done Done) {
 	Expect(err).ToNot(HaveOccurred())
 	Expect(cfg).ToNot(BeNil())
 
-	err = dbv1alpha1.AddToScheme(scheme.Scheme)
+	err = v1alpha1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 	operatorConfig = config.Config{
 		Namespace:             "default",
@@ -175,17 +173,18 @@ var _ = BeforeSuite(func(done Done) {
 	Expect(err).ToNot(HaveOccurred())
 
 	mgrStopCh = StartTestManager(mgr)
-
-	close(done)
-}, 60)
+})
 
 var _ = AfterSuite(func() {
 	By("tearing down the test environment")
 	shutdown = true
-	close(mgrStopCh)      //tell the manager to shutdown
-	waitGroup.Wait()      //wait for all reconcile loops to be finished
+	close(mgrStopCh) //tell the manager to shutdown
+	waitGroup.Wait() //wait for all reconcile loops to be finished
+	//only log the error until https://github.com/kubernetes-sigs/controller-runtime/issues/1571 is resolved
 	err := testEnv.Stop() //stop the test control plane (etcd, kube-apiserver)
-	Expect(err).ToNot(HaveOccurred())
+	if err != nil {
+		logr.Warn(fmt.Sprintf("Failed to stop testenv properly: %#v", err))
+	}
 })
 
 var _ = AfterEach(func() {
@@ -258,7 +257,7 @@ func createOperatorConfigMaps() {
 // As the test control plane doesn't support garbage collection, this function is used to clean up resources
 // Designed to not fail if the resource is not found
 func CleanUpCreatedResources(ccName, ccNamespace string) {
-	cc := &dbv1alpha1.CassandraCluster{}
+	cc := &v1alpha1.CassandraCluster{}
 
 	err := k8sClient.Get(ctx, types.NamespacedName{Name: ccName, Namespace: ccNamespace}, cc)
 	if err != nil && errors.IsNotFound(err) {
@@ -267,8 +266,8 @@ func CleanUpCreatedResources(ccName, ccNamespace string) {
 	Expect(err).ToNot(HaveOccurred())
 
 	// delete cassandracluster separately as there's no guarantee that it'll come first in the for loop
-	Expect(deleteResource(types.NamespacedName{Namespace: ccNamespace, Name: ccName}, &dbv1alpha1.CassandraCluster{})).To(Succeed())
-	expectResourceIsDeleted(types.NamespacedName{Name: ccName, Namespace: ccNamespace}, &dbv1alpha1.CassandraCluster{})
+	Expect(deleteResource(types.NamespacedName{Namespace: ccNamespace, Name: ccName}, &v1alpha1.CassandraCluster{})).To(Succeed())
+	expectResourceIsDeleted(types.NamespacedName{Name: ccName, Namespace: ccNamespace}, &v1alpha1.CassandraCluster{})
 
 	cc.Name = ccName
 	cc.Namespace = ccNamespace
@@ -299,6 +298,13 @@ func CleanUpCreatedResources(ccName, ccNamespace string) {
 		resourcesToDelete = append(resourcesToDelete, resourceToDelete{name: names.DCService(cc.Name, dc.Name), objType: &v1.Service{}})
 		resourcesToDelete = append(resourcesToDelete, resourceToDelete{name: names.ReaperDeployment(cc.Name, dc.Name), objType: &apps.Deployment{}})
 		resourcesToDelete = append(resourcesToDelete, resourceToDelete{name: names.ConfigMap(cc.Name), objType: &v1.ConfigMap{}})
+	}
+
+	// add Cassandra Pods
+	for _, dc := range cc.Spec.DCs {
+		for i := 0; i < int(*dc.Replicas); i++ {
+			resourcesToDelete = append(resourcesToDelete, resourceToDelete{name: names.DC(cc.Name, dc.Name) + "-" + strconv.Itoa(i), objType: &v1.Pod{}})
+		}
 	}
 
 	for _, resource := range resourcesToDelete {
@@ -390,4 +396,58 @@ func validateNumberOfDeployments(namespace string, labels map[string]string, num
 		Expect(err).NotTo(HaveOccurred())
 		return len(reaperDeployments.Items) == number
 	}, longTimeout, mediumRetry).Should(BeTrue())
+}
+
+func createCassandraPods(cc *v1alpha1.CassandraCluster) {
+	for dcID, dc := range cc.Spec.DCs {
+		sts := &apps.StatefulSet{}
+		err := k8sClient.Get(ctx, types.NamespacedName{Name: names.DC(cc.Name, dc.Name), Namespace: cc.Namespace}, sts)
+		Expect(err).ShouldNot(HaveOccurred())
+		for replicaID := 0; replicaID < int(*sts.Spec.Replicas); replicaID++ {
+			pod := &v1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      sts.Name + "-" + strconv.Itoa(replicaID),
+					Namespace: sts.Namespace,
+					Labels:    sts.Labels,
+				},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Name:  "cassandra",
+							Image: "cassandra:latest",
+						},
+					},
+				},
+			}
+			err := k8sClient.Create(ctx, pod)
+			Expect(err).ShouldNot(HaveOccurred())
+			logr.Debug(fmt.Sprintf("created pod %s", pod.Name))
+
+			pod.Status.PodIP = fmt.Sprintf("10.0.%d.%d", dcID, replicaID)
+			err = k8sClient.Status().Update(ctx, pod)
+			Expect(err).ShouldNot(HaveOccurred())
+		}
+	}
+}
+
+func markAllDCsReady(cc *v1alpha1.CassandraCluster) {
+	dcs := &apps.StatefulSetList{}
+	err := k8sClient.List(ctx, dcs, client.InNamespace(cc.Namespace), client.MatchingLabels{v1alpha1.CassandraClusterInstance: cc.Name})
+	Expect(err).ShouldNot(HaveOccurred())
+	for _, dc := range dcs.Items {
+		dc := dc
+		dc.Status.Replicas = *dc.Spec.Replicas
+		dc.Status.ReadyReplicas = *dc.Spec.Replicas
+		Expect(k8sClient.Status().Update(ctx, &dc)).To(Succeed())
+	}
+}
+
+func waitForDCsToBeCreated(cc *v1alpha1.CassandraCluster) {
+	Eventually(func() bool {
+		dcs := &apps.StatefulSetList{}
+		err := k8sClient.List(ctx, dcs, client.InNamespace(cc.Namespace), client.MatchingLabels{v1alpha1.CassandraClusterInstance: cc.Name})
+		Expect(err).ShouldNot(HaveOccurred())
+
+		return len(dcs.Items) == len(cc.Spec.DCs)
+	}, shortTimeout, shortRetry).Should(BeTrue())
 }

@@ -163,8 +163,6 @@ func (r *CassandraClusterReconciler) reconcileReaperService(ctx context.Context,
 			Type:                     v1.ServiceTypeClusterIP,
 			SessionAffinity:          v1.ServiceAffinityNone,
 			PublishNotReadyAddresses: true,
-			IPFamilies:               []v1.IPFamily{v1.IPv4Protocol},
-			IPFamilyPolicy:           &singleStackIPFamilyPolicy,
 			Selector:                 labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterComponentReaper),
 		},
 	}
@@ -186,7 +184,9 @@ func (r *CassandraClusterReconciler) reconcileReaperService(ctx context.Context,
 	} else {
 		// ClusterIP is immutable once created, so always enforce the same as existing
 		desiredService.Spec.ClusterIP = actualService.Spec.ClusterIP
-		desiredService.Spec.ClusterIPs = []string{actualService.Spec.ClusterIP}
+		desiredService.Spec.ClusterIPs = actualService.Spec.ClusterIPs
+		desiredService.Spec.IPFamilies = actualService.Spec.IPFamilies
+		desiredService.Spec.IPFamilyPolicy = actualService.Spec.IPFamilyPolicy
 		if !compare.EqualService(desiredService, actualService) {
 			r.Log.Infof("Updating reaper service")
 			r.Log.Debugf(compare.DiffService(actualService, desiredService))

@@ -27,9 +27,7 @@ var _ = Describe("prober deployment", func() {
 
 	Context("when cassandracluster created with only required values", func() {
 		It("should be created with defaulted values", func() {
-			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			Expect(initializeReadyCluster(cc)).To(Succeed())
-
+			createReadyCluster(cc)
 			deployment := &appsv1.Deployment{}
 			proberLabels := map[string]string{
 				"cassandra-cluster-component": "prober",
@@ -59,3 +57,11 @@ var _ = Describe("prober deployment", func() {
 		})
 	})
 })
+
+func createReadyCluster(cc *v1alpha1.CassandraCluster) {
+	Expect(k8sClient.Create(ctx, cc)).To(Succeed())
+	markMocksAsReady(cc)
+	waitForDCsToBeCreated(cc)
+	markAllDCsReady(cc)
+	createCassandraPods(cc)
+}

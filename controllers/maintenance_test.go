@@ -11,18 +11,13 @@ import (
 	"github.com/onsi/gomega/types"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/kubernetes/scheme"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"testing"
 )
 
 var (
-	baseScheme = setupScheme()
-	baseCC     = &v1alpha1.CassandraCluster{
+	baseCC = &v1alpha1.CassandraCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",
 			Namespace: "test-namespace",
@@ -41,13 +36,6 @@ var (
 		},
 	}
 )
-
-func setupScheme() *runtime.Scheme {
-	s := scheme.Scheme
-	utilruntime.Must(clientgoscheme.AddToScheme(s))
-	utilruntime.Must(v1alpha1.AddToScheme(s))
-	return s
-}
 
 func initializeReconciler(cc *v1alpha1.CassandraCluster) *CassandraClusterReconciler {
 	reconciler := createBasicMockedReconciler()

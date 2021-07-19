@@ -86,12 +86,6 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 					`
 cp /etc/cassandra-configmaps/* $CASSANDRA_CONF
 cp /etc/cassandra-configmaps/jvm.options $CASSANDRA_HOME
-COUNT=1; ATTEMPTS=14
-until stat /etc/pods-config/${POD_NAME}_${POD_UID}.sh; do
-  [[ $COUNT -eq $ATTEMPTS ]] && echo "Could not access mount" && exit 1
-  echo -e "Waiting... Attempt $(( COUNT++ ))..."
-  sleep 5
-done
 source /etc/pods-config/${POD_NAME}_${POD_UID}.sh
 ./docker-entrypoint.sh -f -R -Dcassandra.jmx.remote.port=7199 -Dcom.sun.management.jmxremote.rmi.port=7199 -Dcom.sun.management.jmxremote.authenticate=false -Djava.rmi.server.hostname=$CASSANDRA_BROADCAST_ADDRESS`,
 				}))
@@ -104,8 +98,8 @@ source /etc/pods-config/${POD_NAME}_${POD_UID}.sh
 
 			By("reaper should be deployed after DCs ready")
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cc.Name, Namespace: cc.Namespace}, cc)).To(Succeed())
-			cc.Status.ReadyAllDCs = true
-			Expect(k8sClient.Status().Update(ctx, cc)).To(Succeed())
+			markAllDCsReady(cc)
+			createCassandraPods(cc)
 			mockReaperClient.isRunning = false
 			mockReaperClient.err = nil
 

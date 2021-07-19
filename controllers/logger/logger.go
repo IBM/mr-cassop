@@ -24,6 +24,7 @@ func NewLogger(format string, level zapcore.Level) *zap.SugaredLogger {
 	loggerConfig.DisableStacktrace = true
 	loggerConfig.Level = zap.NewAtomicLevelAt(level)
 	loggerConfig.OutputPaths = []string{"stdout"}
+	loggerConfig.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 
 	zaplog, err := loggerConfig.Build()
 	if err != nil {

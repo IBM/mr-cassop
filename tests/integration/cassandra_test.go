@@ -54,15 +54,14 @@ var _ = Describe("cassandra statefulset deployment", func() {
 	Context("when cassandracluster created with only required values", func() {
 		It("should be created with defaulted values", func() {
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
+			markMocksAsReady(cc)
 
-			Expect(initializeReadyCluster(cc)).To(Succeed())
 			for _, dc := range cc.Spec.DCs {
 				sts := &appsv1.StatefulSet{}
 				cassandraLabels := map[string]string{
 					"cassandra-cluster-component": "cassandra",
 					"cassandra-cluster-instance":  "test-cassandra-cluster",
 					"cassandra-cluster-dc":        dc.Name,
-					"datacenter":                  dc.Name,
 				}
 				Eventually(func() error {
 					return k8sClient.Get(ctx, types.NamespacedName{Name: names.DC(cc.Name, dc.Name), Namespace: cc.Namespace}, sts)
@@ -140,8 +139,7 @@ var _ = Describe("cassandra statefulset", func() {
 	Context("with persistence enabled", func() {
 		It("should be created with volume claim template and without data volume", func() {
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-
-			Expect(initializeReadyCluster(cc)).To(Succeed())
+			markMocksAsReady(cc)
 
 			for _, dc := range cc.Spec.DCs {
 				sts := &appsv1.StatefulSet{}

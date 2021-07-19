@@ -101,6 +101,7 @@ func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) *ap
 					},
 					InitContainers: []v1.Container{
 						maintenanceContainer(cc),
+						waitContainer(cc),
 					},
 					ImagePullSecrets: imagePullSecrets(cc),
 					Volumes: []v1.Volume{
@@ -147,6 +148,16 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Co
 				},
 			},
 			{
+				Name: "POD_IP",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "status.podIP"},
+				},
+			},
+			{
+				Name:  "LOG_LEVEL",
+				Value: cc.Spec.Cassandra.LogLevel,
+			},
+			{
 				Name:  "CASSANDRA_CLUSTER_NAME",
 				Value: cc.Name,
 			},
@@ -156,7 +167,7 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Co
 			},
 			{
 				Name:  "CASSANDRA_LISTEN_ADDRESS",
-				Value: "auto",
+				Value: "$(POD_IP)",
 			},
 			// If not defined the MAX_HEAP_SIZE value will be generated in Cassandra image by cassandra-env.sh script on startup
 			{
@@ -167,6 +178,14 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Co
 			{
 				Name:  "HEAP_NEWSIZE",
 				Value: cc.Spec.JVM.HeapNewSize,
+			},
+			{
+				Name:  "JMX_PORT",
+				Value: fmt.Sprint(dbv1alpha1.JmxPort),
+			},
+			{
+				Name:  "PROBER_SERVICE",
+				Value: names.ProberService(cc.Name),
 			},
 		},
 		Args: []string{
@@ -193,8 +212,8 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Co
 					Command: []string{
 						"bash",
 						"-c",
-						"source /etc/pods-config/${POD_NAME}_${POD_UID}.sh && " +
-							fmt.Sprintf("http --check-status --timeout 2 --body GET %s/healthz/$CASSANDRA_BROADCAST_ADDRESS", names.ProberService(cc.Name)),
+						`source /etc/pods-config/${POD_NAME}_${POD_UID}.sh
+						 http --check-status --timeout 2 --body GET $PROBER_SERVICE/healthz/$CASSANDRA_BROADCAST_ADDRESS`,
 					},
 				},
 			},
@@ -284,8 +303,6 @@ func (r *CassandraClusterReconciler) reconcileDCService(ctx context.Context, cc 
 			},
 			ClusterIP:                v1.ClusterIPNone,
 			Type:                     v1.ServiceTypeClusterIP,
-			IPFamilies:               []v1.IPFamily{v1.IPv4Protocol},
-			IPFamilyPolicy:           &singleStackIPFamilyPolicy,
 			SessionAffinity:          v1.ServiceAffinityNone,
 			PublishNotReadyAddresses: true,
 			Selector:                 svcLabels,
@@ -309,7 +326,9 @@ func (r *CassandraClusterReconciler) reconcileDCService(ctx context.Context, cc 
 	} else {
 		// ClusterIP is immutable once created, so always enforce the same as existing
 		desiredService.Spec.ClusterIP = actualService.Spec.ClusterIP
-		desiredService.Spec.ClusterIPs = []string{actualService.Spec.ClusterIP}
+		desiredService.Spec.ClusterIPs = actualService.Spec.ClusterIPs
+		desiredService.Spec.IPFamilies = actualService.Spec.IPFamilies
+		desiredService.Spec.IPFamilyPolicy = actualService.Spec.IPFamilyPolicy
 		if !compare.EqualService(desiredService, actualService) {
 			r.Log.Infof("Updating service for DC %q", dc.Name)
 			r.Log.Debugf(compare.DiffService(actualService, desiredService))
@@ -327,7 +346,7 @@ func (r *CassandraClusterReconciler) reconcileDCService(ctx context.Context, cc 
 	return nil
 }
 
-func getLocalSeedsHostnames(cc *dbv1alpha1.CassandraCluster) []string {
+func getLocalSeedsHostnames(cc *dbv1alpha1.CassandraCluster, broadcastAddresses map[string]string) []string {
 	seedsList := make([]string, 0)
 	for _, dc := range cc.Spec.DCs {
 		numSeeds := cc.Spec.Cassandra.NumSeeds
@@ -341,7 +360,7 @@ func getLocalSeedsHostnames(cc *dbv1alpha1.CassandraCluster) []string {
 		for i := int32(0); i < numSeeds; i++ {
 			seed := getSeedHostname(cc, dc.Name, i, !cc.Spec.HostPort.Enabled)
 			if cc.Spec.HostPort.Enabled {
-				seed = cc.Status.NodesBroadcastAddresses[seed]
+				seed = broadcastAddresses[seed]
 			}
 			seedsList = append(seedsList, seed)
 		}
@@ -366,12 +385,6 @@ func getCassandraRunCommand(cc *dbv1alpha1.CassandraCluster) string {
 	arg += `
 cp /etc/cassandra-configmaps/* $CASSANDRA_CONF
 cp /etc/cassandra-configmaps/jvm.options $CASSANDRA_HOME
-COUNT=1; ATTEMPTS=14
-until stat /etc/pods-config/${POD_NAME}_${POD_UID}.sh; do
-  [[ $COUNT -eq $ATTEMPTS ]] && echo "Could not access mount" && exit 1
-  echo -e "Waiting... Attempt $(( COUNT++ ))..."
-  sleep 5
-done
 source /etc/pods-config/${POD_NAME}_${POD_UID}.sh
 `
 	arg += fmt.Sprintf("./docker-entrypoint.sh -f -R -Dcassandra.jmx.remote.port=%d -Dcom.sun.management.jmxremote.rmi.port=%d -Dcom.sun.management.jmxremote.authenticate=false -Djava.rmi.server.hostname=$CASSANDRA_BROADCAST_ADDRESS", dbv1alpha1.JmxPort, dbv1alpha1.JmxPort)
@@ -468,6 +481,68 @@ func maintenanceContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 	}
 }
 
+func waitContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
+	memory := resource.MustParse("200Mi")
+	cpu := resource.MustParse("0.5")
+
+	args := []string{
+		`config_path=/etc/pods-config/${POD_NAME}_${POD_UID}.sh
+COUNT=1
+until stat $config_path; do
+  echo Could not access mount $config_path. Attempt $(( COUNT++ ))...
+  sleep 10
+done
+echo PAUSE_INIT=$PAUSE_INIT
+until [[ "$PAUSE_INIT" == "false" ]]; do
+  echo PAUSE_INIT=$PAUSE_INIT
+  echo -n "."
+  sleep 10
+  source $config_path
+done
+`,
+	}
+
+	return v1.Container{
+		Name:            "pre-flight-checks",
+		Image:           cc.Spec.Cassandra.Image,
+		ImagePullPolicy: cc.Spec.Cassandra.ImagePullPolicy,
+		Resources: v1.ResourceRequirements{
+			Requests: v1.ResourceList{
+				v1.ResourceMemory: memory,
+				v1.ResourceCPU:    cpu,
+			},
+			Limits: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceMemory: memory,
+				v1.ResourceCPU:    cpu,
+			},
+		},
+		VolumeMounts: []v1.VolumeMount{
+			podsConfigVolumeMount(),
+		},
+		Env: []v1.EnvVar{
+			{
+				Name: "POD_NAME",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.name"},
+				},
+			},
+			{
+				Name: "POD_UID",
+				ValueFrom: &v1.EnvVarSource{
+					FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.uid"},
+				},
+			},
+		},
+		Command: []string{
+			"bash",
+			"-c",
+		},
+		Args:                     args,
+		TerminationMessagePath:   "/dev/termination-log",
+		TerminationMessagePolicy: v1.TerminationMessageReadFile,
+	}
+}
+
 func maintenanceVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
 	return v1.Volume{
 		Name: "maintenance-config",
@@ -546,7 +621,9 @@ func cassandraContainerPorts(cc *dbv1alpha1.CassandraCluster) []v1.ContainerPort
 
 	if cc.Spec.HostPort.Enabled {
 		for i, port := range containerPorts {
-			if util.Contains(cc.Spec.HostPort.Ports, containerPorts[i].Name) {
+			portsToExpose := cc.Spec.HostPort.Ports
+			portsToExpose = append(portsToExpose, "jmx", "intra") //jmx port is required to make jolokia work
+			if util.Contains(portsToExpose, containerPorts[i].Name) {
 				containerPorts[i].HostPort = port.ContainerPort
 			}
 		}

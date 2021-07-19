@@ -54,7 +54,7 @@ func (r reaperClient) IsRunning(ctx context.Context) (bool, error) {
 }
 
 func (r reaperClient) ClusterExists(ctx context.Context, clusterName string) (bool, error) {
-	resp, err := ctxhttp.Get(ctx, r.client, r.url("/cluster/" + clusterName))
+	resp, err := ctxhttp.Get(ctx, r.client, r.url("/cluster/"+clusterName))
 	if err != nil {
 		return false, err
 	}

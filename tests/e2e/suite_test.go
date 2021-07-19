@@ -91,7 +91,7 @@ func TestCassandraCluster(t *testing.T) {
 	RunSpecs(t, "Cassandra Cluster Suite")
 }
 
-var _ = BeforeSuite(func(done Done) {
+var _ = BeforeSuite(func() {
 	operatorPodLabel = map[string]string{"operator": "cassandra-operator"}
 	cassandraDeploymentLabel = map[string]string{v1alpha1.CassandraClusterInstance: cassandraRelease}
 	proberPodLabels = map[string]string{v1alpha1.CassandraClusterInstance: cassandraRelease, v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentProber}
@@ -155,7 +155,7 @@ var _ = BeforeSuite(func(done Done) {
 				Debug:           false,
 				Jolokia: v1alpha1.Jolokia{
 					ImagePullPolicy: "IfNotPresent",
-					Resources: proberResources,
+					Resources:       proberResources,
 				},
 			},
 			JVM: v1alpha1.JVM{
@@ -164,8 +164,7 @@ var _ = BeforeSuite(func(done Done) {
 		},
 	}
 
-	close(done)
-}, 60) // Set a timeout for function execution
+}) // Set a timeout for function execution
 
 var _ = JustAfterEach(func() {
 	if CurrentGinkgoTestDescription().Failed {

@@ -15,9 +15,11 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"time"
+
 	"github.com/gocql/gocql"
-	"github.com/gogo/protobuf/proto"
-	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
+	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/config"
 	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/ibm/cassandra-operator/controllers/names"
@@ -36,12 +38,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"k8s.io/client-go/rest"
-	"net/url"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"time"
 )
 
 const (
@@ -49,10 +49,6 @@ const (
 	maintenanceDir              = "/etc/maintenance"
 	cassandraCommitLogDir       = "/var/lib/cassandra-commitlog"
 	defaultCQLConfigMapLabelKey = "cql-scripts"
-)
-
-var (
-	singleStackIPFamilyPolicy = v1.IPFamilyPolicySingleStack
 )
 
 // CassandraClusterReconciler reconciles a CassandraCluster object
@@ -102,7 +98,7 @@ func (r *CassandraClusterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 }
 
 func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	cc := &dbv1alpha1.CassandraCluster{}
+	cc := &v1alpha1.CassandraCluster{}
 	err := r.Get(ctx, types.NamespacedName{Name: req.Name, Namespace: req.Namespace}, cc)
 	if err != nil {
 		if apierrors.IsNotFound(err) { //do not react to CRD delete events
@@ -122,27 +118,19 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling maintenance configmap")
 	}
 
-	proberUrl, err := url.Parse(fmt.Sprintf("http://%s.%s.svc.cluster.local", names.ProberService(cc.Name), cc.Namespace))
-	if err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Error parsing prober client url")
-	}
-	proberClient := r.ProberClient(proberUrl)
-
-	if err := r.reconcileCassandraPodsConfigMap(ctx, cc, proberClient); err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Error reconciling Cassandra pods configmap")
-	}
-
 	if err := r.reconcileRolesSecret(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling roles secret")
-	}
-
-	if err := r.reconcileJMXSecret(ctx, cc); err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Error reconciling jxm secret")
 	}
 
 	if err := r.reconcileProber(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling prober")
 	}
+
+	proberUrl, err := url.Parse(fmt.Sprintf("http://%s.%s.svc.cluster.local", names.ProberService(cc.Name), cc.Namespace))
+	if err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error parsing prober client url")
+	}
+	proberClient := r.ProberClient(proberUrl)
 
 	proberReady, err := proberClient.Ready(ctx)
 	if err != nil {
@@ -155,6 +143,10 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 	}
 
+	if err := r.reconcileJMXSecret(ctx, cc); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error reconciling jxm secret")
+	}
+
 	if err := r.reconcileCassandraConfigMap(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling cassandra config configmaps")
 	}
@@ -163,30 +155,27 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling statefulsets")
 	}
 
+	if err := r.reconcileCassandraPodsConfigMap(ctx, cc, proberClient); err != nil {
+		if errors.Cause(err) == ErrPodNotScheduled || err == errors.Cause(ErrRegionNotReady) {
+			r.Log.Warnf("%s. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
+			return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
+		}
+		return ctrl.Result{}, errors.Wrap(err, "Error reconciling Cassandra pods configmap")
+	}
+
 	if err := r.reconcileMaintenance(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile maintenance")
 	}
 
-	if !cc.Status.ReadyAllDCs {
-		for _, dc := range cc.Spec.DCs {
-			sts := &appsv1.StatefulSet{}
-			if r.Get(ctx, types.NamespacedName{Name: names.DC(cc.Name, dc.Name), Namespace: cc.Namespace}, sts) != nil {
-				r.Log.Warnf("Failed to get statefulset: %s. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
-				return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
-			}
-
-			if *dc.Replicas != sts.Status.ReadyReplicas {
-				r.Log.Infof("Not all DCs are ready. Trying again in %s...", r.Cfg.RetryDelay)
-				return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
-			}
-		}
-		cc.Status.ReadyAllDCs = true
-		if err := r.Status().Update(ctx, cc); err != nil {
-			return ctrl.Result{}, errors.Wrap(err, "Error updating status.readyAllDCs")
-		}
+	ready, err := r.clusterReady(ctx, cc, proberClient)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
-	r.Log.Debug("All DCs are ready")
+	if !ready {
+		r.Log.Infof("Cluster not ready. Trying again in %s...", r.Cfg.RetryDelay)
+		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
+	}
 
 	ntClient := r.NodetoolClient(r.Clientset, r.RESTConfig)
 	cqlClient, err := r.CqlClient(newCassandraConfig(cc))
@@ -228,7 +217,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 				return ctrl.Result{}, errors.Wrap(err, "Failed to get reaper deployment")
 			}
 
-			if reaperDeployment.Status.ReadyReplicas != dbv1alpha1.ReaperReplicasNumber {
+			if reaperDeployment.Status.ReadyReplicas != v1alpha1.ReaperReplicasNumber {
 				r.Log.Infof("Waiting for the first reaper deployment to be ready. Trying again in %s...", r.Cfg.RetryDelay)
 				return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 			}
@@ -262,159 +251,77 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	return ctrl.Result{}, nil
 }
 
-func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.CassandraCluster) {
-	if cc.Spec.CQLConfigMapLabelKey == "" {
-		cc.Spec.CQLConfigMapLabelKey = defaultCQLConfigMapLabelKey
+func (r *CassandraClusterReconciler) clusterReady(ctx context.Context, cc *v1alpha1.CassandraCluster, proberClient prober.ProberClient) (bool, error) {
+	unreadyDCs, err := r.unreadyDCs(ctx, cc)
+	if err != nil {
+		return false, errors.Wrap(err, "Failed to check DCs readiness")
 	}
 
-	if cc.Spec.PodManagementPolicy == "" {
-		cc.Spec.PodManagementPolicy = appsv1.ParallelPodManagement
-	}
-
-	if cc.Spec.Cassandra == nil {
-		cc.Spec.Cassandra = &dbv1alpha1.Cassandra{}
-	}
-
-	if cc.Spec.Cassandra.Image == "" {
-		cc.Spec.Cassandra.Image = r.Cfg.DefaultCassandraImage
-	}
-
-	if cc.Spec.Cassandra.ImagePullPolicy == "" {
-		cc.Spec.Cassandra.ImagePullPolicy = v1.PullIfNotPresent
-	}
-
-	if cc.Spec.Cassandra.NumSeeds == 0 {
-		cc.Spec.Cassandra.NumSeeds = 2
-	}
-
-	if cc.Spec.Cassandra.TerminationGracePeriodSeconds == nil {
-		cc.Spec.Cassandra.TerminationGracePeriodSeconds = proto.Int64(300)
-	}
-
-	if cc.Spec.Cassandra.Persistence.DataVolumeClaimSpec.VolumeMode == nil {
-		volumeModeFile := v1.PersistentVolumeFilesystem
-		cc.Spec.Cassandra.Persistence.DataVolumeClaimSpec.VolumeMode = &volumeModeFile
-	}
-
-	cc.Spec.Cassandra.Persistence.DataVolumeClaimSpec.AccessModes = []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce}
-
-	if cc.Spec.Cassandra.Persistence.CommitLogVolumeClaimSpec.VolumeMode == nil {
-		volumeModeFile := v1.PersistentVolumeFilesystem
-		cc.Spec.Cassandra.Persistence.CommitLogVolumeClaimSpec.VolumeMode = &volumeModeFile
-	}
-
-	cc.Spec.Cassandra.Persistence.CommitLogVolumeClaimSpec.AccessModes = []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce}
-
-	if cc.Spec.Prober.Image == "" {
-		cc.Spec.Prober.Image = r.Cfg.DefaultProberImage
-	}
-
-	if cc.Spec.Prober.ImagePullPolicy == "" {
-		cc.Spec.Prober.ImagePullPolicy = v1.PullIfNotPresent
-	}
-
-	if cc.Spec.Prober.Jolokia.Image == "" {
-		cc.Spec.Prober.Jolokia.Image = r.Cfg.DefaultJolokiaImage
-	}
-
-	if cc.Spec.Prober.Jolokia.ImagePullPolicy == "" {
-		cc.Spec.Prober.Jolokia.ImagePullPolicy = v1.PullIfNotPresent
-	}
-
-	if len(cc.Spec.SystemKeyspaces.DCs) == 0 {
-		for _, dc := range cc.Spec.DCs {
-			cc.Spec.SystemKeyspaces.DCs = append(cc.Spec.SystemKeyspaces.DCs, dbv1alpha1.SystemKeyspaceDC{Name: dc.Name, RF: 3})
+	if len(unreadyDCs) > 0 {
+		err := proberClient.UpdateDCStatus(ctx, false)
+		if err != nil {
+			return false, errors.Wrap(err, "Failed to set DC status to not ready for prober")
 		}
+		r.Log.Warnf("Not all DCs are ready: %q.", unreadyDCs)
+		return true, nil
+	}
+	r.Log.Debug("All DCs are ready")
+	err = proberClient.UpdateDCStatus(ctx, true)
+	if err != nil {
+		return false, errors.Wrap(err, "Failed to set DC's status to ready")
 	}
 
-	if cc.Spec.Reaper == nil {
-		cc.Spec.Reaper = &dbv1alpha1.Reaper{}
+	var unreadyRegions []string
+	if unreadyRegions, err = r.unreadyRegions(ctx, cc, proberClient); err != nil {
+		return false, errors.Wrap(err, "Failed to check region readiness")
 	}
 
-	if cc.Spec.Reaper.Keyspace == "" {
-		cc.Spec.Reaper.Keyspace = "reaper_db"
+	if cc.Spec.HostPort.Enabled && len(unreadyRegions) != 0 {
+		r.Log.Warnf("Not all regions are ready: %q.", unreadyDCs)
+		return false, nil
 	}
 
-	if cc.Spec.Reaper.Image == "" {
-		cc.Spec.Reaper.Image = r.Cfg.DefaultReaperImage
-	}
-
-	if cc.Spec.Reaper.ImagePullPolicy == "" {
-		cc.Spec.Reaper.ImagePullPolicy = v1.PullIfNotPresent
-	}
-
-	if len(cc.Spec.Reaper.DCs) == 0 {
-		cc.Spec.Reaper.DCs = cc.Spec.DCs
-	}
-
-	if cc.Spec.Reaper.RepairIntensity == "" {
-		cc.Spec.Reaper.RepairIntensity = "1.0"
-	}
-
-	if cc.Spec.Reaper.DatacenterAvailability == "" {
-		cc.Spec.Reaper.DatacenterAvailability = "each"
-	}
-
-	if len(cc.Spec.Reaper.Tolerations) == 0 {
-		cc.Spec.Reaper.Tolerations = nil
-	}
-
-	if len(cc.Spec.Reaper.NodeSelector) == 0 {
-		cc.Spec.Reaper.NodeSelector = nil
-	}
-
-	if len(cc.Spec.Reaper.ScheduleRepairs.Repairs) != 0 {
-		for i, repair := range cc.Spec.Reaper.ScheduleRepairs.Repairs {
-			if repair.RepairParallelism == "" {
-				cc.Spec.Reaper.ScheduleRepairs.Repairs[i].RepairParallelism = "datacenter_aware"
-			}
-
-			// RepairParallelism must be 'parallel' if IncrementalRepair is 'true'
-			if repair.IncrementalRepair {
-				cc.Spec.Reaper.ScheduleRepairs.Repairs[i].RepairParallelism = "parallel"
-			}
-
-			if repair.ScheduleDaysBetween == 0 {
-				cc.Spec.Reaper.ScheduleRepairs.Repairs[i].ScheduleDaysBetween = 7
-			}
-
-			if len(repair.Datacenters) == 0 {
-				dcNames := make([]string, 0, len(cc.Spec.DCs))
-				for _, dc := range cc.Spec.DCs {
-					dcNames = append(dcNames, dc.Name)
-				}
-				cc.Spec.Reaper.ScheduleRepairs.Repairs[i].Datacenters = dcNames
-			}
-			if repair.RepairThreadCount == 0 {
-				cc.Spec.Reaper.ScheduleRepairs.Repairs[i].RepairThreadCount = 2
-			}
-		}
-	}
-
-	if len(cc.Spec.Maintenance) > 0 {
-		for i, entry := range cc.Spec.Maintenance {
-			if len(entry.Pods) == 0 {
-				for _, dc := range cc.Spec.DCs {
-					if entry.DC == dc.Name {
-						for j := 0; j < int(*dc.Replicas); j++ {
-							cc.Spec.Maintenance[i].Pods = append(cc.Spec.Maintenance[i].Pods, dbv1alpha1.PodName(fmt.Sprintf("%s-%d", names.DC(cc.Name, dc.Name), j)))
-						}
-					}
-				}
-			}
-		}
-	}
-
-	if cc.Spec.HostPort.Enabled && len(cc.Spec.HostPort.Ports) == 0 {
-		cc.Spec.HostPort.Ports = dbv1alpha1.DefaultHostPorts
-	}
+	return true, err
 }
 
-func newCassandraConfig(cc *dbv1alpha1.CassandraCluster) *gocql.ClusterConfig {
+func (r *CassandraClusterReconciler) unreadyDCs(ctx context.Context, cc *v1alpha1.CassandraCluster) ([]string, error) {
+	unreadyDCs := make([]string, 0)
+	for _, dc := range cc.Spec.DCs {
+		sts := &appsv1.StatefulSet{}
+		if err := r.Get(ctx, types.NamespacedName{Name: names.DC(cc.Name, dc.Name), Namespace: cc.Namespace}, sts); err != nil {
+			return nil, errors.Wrap(err, "failed to get statefulset: "+sts.Name)
+		}
+
+		if *dc.Replicas != sts.Status.ReadyReplicas {
+			unreadyDCs = append(unreadyDCs, dc.Name)
+		}
+	}
+	return unreadyDCs, nil
+}
+
+func (r *CassandraClusterReconciler) unreadyRegions(ctx context.Context, cc *v1alpha1.CassandraCluster, proberClient prober.ProberClient) ([]string, error) {
+	unreadyRegions := make([]string, 0)
+	for _, domain := range cc.Spec.Prober.ExternalDCsIngressDomains {
+		proberHost := names.ProberIngressDomain(cc.Name, domain, cc.Namespace)
+		dcsReady, err := proberClient.DCsReady(ctx, proberHost)
+		if err != nil {
+			r.Log.Warnf(fmt.Sprintf("Unable to get DC's status from prober %q. Err: %#v", proberHost, err))
+			return nil, ErrRegionNotReady
+		}
+
+		if !dcsReady {
+			unreadyRegions = append(unreadyRegions, proberHost)
+		}
+	}
+
+	return unreadyRegions, nil
+}
+
+func newCassandraConfig(cc *v1alpha1.CassandraCluster) *gocql.ClusterConfig {
 	cassCfg := gocql.NewCluster(fmt.Sprintf("%s.%s.svc.cluster.local", names.DCService(cc.Name, cc.Spec.DCs[0].Name), cc.Namespace))
 	cassCfg.Authenticator = &gocql.PasswordAuthenticator{
-		Username: dbv1alpha1.CassandraRole,
-		Password: dbv1alpha1.CassandraPassword,
+		Username: v1alpha1.CassandraRole,
+		Password: v1alpha1.CassandraPassword,
 	}
 
 	cassCfg.Timeout = 6 * time.Second
@@ -428,7 +335,7 @@ func newCassandraConfig(cc *dbv1alpha1.CassandraCluster) *gocql.ClusterConfig {
 func SetupCassandraReconciler(r reconcile.Reconciler, mgr manager.Manager, logr *zap.SugaredLogger) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("cassandracluster").
-		For(&dbv1alpha1.CassandraCluster{}).
+		For(&v1alpha1.CassandraCluster{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&v1.Service{}).
 		Owns(&appsv1.StatefulSet{}).

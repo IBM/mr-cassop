@@ -28,17 +28,14 @@ var _ = Describe("Cassandra cluster", func() {
 })
 
 func newCassandraCluster(useExternalHostIP bool) *v1alpha1.CassandraCluster {
-	newCassandraCluster := cassandraCluster.DeepCopy()
-	newCassandraCluster.Spec.HostPort.Enabled = true
-	newCassandraCluster.Spec.HostPort.UseExternalHostIP = useExternalHostIP
-	newCassandraCluster.Spec.Prober.Ingress.Domain = ingressDomain
-	newCassandraCluster.Spec.Prober.Ingress.Secret = ingressSecret
-	newCassandraCluster.Spec.Prober.DCsIngressDomains = []string{
-		ingressDomain,
-		"stub.us-south.containers.appdomain.cloud",
-	}
-	newCassandraCluster.Spec.HostPort.Ports = []string{"intra", "cql", "jmx", "thrift"}
-	return newCassandraCluster
+	newCC := cassandraCluster.DeepCopy()
+	newCC.Spec.HostPort.Enabled = true
+	newCC.Spec.HostPort.UseExternalHostIP = useExternalHostIP
+	newCC.Spec.Prober.Ingress.Domain = ingressDomain
+	newCC.Spec.Prober.Ingress.Secret = ingressSecret
+	newCC.Spec.Prober.ExternalDCsIngressDomains = []string{}
+	newCC.Spec.HostPort.Ports = []string{"intra", "cql", "jmx", "thrift"}
+	return newCC
 }
 
 func execOnPod(podName string, cmd []string) string {

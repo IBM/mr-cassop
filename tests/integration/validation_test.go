@@ -81,7 +81,7 @@ var _ = Describe("cassandracluster validation", func() {
 					ImagePullSecretName: "pullSecretName",
 				},
 			}
-			Expect(initializeReadyCluster(cc)).ToNot(Succeed())
+			markMocksAsReady(cc)
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
 
 		})
@@ -734,7 +734,7 @@ var _ = Describe("cassandracluster validation", func() {
 					},
 				},
 			}
-			Expect(initializeReadyCluster(cc)).ToNot(Succeed())
+			markMocksAsReady(cc)
 			err := k8sClient.Create(ctx, cc)
 			Expect(err).ToNot(HaveOccurred())
 		})

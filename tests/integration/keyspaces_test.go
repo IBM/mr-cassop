@@ -32,8 +32,7 @@ var _ = Describe("rf settings", func() {
 				},
 			}
 
-			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			Expect(initializeReadyCluster(cc)).To(Succeed())
+			createReadyCluster(cc)
 			mockCQLClient.keyspaces = []cql.Keyspace{{
 				Name: "system_auth",
 				Replication: map[string]string{
@@ -74,8 +73,7 @@ var _ = Describe("rf settings", func() {
 				},
 			}
 
-			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			Expect(initializeReadyCluster(cc)).To(Succeed())
+			createReadyCluster(cc)
 			mockCQLClient.keyspaces = []cql.Keyspace{
 				{
 					Name: "system_auth",
@@ -145,8 +143,7 @@ var _ = Describe("rf settings", func() {
 				},
 			}
 
-			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			Expect(initializeReadyCluster(cc)).To(Succeed())
+			createReadyCluster(cc)
 			mockCQLClient.keyspaces = []cql.Keyspace{
 				{
 					Name: "system_auth",
@@ -219,8 +216,7 @@ var _ = Describe("rf settings", func() {
 				},
 			}
 
-			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			Expect(initializeReadyCluster(cc)).To(Succeed())
+			createReadyCluster(cc)
 			mockCQLClient.keyspaces = []cql.Keyspace{
 				{
 					Name: "system_auth",
@@ -288,8 +284,7 @@ var _ = Describe("rf settings", func() {
 				},
 			}
 
-			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-			Expect(initializeReadyCluster(cc)).To(Succeed())
+			createReadyCluster(cc)
 			mockCQLClient.keyspaces = []cql.Keyspace{
 				{
 					Name: "system_auth",

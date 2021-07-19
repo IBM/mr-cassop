@@ -166,8 +166,9 @@ type Cassandra struct {
 	// +kubebuilder:validation:Enum:=Always;Never;IfNotPresent
 	ImagePullPolicy v1.PullPolicy           `json:"imagePullPolicy,omitempty"`
 	Resources       v1.ResourceRequirements `json:"resources,omitempty"`
+	// +kubebuilder:validation:Enum:=info;debug;trace
+	LogLevel string `json:"logLevel,omitempty"`
 
-	// LogLevel                       string   `json:"logLevel,omitempty"`
 	// AdditionalSeeds                          []string `json:"additionalSeeds,omitempty"`
 	// RackName                       string   `json:"rackName,omitempty"`
 	// PreferLocal                    bool     `json:"preferLocal,omitempty"`
@@ -199,12 +200,12 @@ type Persistence struct {
 type Prober struct {
 	Image string `json:"image,omitempty"`
 	// +kubebuilder:validation:Enum=Always;Never;IfNotPresent
-	ImagePullPolicy   v1.PullPolicy           `json:"imagePullPolicy,omitempty"`
-	Resources         v1.ResourceRequirements `json:"resources,omitempty"`
-	Debug             bool                    `json:"debug,omitempty"`
-	Jolokia           Jolokia                 `json:"jolokia,omitempty"`
-	Ingress           Ingress                 `json:"ingress,omitempty"`
-	DCsIngressDomains []string                `json:"dcsIngressDomains,omitempty"`
+	ImagePullPolicy           v1.PullPolicy           `json:"imagePullPolicy,omitempty"`
+	Resources                 v1.ResourceRequirements `json:"resources,omitempty"`
+	Debug                     bool                    `json:"debug,omitempty"`
+	Jolokia                   Jolokia                 `json:"jolokia,omitempty"`
+	Ingress                   Ingress                 `json:"ingress,omitempty"`
+	ExternalDCsIngressDomains []string                `json:"externalDCsIngressDomains,omitempty"`
 }
 
 type Jolokia struct {
@@ -228,6 +229,7 @@ type Maintenance struct {
 	Pods []PodName `json:"pods,omitempty"`
 }
 
+// KeyspaceName is the name of a Cassandra keyspace
 // +kubebuilder:validation:MinLength:=1
 // +kubebuilder:validation:MaxLength:=48
 // +kubebuilder:validation:Pattern:=^[a-zA-Z]\w+$
@@ -249,9 +251,7 @@ type SystemKeyspaceDC struct {
 
 // CassandraClusterStatus defines the observed state of CassandraCluster
 type CassandraClusterStatus struct {
-	MaintenanceState        []Maintenance     `json:"maintenanceState,omitempty"`
-	ReadyAllDCs             bool              `json:"readyAllDCs"`
-	NodesBroadcastAddresses map[string]string `json:"nodesBroadcastAddresses,omitempty"`
+	MaintenanceState []Maintenance `json:"maintenanceState,omitempty"`
 }
 
 // +kubebuilder:object:root=true

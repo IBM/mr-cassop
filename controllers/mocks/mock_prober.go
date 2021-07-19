@@ -34,6 +34,21 @@ func (m *MockProberClient) EXPECT() *MockProberClientMockRecorder {
 	return m.recorder
 }
 
+// DCsReady mocks base method.
+func (m *MockProberClient) DCsReady(ctx context.Context, host string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DCsReady", ctx, host)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DCsReady indicates an expected call of DCsReady.
+func (mr *MockProberClientMockRecorder) DCsReady(ctx, host interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DCsReady", reflect.TypeOf((*MockProberClient)(nil).DCsReady), ctx, host)
+}
+
 // GetSeeds mocks base method.
 func (m *MockProberClient) GetSeeds(ctx context.Context, host string) ([]string, error) {
 	m.ctrl.T.Helper()
@@ -62,6 +77,20 @@ func (m *MockProberClient) Ready(ctx context.Context) (bool, error) {
 func (mr *MockProberClientMockRecorder) Ready(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ready", reflect.TypeOf((*MockProberClient)(nil).Ready), ctx)
+}
+
+// UpdateDCStatus mocks base method.
+func (m *MockProberClient) UpdateDCStatus(ctx context.Context, ready bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateDCStatus", ctx, ready)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateDCStatus indicates an expected call of UpdateDCStatus.
+func (mr *MockProberClientMockRecorder) UpdateDCStatus(ctx, ready interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateDCStatus", reflect.TypeOf((*MockProberClient)(nil).UpdateDCStatus), ctx, ready)
 }
 
 // UpdateSeeds mocks base method.

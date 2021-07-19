@@ -14,16 +14,17 @@ import (
 )
 
 var (
-	log        = ctrl.Log.WithName("prober-server")
-	serverPort = os.Getenv("SERVER_PORT")
-	seeds      []string
+	log           = ctrl.Log.WithName("prober-server")
+	serverPort    = os.Getenv("SERVER_PORT")
+	seeds         []string
+	readyLocalDCs bool
 )
 
 func setupRoutes(router *httprouter.Router) {
 	router.GET("/healthz/:broadcastip", healthCheck)
 	router.GET("/ping", ping)
-	//router.GET("/readydc/:dc?", readyDc)
-	//router.GET("/readyalldcs", readyAllDcs)
+	router.GET("/readylocaldcs", getReadyLocalDCs)
+	router.PUT("/readylocaldcs", putReadyLocalDCs)
 	router.GET("/localseeds", getSeeds)
 	router.PUT("/localseeds", putSeeds)
 }
@@ -45,13 +46,22 @@ func ping(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 	fmt.Fprint(w, "pong")
 }
 
-//func readyDc(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-//
-//}
-//
-//func readyAllDcs(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-//
-//}
+func getReadyLocalDCs(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
+	response, _ := json.Marshal(readyLocalDCs)
+	w.Write(response)
+}
+
+func putReadyLocalDCs(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	var ready bool
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	} else if json.Unmarshal(body, &ready) != nil {
+		w.WriteHeader(http.StatusBadRequest)
+	} else {
+		readyLocalDCs = ready
+	}
+}
 
 func getSeeds(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 	response, _ := json.Marshal(seeds)

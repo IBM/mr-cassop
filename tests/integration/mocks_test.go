@@ -7,13 +7,13 @@ import (
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/pkg/errors"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 type proberMock struct {
-	ready bool
-	seeds []string
-	err   error
+	ready         bool
+	seeds         []string
+	ReadyClusters map[string]bool
+	err           error
 }
 
 type cqlMock struct {
@@ -43,6 +43,18 @@ func (r proberMock) GetSeeds(ctx context.Context, host string) ([]string, error)
 
 func (r proberMock) UpdateSeeds(ctx context.Context, seeds []string) error {
 	return r.err
+}
+
+func (r proberMock) UpdateDCStatus(ctx context.Context, ready bool) error {
+	return r.err
+}
+
+func (r proberMock) DCsReady(ctx context.Context, host string) (bool, error) {
+	dcsReady, found := r.ReadyClusters[host]
+	if !found {
+		return false, errors.Errorf("Host %q not found", host)
+	}
+	return dcsReady, nil
 }
 
 func (c *cqlMock) Query(stmt string, values ...interface{}) error {
@@ -123,7 +135,10 @@ func (r *reaperMock) ScheduleRepair(ctx context.Context, clusterName string, rep
 	return r.err
 }
 
-func initializeReadyCluster(cc *dbv1alpha1.CassandraCluster) error {
+func markMocksAsReady(cc *dbv1alpha1.CassandraCluster) {
+	for _, domain := range cc.Spec.Prober.ExternalDCsIngressDomains {
+		mockProberClient.ReadyClusters[domain] = true
+	}
 	mockProberClient.err = nil
 	mockProberClient.ready = true
 	mockNodetoolClient.err = nil
@@ -138,9 +153,4 @@ func initializeReadyCluster(cc *dbv1alpha1.CassandraCluster) error {
 			"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
 		},
 	}}
-	if err := k8sClient.Get(ctx, types.NamespacedName{Name: cc.Name, Namespace: cc.Namespace}, cc); err != nil {
-		return err
-	}
-	cc.Status.ReadyAllDCs = true
-	return k8sClient.Status().Update(ctx, cc)
 }

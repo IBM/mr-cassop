@@ -93,14 +93,12 @@ var _ = Describe("reaper deployment", func() {
 		for _, tc := range tests {
 			It(tc.name, func() {
 				cc := tc.cc.DeepCopy()
-				Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-				Expect(initializeReadyCluster(cc)).To(Succeed())
+				createReadyCluster(cc)
 				for index, dc := range cc.Spec.DCs {
 					reaperLabels := map[string]string{
 						"cassandra-cluster-component": "reaper",
 						"cassandra-cluster-instance":  "test-cassandra-cluster",
 						"cassandra-cluster-dc":        dc.Name,
-						"datacenter":                  dc.Name,
 					}
 
 					// Check if first reaper deployment has been created
