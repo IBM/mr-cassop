@@ -263,7 +263,7 @@ func (r *CassandraClusterReconciler) clusterReady(ctx context.Context, cc *v1alp
 			return false, errors.Wrap(err, "Failed to set DC status to not ready for prober")
 		}
 		r.Log.Warnf("Not all DCs are ready: %q.", unreadyDCs)
-		return true, nil
+		return false, nil
 	}
 	r.Log.Debug("All DCs are ready")
 	err = proberClient.UpdateDCStatus(ctx, true)

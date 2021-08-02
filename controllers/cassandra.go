@@ -620,9 +620,11 @@ func cassandraContainerPorts(cc *dbv1alpha1.CassandraCluster) []v1.ContainerPort
 	}
 
 	if cc.Spec.HostPort.Enabled {
+		portsToExpose := cc.Spec.HostPort.Ports
+		// jmx port is required to make jolokia work
+		// intra needed to allow cassandra nodes to talk to each other
+		portsToExpose = append(portsToExpose, "jmx", "intra")
 		for i, port := range containerPorts {
-			portsToExpose := cc.Spec.HostPort.Ports
-			portsToExpose = append(portsToExpose, "jmx", "intra") //jmx port is required to make jolokia work
 			if util.Contains(portsToExpose, containerPorts[i].Name) {
 				containerPorts[i].HostPort = port.ContainerPort
 			}
