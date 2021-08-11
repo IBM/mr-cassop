@@ -18,6 +18,7 @@ var (
 	serverPort    = os.Getenv("SERVER_PORT")
 	seeds         []string
 	readyLocalDCs bool
+	Version       = "undefined"
 )
 
 func setupRoutes(router *httprouter.Router) {
@@ -86,6 +87,6 @@ func main() {
 	setupRoutes(router)
 	go pollNodeStates()
 
-	log.Info("Cassandra's prober listening", "serverPort", serverPort)
+	log.WithValues("version", Version).Info("Cassandra's prober listening", "serverPort", serverPort)
 	log.Error(http.ListenAndServe(fmt.Sprintf(":%s", serverPort), router), "http server error")
 }

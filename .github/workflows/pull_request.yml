@@ -1,0 +1,383 @@
+name: Pull Request Workflow
+
+on:
+  pull_request:
+    branches:
+      - main
+
+env:
+  GO_VERSION: 1.16
+  HELM_VERSION: v3.5.4
+  PYTHON_VERSION: 3.7 # required for helm tester
+  IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
+  IBM_CLOUD_REGION: us-south
+  IBM_CLOUD_RG: icm
+  IKS_CLUSTER: icm-cassandra-ci
+  IKS_NAMESPACE: cassandra-operator-ci
+  DOCKER_PROXY_REGISTRY: ${{ secrets.DOCKER_PROXY_REGISTRY }}
+  DOCKER_PROXY_USER: ${{ secrets.ARTIFACTORY_USER }}
+  DOCKER_PROXY_PASS: ${{ secrets.ARTIFACTORY_PASS }}
+  IMAGE_PULL_SECRET: icm-coreeng-pull-secret
+  CASSANDRA_RELEASE_NAME: e2e-tests-ci
+
+jobs:
+
+  run-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Go Lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          args: --timeout=5m --enable exportloopref
+          skip-pkg-cache: true
+          skip-build-cache: true
+          skip-go-installation: true
+
+      - name: Setup Kubebuilder assets
+        run: |
+          curl -sSLo envtest-bins.tar.gz "https://storage.googleapis.com/kubebuilder-tools/kubebuilder-tools-1.21.2-linux-amd64.tar.gz"
+          mkdir -p /tmp/kubebuilder
+          tar -C /tmp/kubebuilder/ --strip-components=1 -zvxf envtest-bins.tar.gz
+          rm envtest-bins.tar.gz;
+          echo "KUBEBUILDER_ASSETS=/tmp/kubebuilder/bin" >> $GITHUB_ENV
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Run unit tests
+        run: make unit-tests
+
+      - name: Run integration tests
+        run: make integration-tests
+
+      - name: Get tests coverage
+        run: |
+          go tool cover -func=unit.out | tail -n1 | awk "{print \"Unit tests coverage: \" \$3}"
+          go tool cover -func=integration.out | tail -n1 | awk "{print \"Integration tests coverage: \" \$3}"
+
+  build-operator:
+    runs-on: ubuntu-latest
+    needs: run-tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Inject slug/short variables
+        uses: rlespinasse/github-slug-action@e4699e49fcf890a3172a02c56ba78d867dbb9fd5 # 3.1.0
+
+      - name: Modify GITHUB_REF_SLUG
+        if: ${{ github.event_name != 'release' }}
+        run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Authenticate to Docker Proxy Registry
+        uses: docker/login-action@adb73476b6e06caddec5db0bc1deacbec8cdd947 # v1.6.0
+        with:
+          registry: ${{ env.DOCKER_PROXY_REGISTRY }}
+          username: ${{ env.DOCKER_PROXY_USER }}
+          password: ${{ env.DOCKER_PROXY_PASS }}
+
+      - name: Build operator image
+        uses: docker/build-push-action@v2
+        with:
+          file: Dockerfile
+          build-args: |
+            VERSION=${{ env.GITHUB_REF_SLUG }}
+            DOCKER_PROXY_REGISTRY=${{ env.DOCKER_PROXY_REGISTRY }}/
+          tags: us.icr.io/icm-cassandra/cassandra-operator:${{ env.GITHUB_REF_SLUG }}
+          outputs: type=docker,dest=cassandra-operator.tar
+
+      - name: Upload cassandra operator image artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: cassandra-operator
+          path: cassandra-operator.tar
+          retention-days: 1
+
+  build-cassandra:
+    runs-on: ubuntu-latest
+    needs: run-tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Inject slug/short variables
+        uses: rlespinasse/github-slug-action@e4699e49fcf890a3172a02c56ba78d867dbb9fd5 # 3.1.0
+
+      - name: Modify GITHUB_REF_SLUG
+        if: ${{ github.event_name != 'release' }}
+        run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Authenticate to Docker Proxy Registry
+        uses: docker/login-action@adb73476b6e06caddec5db0bc1deacbec8cdd947 # v1.6.0
+        with:
+          registry: ${{ env.DOCKER_PROXY_REGISTRY }}
+          username: ${{ env.DOCKER_PROXY_USER }}
+          password: ${{ env.DOCKER_PROXY_PASS }}
+
+      - name: Build cassandra image
+        uses: docker/build-push-action@v2
+        with:
+          file: Dockerfile.cassandra
+          tags: us.icr.io/icm-cassandra/cassandra:${{ env.GITHUB_REF_SLUG }}
+          build-args: |
+            DOCKER_PROXY_REGISTRY=${{ env.DOCKER_PROXY_REGISTRY }}/
+          outputs: type=docker,dest=cassandra.tar
+
+      - name: Upload cassandra image artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: cassandra
+          path: cassandra.tar
+          retention-days: 1
+
+  build-prober:
+    runs-on: ubuntu-latest
+    needs: run-tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Inject slug/short variables
+        uses: rlespinasse/github-slug-action@e4699e49fcf890a3172a02c56ba78d867dbb9fd5 # 3.1.0
+
+      - name: Modify GITHUB_REF_SLUG
+        if: ${{ github.event_name != 'release' }}
+        run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Authenticate to Docker Proxy Registry
+        uses: docker/login-action@adb73476b6e06caddec5db0bc1deacbec8cdd947 # v1.6.0
+        with:
+          registry: ${{ env.DOCKER_PROXY_REGISTRY }}
+          username: ${{ env.DOCKER_PROXY_USER }}
+          password: ${{ env.DOCKER_PROXY_PASS }}
+
+      - name: Build prober image
+        uses: docker/build-push-action@v2
+        with:
+          file: ./prober/Dockerfile
+          context: ./prober
+          build-args: |
+            VERSION=${{ env.GITHUB_REF_SLUG }}
+            DOCKER_PROXY_REGISTRY=${{ env.DOCKER_PROXY_REGISTRY }}/
+          tags: us.icr.io/icm-cassandra/cassandra-prober:${{ env.GITHUB_REF_SLUG }}
+          outputs: type=docker,dest=prober.tar
+
+      - name: Upload prober image artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: prober
+          path: prober.tar
+          retention-days: 1
+
+
+  validate-helm-charts:
+    runs-on: ubuntu-latest
+    needs: run-tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 # ct needs history to compare
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v1
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Setup chart-testing
+        uses: helm/chart-testing-action@v2.0.1
+
+      - name: Run chart-testing (list-changed)
+        id: list-changed
+        run: |
+          changed=$(ct list-changed --target-branch=main)
+          if [[ -n "$changed" ]]; then
+            echo "::set-output name=changed::true"
+          fi
+
+      - name: Run chart-testing (lint)
+        run: ct lint --target-branch=main --check-version-increment=false
+
+  check-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Node
+        uses: actions/setup-node@v1
+        with:
+          node-version: 14.15.4 # This is recommended LTS version which includes npm 6.14.10
+      - name: Build docs website
+        run: |
+          npm -v
+          node -v
+          cd docs
+          npm ci
+          npm run build
+
+  push-images-for-e2e:
+    if: "!contains(github.event.commits[0].message, '[skip e2e]')"
+    needs: [build-operator, build-cassandra, build-prober]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Inject slug/short variables
+        uses: rlespinasse/github-slug-action@e4699e49fcf890a3172a02c56ba78d867dbb9fd5 # 3.1.0
+      # We have below variable value replacement to prevent re-push of the image within branch during parallel workflows run
+      - name: Modify GITHUB_REF_SLUG
+        if: ${{ github.event_name != 'release' }}
+        run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
+      - name: Install IBM Cloud CLI
+        run: |
+          curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
+          ibmcloud --version
+          ibmcloud config --check-version=false
+          ibmcloud plugin install -f container-registry
+      - name: Authenticate with IBM Cloud CLI
+        uses: nick-invision/retry@7c68161adf97a48beb850a595b8784ec57a98cbb # v2.4.0
+        id: retry
+        continue-on-error: false
+        with:
+          timeout_seconds: 60
+          max_attempts: 3
+          retry_on: error
+          command: |
+            ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RG" --quiet
+            ibmcloud cr region-set "$IBM_CLOUD_REGION"
+            ibmcloud cr login
+
+      - name: Download operator image artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: cassandra-operator
+
+      - name: Download cassandra image artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: cassandra
+
+      - name: Download prober image artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: prober
+
+      - name: Load container images
+        run: |
+          docker load -i cassandra-operator.tar
+          docker load -i cassandra.tar
+          docker load -i prober.tar
+      - name: Push Images to ICR
+        run: |
+          docker push "us.icr.io/icm-cassandra/cassandra-operator:$GITHUB_REF_SLUG"
+          docker push "us.icr.io/icm-cassandra/cassandra-prober:$GITHUB_REF_SLUG"
+          docker push "us.icr.io/icm-cassandra/cassandra:$GITHUB_REF_SLUG"
+  run-e2e-tests:
+    needs: [ push-images-for-e2e ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Block Concurrent Executions for the Deployment
+        uses: softprops/turnstyle@2da824432fd1b605d097378101a35779dc3cd35a # v1
+        with:
+          poll-interval-seconds: 10
+          abort-after-seconds: 7200
+          same-branch-only: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Inject slug/short variables
+        uses: rlespinasse/github-slug-action@e4699e49fcf890a3172a02c56ba78d867dbb9fd5 # 3.1.0
+      - name: Modify GITHUB_REF_SLUG
+        if: ${{ github.event_name != 'release' }}
+        run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
+      - name: Install IBM Cloud CLI
+        run: |
+          curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
+          ibmcloud --version
+          ibmcloud config --check-version=false
+          ibmcloud plugin install -f kubernetes-service
+          ibmcloud plugin install -f container-registry
+      - name: Authenticate with IBM Cloud CLI
+        uses: nick-invision/retry@7c68161adf97a48beb850a595b8784ec57a98cbb # v2.4.0
+        id: retry
+        continue-on-error: false
+        with:
+          timeout_seconds: 60
+          max_attempts: 3
+          retry_on: error
+          command: |
+            ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RG" --quiet
+            ibmcloud cr region-set "$IBM_CLOUD_REGION"
+            ibmcloud cr login
+            ibmcloud ks cluster config --cluster $IKS_CLUSTER
+            kubectl config current-context
+            kubectl config set-context --current --namespace $IKS_NAMESPACE
+      - name: Deploy C* operator to IKS
+        uses: nick-invision/retry@7c68161adf97a48beb850a595b8784ec57a98cbb # v2.4.0
+        with:
+          timeout_seconds: 60
+          max_attempts: 3
+          retry_on: error
+          command: |
+            helm install cassandra-operator-ci cassandra-operator \
+              --set "container.image=us.icr.io/icm-cassandra/cassandra-operator:$GITHUB_REF_SLUG" \
+              --set "proberImage=us.icr.io/icm-cassandra/cassandra-prober:$GITHUB_REF_SLUG" \
+              --set "logFormat=console" \
+              --set "container.imagePullSecret=$IMAGE_PULL_SECRET"
+            kubectl rollout status deployment cassandra-operator
+      - name: C* operator deployment has failed, showing debug...
+        if: ${{ failure() }}
+        run: |
+          kubectl get deployments,po
+          kubectl describe pod -l operator=cassandra-operator
+          kubectl logs deployment/cassandra-operator --tail=20
+      - name: Set up Go with latest minor version 1.x
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^1.16
+      - name: Get go dependencies
+        run: go mod download
+      - name: Run e2e tests
+        run: |
+          make e2e-tests
+      - name: Uninstall C* operator
+        if: ${{ always() }}
+        run: |
+          helm uninstall cassandra-operator-ci
+      # We have below logic bc when multiple tags exist for the same image digest within a repository, the ibmcloud cr image-rm command removes the underlying image and all its tags. See details: https://cloud.ibm.com/docs/container-registry-cli-plugin?topic=container-registry-cli-plugin-containerregcli#bx_cr_image_rm
+      # We can also add a check if commit message contains `no_image_del` then skip the image deletion step
+      - name: Cleanup Images
+        if: ${{ always() && github.event_name != 'release' }}
+        run: |
+          for image_name in cassandra-operator cassandra-prober; do
+            image_digest=$(ibmcloud cr image-list --restrict icm-cassandra --format "{{if and (eq .Repository \"us.icr.io/icm-cassandra/$image_name\") (eq .Tag \"$GITHUB_REF_SLUG\")}}{{.Digest}}{{end}}" --no-trunc)
+            image_tags=$(ibmcloud cr image-digests --restrict icm-cassandra --format "{{if and (eq .Digest \"$image_digest\")}}{{.Tags}}{{end}}" | sed -e 's/\[//g' -e 's/\]//g')
+            image_tags_arr=($image_tags)
+            echo "image tags: ${image_tags_arr[@]}, number: ${#image_tags_arr[@]}"
+            if (( ${#image_tags_arr[@]} > 1 )); then
+              ibmcloud cr image-untag "us.icr.io/icm-cassandra/$image_name:$GITHUB_REF_SLUG"
+            else
+              ibmcloud cr image-rm "us.icr.io/icm-cassandra/$image_name:$GITHUB_REF_SLUG"
+            fi
+          done
+  #     Add a slack notification about successful or failed releases
