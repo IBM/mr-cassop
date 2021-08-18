@@ -267,6 +267,16 @@ jobs:
           sha1sum_var=$(sha1sum ./cassandra-operator-$VERSION.tgz | awk '{ print $1 }')
           curl -s -o /dev/null -w '%{http_code}' -u$HELM_REPO_USER:$HELM_REPO_PASS -T ./cassandra-operator-$VERSION.tgz --header X-Checksum-MD5:$md5sum_var --header X-Checksum-Sha1:$sha1sum_var $HELM_REPO/cassandra-operator-$VERSION.tgz
 
+      - name: Commit and push updated values.yaml
+        env:
+          VERSION: ${{ needs.operator.outputs.version }}
+        run: |
+          git config --global user.email ""
+          git config --global user.name "Github Actions CI"
+          git add cassandra-operator/values.yaml
+          git commit -m "Release $VERSION"
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:main
+
   docs:
     name: Publish Docs
     needs: [helm-release]
