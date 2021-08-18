@@ -14,6 +14,7 @@ env:
   IBM_CLOUD_RG: icm
   IKS_CLUSTER: icm-cassandra-ci
   IKS_NAMESPACE: cassandra-operator-ci
+  ICR_NAMESPACE: cassandra-operator
   DOCKER_PROXY_REGISTRY: ${{ secrets.DOCKER_PROXY_REGISTRY }}
   DOCKER_PROXY_USER: ${{ secrets.ARTIFACTORY_USER }}
   DOCKER_PROXY_PASS: ${{ secrets.ARTIFACTORY_PASS }}
@@ -94,7 +95,7 @@ jobs:
           build-args: |
             VERSION=${{ env.GITHUB_REF_SLUG }}
             DOCKER_PROXY_REGISTRY=${{ env.DOCKER_PROXY_REGISTRY }}/
-          tags: us.icr.io/icm-cassandra/cassandra-operator:${{ env.GITHUB_REF_SLUG }}
+          tags: us.icr.io/${{ env.ICR_NAMESPACE }}/cassandra-operator:${{ env.GITHUB_REF_SLUG }}
           outputs: type=docker,dest=cassandra-operator.tar
 
       - name: Upload cassandra operator image artifact
@@ -131,8 +132,9 @@ jobs:
       - name: Build cassandra image
         uses: docker/build-push-action@v2
         with:
-          file: Dockerfile.cassandra
-          tags: us.icr.io/icm-cassandra/cassandra:${{ env.GITHUB_REF_SLUG }}
+          file: ./cassandra/Dockerfile
+          context: ./cassandra
+          tags: us.icr.io/${{ env.ICR_NAMESPACE }}/cassandra:${{ env.GITHUB_REF_SLUG }}
           build-args: |
             DOCKER_PROXY_REGISTRY=${{ env.DOCKER_PROXY_REGISTRY }}/
           outputs: type=docker,dest=cassandra.tar
@@ -176,7 +178,7 @@ jobs:
           build-args: |
             VERSION=${{ env.GITHUB_REF_SLUG }}
             DOCKER_PROXY_REGISTRY=${{ env.DOCKER_PROXY_REGISTRY }}/
-          tags: us.icr.io/icm-cassandra/cassandra-prober:${{ env.GITHUB_REF_SLUG }}
+          tags: us.icr.io/${{ env.ICR_NAMESPACE }}/prober:${{ env.GITHUB_REF_SLUG }}
           outputs: type=docker,dest=prober.tar
 
       - name: Upload prober image artifact
@@ -184,6 +186,47 @@ jobs:
         with:
           name: prober
           path: prober.tar
+          retention-days: 1
+
+  build-jolokia:
+    runs-on: ubuntu-latest
+    needs: run-tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Inject slug/short variables
+        uses: rlespinasse/github-slug-action@e4699e49fcf890a3172a02c56ba78d867dbb9fd5 # 3.1.0
+
+      - name: Modify GITHUB_REF_SLUG
+        if: ${{ github.event_name != 'release' }}
+        run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Authenticate to Docker Proxy Registry
+        uses: docker/login-action@adb73476b6e06caddec5db0bc1deacbec8cdd947 # v1.6.0
+        with:
+          registry: ${{ env.DOCKER_PROXY_REGISTRY }}
+          username: ${{ env.DOCKER_PROXY_USER }}
+          password: ${{ env.DOCKER_PROXY_PASS }}
+
+      - name: Build jolokia image
+        uses: docker/build-push-action@v2
+        with:
+          file: ./jolokia/Dockerfile
+          context: ./jolokia
+          build-args: |
+            DOCKER_PROXY_REGISTRY=${{ env.DOCKER_PROXY_REGISTRY }}/
+          tags: us.icr.io/${{ env.ICR_NAMESPACE }}/jolokia:${{ env.GITHUB_REF_SLUG }}
+          outputs: type=docker,dest=jolokia.tar
+
+      - name: Upload jolokia image artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: jolokia
+          path: jolokia.tar
           retention-days: 1
 
 
@@ -238,7 +281,7 @@ jobs:
 
   push-images-for-e2e:
     if: "!contains(github.event.commits[0].message, '[skip e2e]')"
-    needs: [build-operator, build-cassandra, build-prober]
+    needs: [build-operator, build-cassandra, build-prober, build-jolokia]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -282,16 +325,23 @@ jobs:
         with:
           name: prober
 
+      - name: Download jolokia image artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: jolokia
+
       - name: Load container images
         run: |
           docker load -i cassandra-operator.tar
           docker load -i cassandra.tar
           docker load -i prober.tar
+          docker load -i jolokia.tar
       - name: Push Images to ICR
         run: |
-          docker push "us.icr.io/icm-cassandra/cassandra-operator:$GITHUB_REF_SLUG"
-          docker push "us.icr.io/icm-cassandra/cassandra-prober:$GITHUB_REF_SLUG"
-          docker push "us.icr.io/icm-cassandra/cassandra:$GITHUB_REF_SLUG"
+          docker push "us.icr.io/${{ env.ICR_NAMESPACE }}/cassandra-operator:$GITHUB_REF_SLUG"
+          docker push "us.icr.io/${{ env.ICR_NAMESPACE }}/prober:$GITHUB_REF_SLUG"
+          docker push "us.icr.io/${{ env.ICR_NAMESPACE }}/cassandra:$GITHUB_REF_SLUG"
+          docker push "us.icr.io/${{ env.ICR_NAMESPACE }}/jolokia:$GITHUB_REF_SLUG"
   run-e2e-tests:
     needs: [ push-images-for-e2e ]
     runs-on: ubuntu-latest
@@ -340,8 +390,10 @@ jobs:
           retry_on: error
           command: |
             helm install cassandra-operator-ci cassandra-operator \
-              --set "container.image=us.icr.io/icm-cassandra/cassandra-operator:$GITHUB_REF_SLUG" \
-              --set "proberImage=us.icr.io/icm-cassandra/cassandra-prober:$GITHUB_REF_SLUG" \
+              --set "container.image=us.icr.io/${{ env.ICR_NAMESPACE }}/cassandra-operator:$GITHUB_REF_SLUG" \
+              --set "proberImage=us.icr.io/${{ env.ICR_NAMESPACE }}/prober:$GITHUB_REF_SLUG" \
+              --set "cassandraImage=us.icr.io/${{ env.ICR_NAMESPACE }}/cassandra:$GITHUB_REF_SLUG" \
+              --set "jolokiaImage=us.icr.io/${{ env.ICR_NAMESPACE }}/jolokia:$GITHUB_REF_SLUG" \
               --set "logFormat=console" \
               --set "container.imagePullSecret=$IMAGE_PULL_SECRET"
             kubectl rollout status deployment cassandra-operator
@@ -369,15 +421,15 @@ jobs:
       - name: Cleanup Images
         if: ${{ always() && github.event_name != 'release' }}
         run: |
-          for image_name in cassandra-operator cassandra-prober; do
-            image_digest=$(ibmcloud cr image-list --restrict icm-cassandra --format "{{if and (eq .Repository \"us.icr.io/icm-cassandra/$image_name\") (eq .Tag \"$GITHUB_REF_SLUG\")}}{{.Digest}}{{end}}" --no-trunc)
-            image_tags=$(ibmcloud cr image-digests --restrict icm-cassandra --format "{{if and (eq .Digest \"$image_digest\")}}{{.Tags}}{{end}}" | sed -e 's/\[//g' -e 's/\]//g')
+          for image_name in cassandra-operator prober cassandra jolokia; do
+            image_digest=$(ibmcloud cr image-list --restrict ${{ env.ICR_NAMESPACE }} --format "{{if and (eq .Repository \"us.icr.io/cassandra-operator/$image_name\") (eq .Tag \"$GITHUB_REF_SLUG\")}}{{.Digest}}{{end}}" --no-trunc)
+            image_tags=$(ibmcloud cr image-digests --restrict ${{ env.ICR_NAMESPACE }} --format "{{if and (eq .Digest \"$image_digest\")}}{{.Tags}}{{end}}" | sed -e 's/\[//g' -e 's/\]//g')
             image_tags_arr=($image_tags)
             echo "image tags: ${image_tags_arr[@]}, number: ${#image_tags_arr[@]}"
             if (( ${#image_tags_arr[@]} > 1 )); then
-              ibmcloud cr image-untag "us.icr.io/icm-cassandra/$image_name:$GITHUB_REF_SLUG"
+              ibmcloud cr image-untag "us.icr.io/${{ env.ICR_NAMESPACE }}/$image_name:$GITHUB_REF_SLUG"
             else
-              ibmcloud cr image-rm "us.icr.io/icm-cassandra/$image_name:$GITHUB_REF_SLUG"
+              ibmcloud cr image-rm "us.icr.io/${{ env.ICR_NAMESPACE }}/$image_name:$GITHUB_REF_SLUG"
             fi
           done
   #     Add a slack notification about successful or failed releases

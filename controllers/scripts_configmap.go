@@ -43,7 +43,7 @@ func scriptsVolume(cc *v1alpha1.CassandraCluster) v1.Volume {
 				LocalObjectReference: v1.LocalObjectReference{
 					Name: names.ScriptsConfigMap(cc.Name),
 				},
-				DefaultMode: proto.Int32(0700),
+				DefaultMode: proto.Int32(0755),
 			},
 		},
 	}

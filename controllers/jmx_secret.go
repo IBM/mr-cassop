@@ -73,7 +73,7 @@ func jmxSecretVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
 		VolumeSource: v1.VolumeSource{
 			Secret: &v1.SecretVolumeSource{
 				SecretName:  names.JMXRemoteSecret(cc.Name),
-				DefaultMode: proto.Int32(0400),
+				DefaultMode: proto.Int32(v1.SecretVolumeSourceDefaultMode),
 			},
 		},
 	}
