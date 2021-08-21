@@ -4,7 +4,6 @@ metadata:
   name: test-cluster
 spec:
   cassandra:
-    image: ""
     imagePullPolicy: IfNotPresent
     numSeeds: 2
     persistence:
@@ -20,31 +19,39 @@ spec:
             storage: 20Gi
     zonesAsRacks: false
     resources:
+      limits:
+        cpu: "1"
+        memory: 1.5Gi
       requests:
         memory: 1.5Gi
         cpu: "1"
   cqlConfigMapLabelKey: cql-scripts
   dcs:
-    - name: dc1
-      replicas: 3
-    - name: dc2
-      replicas: 3
+  - name: dc1
+    replicas: 3
+  - name: dc2
+    replicas: 3
   imagePullSecretName: icm-coreeng-pull-secret
   prober:
     debug: true
-    image: ""
     imagePullPolicy: IfNotPresent
-    jolokia:
-      image: ""
-      imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
     ingress:
-      domain: ""
-      secret: ""
+      domain: icm-cassandra-dev-3f3037ed650e84f558a8839c9ec8a6ed-0000.us-south.containers.appdomain.cloud
+      secret: icm-cassandra-dev-3f3037ed650e84f558a8839c9ec8a6ed-0000
       annotations:
         "ingress.bluemix.net/redirect-to-https": "True"
-    dcsIngressDomains: []
+    externalDCsIngressDomains: []
+    jolokia:
+      imagePullPolicy: IfNotPresent
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
   reaper:
-    image: ""
     imagePullPolicy: IfNotPresent
     resources:
       requests:
@@ -59,37 +66,43 @@ spec:
     datacenterAvailability: each
     keyspace: reaper_db
     dcs:
-      - name: dc1
-        replicas: 2
-      - name: dc2
-        replicas: 2
+    - name: dc1
+      replicas: 3
+    - name: dc2
+      replicas: 3
     scheduleRepairs:
-      enabled: true
+      enabled: false
       repairs:
-        - keyspace: system_traces
-          tables: [events]
-          scheduleDaysBetween: 7
-          scheduleTriggerTime: "2020-11-15T14:00:00"
-          datacenters: [dc1]
-          repairThreadCount: 2
-          intensity: "1.0"
-          incrementalRepair: false
-          repairParallelism: "datacenter_aware"
+      - keyspace: system_traces
+        tables: [events]
+        scheduleDaysBetween: 7
+        scheduleTriggerTime: "2020-11-15T14:00:00"
+        datacenters: [dc1]
+        repairThreadCount: 2
+        intensity: "1.0"
+        incrementalRepair: false
+        repairParallelism: "datacenter_aware"
   systemKeyspaces:
     dcs:
-      - name: dc1
-        rf: 2
-      - name: dc2
-        rf: 2
+    - name: dc1
+      rf: 2
+    - name: dc2
+      rf: 2
     names:
-      - system_auth
-      - system_distributed
-      - system_traces
+    - system_distributed
+    - system_traces
   hostPort:
     enabled: false
     useExternalHostIP: false # If set to false host internal ip will be used
     ports:
-      - intra
-      - cql
-      - jmx
-      - thrift
+    - intra
+    - cql
+    - jmx
+    - thrift
+#  status:
+#    readyAllDCs: false
+  jvm:
+    maxHeapSize: 1024M
+  jmx:
+#    authentication: local_files
+    ssl: false

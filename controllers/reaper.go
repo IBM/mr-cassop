@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -26,7 +25,6 @@ import (
 )
 
 const (
-	reaperAuthPath  = "/etc/reaper-auth/auth.env"
 	reaperAppPort   = 8080
 	reaperAdminPort = 8081
 )
@@ -49,16 +47,9 @@ func (r *CassandraClusterReconciler) reconcileReaper(ctx context.Context, cc *db
 	return nil
 }
 
-func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Context, cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) error {
+func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Context, cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, adminSecret *v1.Secret) error {
 	reaperLabels := labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterComponentReaper)
 	reaperLabels = labels.WithDCLabel(reaperLabels, dc.Name)
-	cassandraAuth := createCassandraAuth(cc)
-	cassandraAuth.VolumeMounts = append(cassandraAuth.VolumeMounts,
-		v1.VolumeMount{
-			Name:      "reaper-auth",
-			MountPath: filepath.Dir(reaperAuthPath),
-		})
-	cassandraAuth.Args = append(cassandraAuth.Args, getAuthRunArgs(cc, dc.Name))
 	percent25 := intstr.FromInt(25)
 	desiredDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -85,11 +76,8 @@ func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Conte
 					Labels: reaperLabels,
 				},
 				Spec: v1.PodSpec{
-					InitContainers: []v1.Container{
-						cassandraAuth,
-					},
 					Containers: []v1.Container{
-						reaperContainer(cc, dc),
+						reaperContainer(cc, dc, adminSecret),
 					},
 					Volumes:                       reaperVolumes(cc, dc),
 					ImagePullSecrets:              imagePullSecrets(cc),
@@ -103,6 +91,9 @@ func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Conte
 			},
 		},
 	}
+
+	r.Log.Debug("Reconciling Reaper Deployment")
+
 	desiredDeployment.Spec.Template.Spec.Volumes = append(desiredDeployment.Spec.Template.Spec.Volumes, createAuthVolumes(cc, dc)...)
 	if err := controllerutil.SetControllerReference(cc, desiredDeployment, r.Scheme); err != nil {
 		return errors.Wrap(err, "Cannot set controller reference")
@@ -208,10 +199,7 @@ func (r CassandraClusterReconciler) reconcileScheduleRepairs(ctx context.Context
 		if err := rescheduleTimestamp(&repair); err != nil {
 			return errors.Wrap(err, "Error rescheduling repair")
 		}
-		repair.Owner = dbv1alpha1.CassandraRole
-		//if repair.Owner == "" { //TODO part of auth implementation
-		//	repair.Owner = cc.Spec.NodetoolUser // Default owner to nodetool user
-		//}
+		repair.Owner = dbv1alpha1.CassandraOperatorAdminRole
 		err := reaperClient.ScheduleRepair(ctx, cc.Name, repair)
 		if err != nil {
 			return errors.Wrapf(err, "Error scheduling repair on keyspace %s", repair.Keyspace)
@@ -220,7 +208,7 @@ func (r CassandraClusterReconciler) reconcileScheduleRepairs(ctx context.Context
 	return nil
 }
 
-func reaperContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Container {
+func reaperContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, adminSecret *v1.Secret) v1.Container {
 	return v1.Container{
 		Name:            "reaper",
 		Image:           cc.Spec.Reaper.Image,
@@ -266,34 +254,18 @@ func reaperContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Conta
 			InitialDelaySeconds: 120,
 		},
 		Resources: cc.Spec.Reaper.Resources,
-		Args: []string{
-			"sh",
-			"-c",
-			strings.Join([]string{
-				"export $(cat " + reaperAuthPath + ");",
-				"/usr/local/bin/entrypoint.sh cassandra-reaper;",
-			}, "\n"),
-		},
-		Env: reaperEnvironment(cc, dc),
+		Env:       reaperEnvironment(cc, dc, adminSecret),
 		VolumeMounts: []v1.VolumeMount{
 			{
 				Name:      "shiro-config",
 				MountPath: "/shiro/shiro.ini",
 				SubPath:   "shiro.ini",
 			},
-			{
-				Name:      "reaper-auth",
-				MountPath: filepath.Dir(reaperAuthPath),
-			},
 			/* TODO: TLS
 			{{- if include "cassandra.client.tls.enabled" . }}
 			{{- include "cassandra.client.tls.volumeMounts" . | nindent 8 }}
 			{{- end }}
 			*/
-			{
-				Name:      "homedir-files",
-				MountPath: "/root/.cassandra",
-			},
 		},
 		TerminationMessagePath:   "/dev/termination-log",
 		TerminationMessagePolicy: v1.TerminationMessageReadFile,
@@ -314,23 +286,6 @@ func reaperVolumes(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) []v1.Volum
 						Name: names.ShiroConfigMap(cc.Name),
 					},
 					DefaultMode: proto.Int32(v1.SecretVolumeSourceDefaultMode),
-				},
-			},
-		},
-		{
-			Name: "homedir-files",
-			VolumeSource: v1.VolumeSource{
-				ConfigMap: &v1.ConfigMapVolumeSource{
-					LocalObjectReference: v1.LocalObjectReference{
-						Name: names.ConfigMap(cc.Name),
-					},
-					DefaultMode: proto.Int32(v1.SecretVolumeSourceDefaultMode),
-					Items: []v1.KeyToPath{
-						{
-							Key:  "cqlshrc",
-							Path: "cqlshrc",
-						},
-					},
 				},
 			},
 		},
@@ -410,18 +365,4 @@ func checkSunday(day int) int {
 		return 7
 	}
 	return day
-}
-
-func getAuthRunArgs(cc *dbv1alpha1.CassandraCluster, dcName string) string {
-	commands := make([]string, 0)
-	commands = append(commands, "source /scripts/readinessrc.sh") // TODO: Convert this script to Go?
-	commands = append(commands, fmt.Sprintf("until cqlsh -e 'use %s;' %s; do sleep 5; done;",
-		cc.Spec.Reaper.Keyspace, names.DC(cc.Name, dcName)))
-	commands = append(commands, fmt.Sprintf("echo REAPER_CASS_AUTH_ENABLED=$CASSANDRA_INTERNAL_AUTH > %s;", reaperAuthPath))
-	commands = append(commands, fmt.Sprintf("write_auth () { echo \"$1\"=$(/scripts/probe.sh \"$2\") >> %s; };", reaperAuthPath))
-	commands = append(commands, "write_auth REAPER_CASS_AUTH_USERNAME cqlu;")
-	commands = append(commands, "write_auth REAPER_CASS_AUTH_PASSWORD cqlp;")
-	commands = append(commands, "write_auth REAPER_JMX_AUTH_USERNAME u;")
-	commands = append(commands, "write_auth REAPER_JMX_AUTH_PASSWORD p;")
-	return strings.Join(commands, "\n") + "\n"
 }

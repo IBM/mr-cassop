@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/gogo/protobuf/proto"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
@@ -105,12 +106,11 @@ func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) *ap
 					},
 					ImagePullSecrets: imagePullSecrets(cc),
 					Volumes: []v1.Volume{
-						rolesVolume(cc),
 						scriptsVolume(cc),
-						jmxSecretVolume(cc),
 						maintenanceVolume(cc),
 						cassandraDCConfigVolume(cc, dc),
 						podsConfigVolume(cc),
+						authVolume(cc),
 					},
 					RestartPolicy:                 v1.RestartPolicyAlways,
 					TerminationGracePeriodSeconds: cc.Spec.Cassandra.TerminationGracePeriodSeconds,
@@ -179,14 +179,6 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Co
 				Name:  "HEAP_NEWSIZE",
 				Value: cc.Spec.JVM.HeapNewSize,
 			},
-			{
-				Name:  "JMX_PORT",
-				Value: fmt.Sprint(dbv1alpha1.JmxPort),
-			},
-			{
-				Name:  "PROBER_SERVICE",
-				Value: names.ProberService(cc.Name),
-			},
 		},
 		Args: []string{
 			"bash",
@@ -197,7 +189,7 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Co
 		LivenessProbe: &v1.Probe{
 			Handler: v1.Handler{
 				TCPSocket: &v1.TCPSocketAction{
-					Port: intstr.FromString("jmx"),
+					Port: intstr.FromString("cql"),
 				},
 			},
 			InitialDelaySeconds: 60,
@@ -212,8 +204,8 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Co
 					Command: []string{
 						"bash",
 						"-c",
-						`source /etc/pods-config/${POD_NAME}_${POD_UID}.sh
-						 http --check-status --timeout 2 --body GET $PROBER_SERVICE/healthz/$CASSANDRA_BROADCAST_ADDRESS`,
+						"source /etc/pods-config/${POD_NAME}_${POD_UID}.sh && " +
+							fmt.Sprintf("http --check-status --timeout 2 --body GET %s/healthz/$CASSANDRA_BROADCAST_ADDRESS", names.ProberService(cc.Name)),
 					},
 				},
 			},
@@ -221,7 +213,7 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Co
 			PeriodSeconds:       10,
 			SuccessThreshold:    2,
 			FailureThreshold:    3,
-			InitialDelaySeconds: 20,
+			InitialDelaySeconds: 40,
 		},
 		Lifecycle: &v1.Lifecycle{
 			PreStop: &v1.Handler{
@@ -229,18 +221,17 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Co
 					Command: []string{
 						"bash",
 						"-c",
-						"/scripts/probe.sh drain",
+						"source /home/cassandra/.bashrc && nodetool drain",
 					},
 				},
 			},
 		},
 		VolumeMounts: []v1.VolumeMount{
-			rolesVolumeMount(),
 			scriptsVolumeMount(),
-			jmxSecretVolumeMount(),
 			cassandraDCConfigVolumeMount(),
 			cassandraDataVolumeMount(),
 			podsConfigVolumeMount(),
+			authVolumeMount(),
 		},
 		Ports:                    cassandraContainerPorts(cc),
 		TerminationMessagePath:   "/dev/termination-log",
@@ -378,17 +369,41 @@ func getSeedHostname(cc *dbv1alpha1.CassandraCluster, dcName string, podSuffix i
 }
 
 func getCassandraRunCommand(cc *dbv1alpha1.CassandraCluster) string {
-	var arg string
+	var args []string
 	if cc.Spec.Cassandra.PurgeGossip {
-		arg += `rm -rf /var/lib/cassandra/data/system/peers*`
+		args = append(args, "rm -rf /var/lib/cassandra/data/system/peers*")
 	}
-	arg += `
-cp /etc/cassandra-configmaps/* $CASSANDRA_CONF
-cp /etc/cassandra-configmaps/jvm.options $CASSANDRA_HOME
-source /etc/pods-config/${POD_NAME}_${POD_UID}.sh
-`
-	arg += fmt.Sprintf("./docker-entrypoint.sh -f -R -Dcassandra.jmx.remote.port=%d -Dcom.sun.management.jmxremote.rmi.port=%d -Dcom.sun.management.jmxremote.authenticate=false -Djava.rmi.server.hostname=$CASSANDRA_BROADCAST_ADDRESS", dbv1alpha1.JmxPort, dbv1alpha1.JmxPort)
-	return arg
+
+	args = append(args,
+		"cp /etc/cassandra-configmaps/* $CASSANDRA_CONF/",
+		"cp /etc/cassandra-configmaps/jvm.options $CASSANDRA_HOME/",
+		"source /etc/pods-config/${POD_NAME}_${POD_UID}.sh",
+	)
+
+	cassandraRunCommand := []string{
+		"/docker-entrypoint.sh -f -R",
+		fmt.Sprintf("-Dcassandra.jmx.remote.port=%d", dbv1alpha1.JmxPort),
+		fmt.Sprintf("-Dcom.sun.management.jmxremote.rmi.port=%d", dbv1alpha1.JmxPort),
+		"-Djava.rmi.server.hostname=$CASSANDRA_BROADCAST_ADDRESS",
+		"-Dcom.sun.management.jmxremote.authenticate=true",
+	}
+
+	if cc.Spec.JMX.Authentication == "local_files" {
+		cassandraRunCommand = append(cassandraRunCommand,
+			"-Dcom.sun.management.jmxremote.password.file=/etc/cassandra-auth-config/jmxremote.password",
+			"-Dcom.sun.management.jmxremote.access.file=/etc/cassandra-auth-config/jmxremote.access",
+		)
+	} else { // Internal auth is default
+		cassandraRunCommand = append(cassandraRunCommand,
+			"-Dcassandra.jmx.remote.login.config=CassandraLogin",
+			"-Djava.security.auth.login.config=$CASSANDRA_HOME/conf/cassandra-jaas.config",
+			"-Dcassandra.jmx.authorizer=org.apache.cassandra.auth.jmx.AuthorizationProxy",
+		)
+	}
+
+	args = append(args, strings.Join(cassandraRunCommand, " "))
+
+	return strings.Join(args, "\n")
 }
 
 func imagePullSecrets(cc *dbv1alpha1.CassandraCluster) []v1.LocalObjectReference {
@@ -632,4 +647,51 @@ func cassandraContainerPorts(cc *dbv1alpha1.CassandraCluster) []v1.ContainerPort
 	}
 
 	return containerPorts
+}
+
+func authVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
+	volume := v1.Volume{
+		Name: "auth-config",
+		VolumeSource: v1.VolumeSource{
+			Secret: &v1.SecretVolumeSource{
+				SecretName: names.AdminAuthConfigSecret(cc.Name),
+				Items: []v1.KeyToPath{
+					{
+						Key:  "cqlshrc",
+						Path: "cqlshrc",
+					},
+					{
+						Key:  "admin_username",
+						Path: "admin_username",
+					},
+					{
+						Key:  "admin_password",
+						Path: "admin_password",
+					},
+				},
+
+				DefaultMode: proto.Int32(v1.SecretVolumeSourceDefaultMode),
+			},
+		},
+	}
+
+	if cc.Spec.JMX.Authentication == "local_files" {
+		volume.VolumeSource.Secret.Items = append(volume.VolumeSource.Secret.Items, v1.KeyToPath{
+			Key:  "jmxremote.password",
+			Path: "jmxremote.password",
+		})
+		volume.VolumeSource.Secret.Items = append(volume.VolumeSource.Secret.Items, v1.KeyToPath{
+			Key:  "jmxremote.access",
+			Path: "jmxremote.access",
+		})
+	}
+
+	return volume
+}
+
+func authVolumeMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      "auth-config",
+		MountPath: "/etc/cassandra-auth-config/",
+	}
 }

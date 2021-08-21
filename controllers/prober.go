@@ -79,10 +79,7 @@ func (r *CassandraClusterReconciler) reconcileProberDeployment(ctx context.Conte
 					Labels: proberLabels,
 				},
 				Spec: v1.PodSpec{
-					ImagePullSecrets: imagePullSecrets(cc),
-					Volumes: []v1.Volume{
-						rolesVolume(cc),
-					},
+					ImagePullSecrets:              imagePullSecrets(cc),
 					RestartPolicy:                 v1.RestartPolicyAlways,
 					TerminationGracePeriodSeconds: proto.Int64(30),
 					DNSPolicy:                     v1.DNSClusterFirst,
@@ -200,7 +197,7 @@ func proberContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 			{Name: "SERVER_PORT", Value: strconv.Itoa(dbv1alpha1.ProberContainerPort)},
 			{Name: "JMX_POLL_PERIOD_SECONDS", Value: "10"},
 			{Name: "JMX_PORT", Value: fmt.Sprintf("%d", dbv1alpha1.JmxPort)},
-			{Name: "ROLES_DIR", Value: cassandraRolesDir},
+			{Name: "ADMIN_SECRET_NAME", Value: names.ActiveAdminSecret(cc.Name)},
 		},
 		Ports: []v1.ContainerPort{
 			{
@@ -221,9 +218,6 @@ func proberContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 			PeriodSeconds:    10,
 			SuccessThreshold: 1,
 			FailureThreshold: 3,
-		},
-		VolumeMounts: []v1.VolumeMount{
-			rolesVolumeMount(),
 		},
 		WorkingDir:               "/",
 		TerminationMessagePath:   "/dev/termination-log",

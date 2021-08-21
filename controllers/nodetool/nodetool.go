@@ -13,18 +13,22 @@ import (
 )
 
 type NodetoolClient interface {
-	RepairKeyspace(cc *v1alpha1.CassandraCluster, keyspace string) error
+	RepairKeyspace(cc *v1alpha1.CassandraCluster, user string) error
 }
 
 type nodetoolClient struct {
 	clientset  *kubernetes.Clientset
 	restConfig *rest.Config
+	roleName   string
+	password   string
 }
 
-func NewNodetoolClient(clientset *kubernetes.Clientset, config *rest.Config) NodetoolClient {
+func NewNodetoolClient(clientset *kubernetes.Clientset, config *rest.Config, roleName, password string) NodetoolClient {
 	return &nodetoolClient{
 		clientset:  clientset,
 		restConfig: config,
+		roleName:   roleName,
+		password:   password,
 	}
 }
 
@@ -32,7 +36,7 @@ func (n *nodetoolClient) RepairKeyspace(cc *v1alpha1.CassandraCluster, keyspace 
 	cmd := []string{
 		"sh",
 		"-c",
-		"nodetool -h " + getFirstPodName(cc) + " repair -full -dcpar -- " + keyspace,
+		fmt.Sprintf("nodetool -u %s -pw \"%s\" -h %s repair -full -dcpar -- %s", n.roleName, n.password, getFirstPodName(cc), keyspace),
 	}
 
 	return n.execOnPod(cc, cmd)

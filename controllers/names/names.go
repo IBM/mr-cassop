@@ -70,10 +70,6 @@ func ScriptsConfigMap(clusterName string) string {
 	return clusterName + "-scripts-configmap"
 }
 
-func JMXRemoteSecret(clusterName string) string {
-	return clusterName + "-jmxremote-secret"
-}
-
 func DC(clusterName, dcName string) string {
 	return clusterName + "-cassandra-" + dcName
 }
@@ -88,6 +84,18 @@ func ConfigMap(clusterName string) string {
 
 func PodsConfigConfigmap(clusterName string) string {
 	return clusterName + "-pods-config"
+}
+
+func BaseAdminSecret(clusterName string) string {
+	return clusterName + "-auth-base-admin"
+}
+
+func ActiveAdminSecret(clusterName string) string {
+	return clusterName + "-auth-active-admin"
+}
+
+func AdminAuthConfigSecret(clusterName string) string {
+	return clusterName + "-auth-config-admin"
 }
 
 func OperatorScriptsCM() string {

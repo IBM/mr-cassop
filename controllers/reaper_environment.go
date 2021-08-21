@@ -10,9 +10,10 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-func reaperEnvironment(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC) []v1.EnvVar {
+func reaperEnvironment(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC, adminSecret *v1.Secret) []v1.EnvVar {
 	reaperEnv := []v1.EnvVar{
 		// http://cassandra-reaper.io/docs/configuration/docker_vars/
+		{Name: "ACTIVE_ADMIN_SECRET_VERSION", Value: adminSecret.ResourceVersion},
 		{Name: "REAPER_CASS_ACTIVATE_QUERY_LOGGER", Value: "true"},
 		{Name: "REAPER_LOGGING_ROOT_LEVEL", Value: "INFO"},
 		{Name: "REAPER_LOGGING_APPENDERS_CONSOLE_THRESHOLD", Value: "INFO"},
@@ -28,6 +29,8 @@ func reaperEnvironment(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC) []v1.EnvVa
 		{Name: "REAPER_CASS_KEYSPACE", Value: cc.Spec.Reaper.Keyspace},
 		{Name: "REAPER_CASS_PORT", Value: "9042"},
 		{Name: "JAVA_OPTS", Value: javaOpts(cc)},
+		//
+		{Name: "REAPER_CASS_AUTH_ENABLED", Value: "true"},
 	}
 	/* TODO: Auth
 	{{- if .Values.reaper.webuiAuth.enabled }}
@@ -40,6 +43,46 @@ func reaperEnvironment(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC) []v1.EnvVa
 	*/
 	reaperEnv = append(reaperEnv, v1.EnvVar{
 		Name: "REAPER_SHIRO_INI", Value: "/shiro/shiro.ini",
+	})
+
+	reaperEnv = append(reaperEnv, v1.EnvVar{
+		Name: "REAPER_CASS_AUTH_USERNAME",
+		ValueFrom: &v1.EnvVarSource{
+			SecretKeyRef: &v1.SecretKeySelector{
+				LocalObjectReference: v1.LocalObjectReference{Name: names.AdminAuthConfigSecret(cc.Name)},
+				Key:                  "admin_username",
+			},
+		},
+	})
+
+	reaperEnv = append(reaperEnv, v1.EnvVar{
+		Name: "REAPER_CASS_AUTH_PASSWORD",
+		ValueFrom: &v1.EnvVarSource{
+			SecretKeyRef: &v1.SecretKeySelector{
+				LocalObjectReference: v1.LocalObjectReference{Name: names.AdminAuthConfigSecret(cc.Name)},
+				Key:                  "admin_password",
+			},
+		},
+	})
+
+	reaperEnv = append(reaperEnv, v1.EnvVar{
+		Name: "REAPER_JMX_AUTH_USERNAME",
+		ValueFrom: &v1.EnvVarSource{
+			SecretKeyRef: &v1.SecretKeySelector{
+				LocalObjectReference: v1.LocalObjectReference{Name: names.AdminAuthConfigSecret(cc.Name)},
+				Key:                  "admin_username",
+			},
+		},
+	})
+
+	reaperEnv = append(reaperEnv, v1.EnvVar{
+		Name: "REAPER_JMX_AUTH_PASSWORD",
+		ValueFrom: &v1.EnvVarSource{
+			SecretKeyRef: &v1.SecretKeySelector{
+				LocalObjectReference: v1.LocalObjectReference{Name: names.AdminAuthConfigSecret(cc.Name)},
+				Key:                  "admin_password",
+			},
+		},
 	})
 
 	schedulingOpts := autoSchedulingOpts(cc)

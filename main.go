@@ -123,8 +123,8 @@ func main() {
 		RESTConfig:   restCfg,
 		ProberClient: func(url *url.URL) prober.ProberClient { return prober.NewProberClient(url, httpClient) },
 		CqlClient:    func(cluster *gocql.ClusterConfig) (cql.CqlClient, error) { return cql.NewCQLClient(cluster) },
-		NodetoolClient: func(clientset *kubernetes.Clientset, config *rest.Config) nodetool.NodetoolClient {
-			return nodetool.NewNodetoolClient(clientset, config)
+		NodetoolClient: func(clientset *kubernetes.Clientset, config *rest.Config, roleName, password string) nodetool.NodetoolClient {
+			return nodetool.NewNodetoolClient(clientset, config, roleName, password)
 		},
 		ReaperClient: func(url *url.URL) reaper.ReaperClient { return reaper.NewReaperClient(url, httpClient) },
 	}

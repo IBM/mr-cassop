@@ -22,6 +22,5 @@ spec:
         rf: 3
     names:
       - system_distributed
-      - system_auth
       - system_traces
 ```

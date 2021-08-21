@@ -49,6 +49,11 @@ func (r *CassandraClusterReconciler) reconcileProberRole(ctx context.Context, cc
 				Resources: []string{"pods/status", "configmaps/status"},
 				Verbs:     []string{"get", "patch", "update"},
 			},
+			{
+				APIGroups: []string{""},
+				Resources: []string{"secrets"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
 		},
 	}
 

@@ -159,7 +159,7 @@ var _ = BeforeSuite(func() {
 		CqlClient: func(clusterConfig *gocql.ClusterConfig) (cql.CqlClient, error) {
 			return mockCQLClient, nil
 		},
-		NodetoolClient: func(clientset *kubernetes.Clientset, config *rest.Config) nodetool.NodetoolClient {
+		NodetoolClient: func(clientset *kubernetes.Clientset, config *rest.Config, roleName, password string) nodetool.NodetoolClient {
 			return mockNodetoolClient
 		},
 		ReaperClient: func(url *url.URL) reaper.ReaperClient {
@@ -289,7 +289,10 @@ func CleanUpCreatedResources(ccName, ccNamespace string) {
 		{name: names.MaintenanceConfigMap(cc.Name), objType: &v1.ConfigMap{}},
 		{name: names.RepairsConfigMap(cc.Name), objType: &v1.ConfigMap{}},
 		{name: names.RolesSecret(cc.Name), objType: &v1.Secret{}},
-		{name: names.JMXRemoteSecret(cc.Name), objType: &v1.Secret{}},
+		{name: names.BaseAdminSecret(cc.Name), objType: &v1.Secret{}},
+		{name: names.ActiveAdminSecret(cc.Name), objType: &v1.Secret{}},
+		{name: names.AdminAuthConfigSecret(cc.Name), objType: &v1.Secret{}},
+		{name: names.PodsConfigConfigmap(cc.Name), objType: &v1.ConfigMap{}},
 	}
 
 	// add DC specific resources

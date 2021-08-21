@@ -31,6 +31,10 @@ const (
 	CassandraClusterComponentReaper    = "reaper"
 	CassandraClusterComponentCassandra = "cassandra"
 
+	CassandraDefaultRole       = "cassandra"
+	CassandraDefaultPassword   = "cassandra"
+	CassandraOperatorAdminRole = "cassandraOperatorAdmin"
+
 	ProberContainerPort  = 8888
 	ProberServicePort    = 80
 	JolokiaContainerPort = 8080
@@ -39,12 +43,6 @@ const (
 	ThriftPort           = 9160
 
 	ReaperReplicasNumber = 1
-)
-
-var (
-	CassandraRole     = "cassandra"
-	CassandraPassword = "cassandra"
-	DefaultHostPorts  = []string{"tls", "cql"}
 )
 
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
@@ -66,8 +64,7 @@ type CassandraClusterSpec struct {
 	Reaper              *Reaper                        `json:"reaper,omitempty"`
 	HostPort            HostPort                       `json:"hostPort,omitempty"`
 	JVM                 JVM                            `json:"jvm,omitempty"`
-	//JMX                  JMX             `json:"jmx,omitempty"` //TODO part of auth  implementation
-	//NodetoolUser         string          `json:"nodetoolUser,omitempty"` //TODO part of auth implementation
+	JMX                 JMX                            `json:"jmx,omitempty"`
 	//Monitoring           Monitoring      `json:"monitoring,omitempty"` //TODO part of monitoring implementation
 }
 
@@ -113,13 +110,12 @@ type JVM struct {
 	//InitiatingHeapOccupancyPercent int32    `json:"initiatingHeapOccupancyPercent,omitempty"`
 }
 
-//type JMX struct { //TODO usage of those parrameters should be fully implemented during auth implementation
-//	// Authentication available options: false, local_files, internal
-//	// If internals is selected for C* <3.6, authentication will default to local_files
-//	// +kubebuilder:validation:Enum:=false;local_files;internal
-//	Authentication string `json:"authentication,omitempty"`
-//	SSL            bool   `json:"ssl,omitempty"` //todo can be only false until auth implemented
-//}
+type JMX struct {
+	// Authentication is always enabled and by default set to `internal`, available option: local_files.
+	// +kubebuilder:validation:Enum:=local_files;internal
+	Authentication string `json:"authentication,omitempty"`
+	//SSL            bool   `json:"ssl,omitempty"`
+}
 
 type ScheduleRepairs struct {
 	Enabled        bool     `json:"enabled,omitempty"`

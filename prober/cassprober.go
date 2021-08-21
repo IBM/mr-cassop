@@ -3,14 +3,16 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/google/go-cmp/cmp"
+	"github.com/ibm/cassandra-operator/prober/jolokia"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/client-go/tools/cache"
 	"net/http"
 	"os"
 	"reflect"
 	"strconv"
 	"time"
-
-	"github.com/google/go-cmp/cmp"
-	"github.com/ibm/cassandra-operator/prober/jolokia"
 )
 
 type nodeState struct {
@@ -27,15 +29,14 @@ var (
 	jmxPollPeriodSeconds, _ = strconv.Atoi(os.Getenv("JMX_POLL_PERIOD_SECONDS"))
 	jmxPort                 = os.Getenv("JMX_PORT")
 	jolokiaPort             = os.Getenv("JOLOKIA_PORT")
+	currentNamespace        = os.Getenv("POD_NAMESPACE")
+	cassandraAdminSecret    = os.Getenv("ADMIN_SECRET_NAME")
 
 	pollingIntervalDuration = time.Duration(jmxPollPeriodSeconds) * time.Second
 	jolokiaClient           = jolokia.NewClient("localhost", jolokiaPort, pollingIntervalDuration/2)
 	nodeStates              = map[string]nodeState{}
 	dcIsPolled              = map[string]bool{}
-	fallbackAuth            = userAuth{"cassandra", "cassandra"}
-	isFallbackAuth          = true
-	// TODO: set userAuth using file watcher
-	auth userAuth
+	auth                    userAuth
 )
 
 func processReadinessProbe(podIp string, broadcastIp string) (bool, []string) {
@@ -67,8 +68,6 @@ func updateNodeStates() {
 		err := updateNodesRequest()
 		if err != nil {
 			log.Error(err, "Failed updateNodesRequest")
-			log.Info("Retrying with fallback auth", "isFallbackAuth", isFallbackAuth)
-			isFallbackAuth = !isFallbackAuth
 		}
 	} else {
 		log.Info("0 discovered nodes...")
@@ -76,9 +75,6 @@ func updateNodeStates() {
 }
 
 func getUserAuth() userAuth {
-	if isFallbackAuth {
-		return fallbackAuth
-	}
 	return auth
 }
 
@@ -108,8 +104,8 @@ func updateNodesRequest() error {
 	newNodeStates := make(map[string]nodeState)
 	for i, polledIp := range polledIps {
 		node := nodeState{}
-		
-		if responses[i].Status == http.StatusOK {  // responses[i].Value is not nil
+
+		if responses[i].Status == http.StatusOK { // responses[i].Value is not nil
 			res := responses[i].Value
 			node.SimpleStates = res.SimpleStates
 			node.EndpointStates = res.AllEndpointStates[polledIp]
@@ -158,5 +154,35 @@ func updateNodesRequest() error {
 func pollNodeStates() {
 	for range time.Tick(pollingIntervalDuration) {
 		go updateNodeStates()
+	}
+}
+
+func watchAuthSecret() chan struct{} {
+	log.Info("Watching Secret " + cassandraAdminSecret + "...")
+
+	watchList := cache.NewListWatchFromClient(
+		clientSet.CoreV1().RESTClient(),
+		v1.ResourceSecrets.String(),
+		currentNamespace,
+		fields.OneTermEqualSelector("metadata.name", cassandraAdminSecret),
+	)
+
+	store, controller = cache.NewInformer(
+		watchList,
+		&v1.Secret{},
+		time.Second*1,
+		cache.ResourceEventHandlerFuncs{
+			AddFunc: handleAddSecret,
+		})
+	stopCh := make(chan struct{})
+	go controller.Run(stopCh)
+	return stopCh
+}
+
+func handleAddSecret(new interface{}) {
+	newSecret := new.(*v1.Secret)
+	log.Info(newSecret.Name + " Secret has been added.")
+	for k, v := range newSecret.Data {
+		auth = userAuth{k, string(v)}
 	}
 }

@@ -34,6 +34,18 @@ func (m *MockCqlClient) EXPECT() *MockCqlClientMockRecorder {
 	return m.recorder
 }
 
+// CloseSession mocks base method.
+func (m *MockCqlClient) CloseSession() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "CloseSession")
+}
+
+// CloseSession indicates an expected call of CloseSession.
+func (mr *MockCqlClientMockRecorder) CloseSession() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloseSession", reflect.TypeOf((*MockCqlClient)(nil).CloseSession))
+}
+
 // CreateRole mocks base method.
 func (m *MockCqlClient) CreateRole(role cql.Role) error {
 	m.ctrl.T.Helper()
@@ -46,6 +58,20 @@ func (m *MockCqlClient) CreateRole(role cql.Role) error {
 func (mr *MockCqlClientMockRecorder) CreateRole(role interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateRole", reflect.TypeOf((*MockCqlClient)(nil).CreateRole), role)
+}
+
+// DropRole mocks base method.
+func (m *MockCqlClient) DropRole(role cql.Role) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DropRole", role)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DropRole indicates an expected call of DropRole.
+func (mr *MockCqlClientMockRecorder) DropRole(role interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DropRole", reflect.TypeOf((*MockCqlClient)(nil).DropRole), role)
 }
 
 // GetKeyspacesInfo mocks base method.
@@ -123,4 +149,18 @@ func (m *MockCqlClient) UpdateRole(role cql.Role) error {
 func (mr *MockCqlClientMockRecorder) UpdateRole(role interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateRole", reflect.TypeOf((*MockCqlClient)(nil).UpdateRole), role)
+}
+
+// UpdateRolePassword mocks base method.
+func (m *MockCqlClient) UpdateRolePassword(roleName, newPassword string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateRolePassword", roleName, newPassword)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateRolePassword indicates an expected call of UpdateRolePassword.
+func (mr *MockCqlClientMockRecorder) UpdateRolePassword(roleName, newPassword interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateRolePassword", reflect.TypeOf((*MockCqlClient)(nil).UpdateRolePassword), roleName, newPassword)
 }

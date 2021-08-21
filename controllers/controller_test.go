@@ -53,7 +53,7 @@ func createMockedReconciler(t *testing.T) (*CassandraClusterReconciler, *gomock.
 		CqlClient: func(clusterConfig *gocql.ClusterConfig) (cql.CqlClient, error) {
 			return cqlClientMock, nil
 		},
-		NodetoolClient: func(clientset *kubernetes.Clientset, config *rest.Config) nodetool.NodetoolClient {
+		NodetoolClient: func(clientset *kubernetes.Clientset, config *rest.Config, roleName, password string) nodetool.NodetoolClient {
 			return nodetoolClientMock
 		},
 		ReaperClient: func(url *url.URL) reaper.ReaperClient {

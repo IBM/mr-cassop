@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 	"net/http"
 	"os"
 
@@ -14,11 +17,14 @@ import (
 )
 
 var (
-	log           = ctrl.Log.WithName("prober-server")
-	serverPort    = os.Getenv("SERVER_PORT")
-	seeds         []string
+	log        = ctrl.Log.WithName("prober-server")
+	serverPort = os.Getenv("SERVER_PORT")
+	seeds      []string
 	readyLocalDCs bool
 	Version       = "undefined"
+	clientSet  *kubernetes.Clientset
+	controller cache.Controller
+	store      cache.Store
 )
 
 func setupRoutes(router *httprouter.Router) {
@@ -85,6 +91,17 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)).V(1))
 	router := httprouter.New()
 	setupRoutes(router)
+
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		log.Error(err, "Unable to get InCluster config")
+	}
+
+	clientSet, err = kubernetes.NewForConfig(config)
+
+	authSecretCh := watchAuthSecret()
+	defer close(authSecretCh)
+
 	go pollNodeStates()
 
 	log.WithValues("version", Version).Info("Cassandra's prober listening", "serverPort", serverPort)

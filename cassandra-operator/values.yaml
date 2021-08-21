@@ -1,6 +1,6 @@
 replicas: 1
 container:
-  image: us.icr.io/icm-cassandra/cassandra-operator:0.1.0
+  image: us.icr.io/cassandra-operator/cassandra-operator:0.1.0
   # imagePullSecret: container-registry-secret
   imagePullPolicy: Always
   restartPolicy: Always
@@ -13,7 +13,7 @@ container:
       memory: 200Mi
 logLevel: info
 logFormat: json
-proberImage: us.icr.io/icm-cassandra/cassandra-prober:0.19.0
-jolokiaImage: us.icr.io/icm-docker-images/jolokia-proxy:1.6.2
-cassandraImage: us.icr.io/icm-cassandra/cassandra:3.11.9-0.18.19
-reaperImage: thelastpickle/cassandra-reaper:2.2.3
+proberImage: us.icr.io/cassandra-operator/prober:antonkuznetsov # this value will be updated on next release in GHA
+jolokiaImage: us.icr.io/cassandra-operator/jolokia:antonkuznetsov # this value will be updated on next release in GHA
+cassandraImage: us.icr.io/cassandra-operator/cassandra:antonkuznetsov # this value will be updated on next release in GHA
+reaperImage: thelastpickle/cassandra-reaper:2.3.1

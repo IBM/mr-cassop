@@ -2,7 +2,6 @@ package integration
 
 import (
 	"context"
-
 	"github.com/gocql/gocql"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
@@ -80,6 +79,17 @@ func (c *cqlMock) UpdateRole(role cql.Role) error {
 	return gocql.ErrNotFound
 }
 
+func (c *cqlMock) UpdateRolePassword(roleName, newPassword string) error {
+	for i, cassandraRole := range c.cassandraRoles {
+		if cassandraRole.Role == roleName {
+			c.cassandraRoles[i].Password = newPassword
+			return nil
+		}
+	}
+
+	return gocql.ErrNotFound
+}
+
 func (c *cqlMock) CreateRole(role cql.Role) error {
 	for _, cassandraRole := range c.cassandraRoles {
 		if cassandraRole.Role == role.Role {
@@ -89,6 +99,17 @@ func (c *cqlMock) CreateRole(role cql.Role) error {
 
 	c.cassandraRoles = append(c.cassandraRoles, role)
 	return c.err
+}
+
+func (c *cqlMock) DropRole(role cql.Role) error {
+	for i, cassandraRole := range c.cassandraRoles {
+		if cassandraRole.Role == role.Role {
+			c.cassandraRoles[i] = cql.Role{}
+			return nil
+		}
+	}
+
+	return gocql.ErrNotFound
 }
 
 func (c *cqlMock) UpdateRF(keyspaceName string, rfOptions map[string]string) error {
@@ -113,6 +134,8 @@ func (c *cqlMock) UpdateRF(keyspaceName string, rfOptions map[string]string) err
 
 	return c.err
 }
+
+func (c *cqlMock) CloseSession() {}
 
 func (n *nodetoolMock) RepairKeyspace(cc *dbv1alpha1.CassandraCluster, keyspace string) error {
 	return n.err

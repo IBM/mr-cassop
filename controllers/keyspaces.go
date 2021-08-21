@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (r *CassandraClusterReconciler) reconcileKeyspaces(cc *dbv1alpha1.CassandraCluster, cqlClient cql.CqlClient, nodetoolClient nodetool.NodetoolClient) error {
+func (r *CassandraClusterReconciler) reconcileKeyspaces(cc *dbv1alpha1.CassandraCluster, cqlClient cql.CqlClient, ntClient nodetool.NodetoolClient) error {
 	keyspacesToReconcile := cc.Spec.SystemKeyspaces.Names
 	if !keyspaceExists(keyspacesToReconcile, "system_auth") {
 		keyspacesToReconcile = append(keyspacesToReconcile, "system_auth")
@@ -34,11 +34,14 @@ func (r *CassandraClusterReconciler) reconcileKeyspaces(cc *dbv1alpha1.Cassandra
 			if err != nil {
 				return errors.Wrapf(err, "failed to alter %q keyspace", systemKeyspace)
 			}
+			r.Log.Infof("Done updating keyspace %q", systemKeyspace)
 
-			err = nodetoolClient.RepairKeyspace(cc, string(systemKeyspace))
+			r.Log.Infof("Repairing keyspace %s", string(systemKeyspace))
+			err = ntClient.RepairKeyspace(cc, string(systemKeyspace))
 			if err != nil {
 				return errors.Wrapf(err, "failed to repair %q keyspace", systemKeyspace)
 			}
+			r.Log.Infof("Done repairing keyspace %q", systemKeyspace)
 		} else {
 			r.Log.Debugf("No updates to %q keyspaces", systemKeyspace)
 		}

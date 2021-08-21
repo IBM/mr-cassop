@@ -19,11 +19,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   httpie \
   && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir /home/cassandra && chown cassandra:cassandra /home/cassandra && usermod -d /home/cassandra cassandra
+RUN mkdir /home/cassandra && \
+    chown cassandra:cassandra /home/cassandra && \
+    usermod -d /home/cassandra cassandra
 
-COPY .bashrc /home/cassandra/.bashrc
-RUN chown cassandra:cassandra /home/cassandra/.bashrc
-COPY openssl_fix.sh .
-RUN ./openssl_fix.sh && rm openssl_fix.sh
+WORKDIR /home/cassandra
+
+COPY .bashrc openssl_fix.sh ./
+
+RUN ./openssl_fix.sh && \
+    rm openssl_fix.sh && \
+    chown cassandra:cassandra /home/cassandra/.bashrc
 
 USER cassandra

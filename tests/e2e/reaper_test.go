@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/ibm/cassandra-operator/controllers/names"
 	"strings"
 	"time"
 
@@ -18,6 +19,9 @@ import (
 	. "github.com/onsi/gomega"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
+
+	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // We call init function from assigned `Describe` function, in such way we can avoid using init() {} in this file
@@ -114,6 +118,12 @@ var _ = Describe("Cassandra cluster", func() {
 			casPf := portForwardPod(cassandraNamespace, cassandraClusterPodLabels, []string{fmt.Sprintf("%d:%d", v1alpha1.CqlPort, v1alpha1.CqlPort), fmt.Sprintf("%d:%d", v1alpha1.JmxPort, v1alpha1.JmxPort)})
 			defer casPf.Close()
 
+			By("Obtaining auth credentials from Secret")
+			activeAdminSecret, err := kubeClient.CoreV1().Secrets(cassandraNamespace).Get(context.Background(), names.ActiveAdminSecret(newCassandraCluster.Name), metav1.GetOptions{})
+			if err != nil {
+				Fail(fmt.Sprintf("Cannot get Secret : %s", names.ActiveAdminSecret(newCassandraCluster.Name)))
+			}
+
 			By("Connecting to Cassandra pod over cql...")
 			cluster := gocql.NewCluster("localhost")
 			cluster.Port = v1alpha1.CqlPort
@@ -123,8 +133,8 @@ var _ = Describe("Cassandra cluster", func() {
 			cluster.Consistency = gocql.LocalQuorum
 			cluster.ProtoVersion = 4
 			cluster.Authenticator = gocql.PasswordAuthenticator{
-				Username: "cassandra",
-				Password: "cassandra",
+				Username: dbv1alpha1.CassandraOperatorAdminRole,
+				Password: string(activeAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole]),
 			}
 
 			session, err := cluster.CreateSession()
@@ -134,9 +144,7 @@ var _ = Describe("Cassandra cluster", func() {
 			By("Running cql query: checking Cassandra version...")
 			err = session.Query(`SELECT release_version FROM system.local`).Consistency(gocql.LocalQuorum).Scan(&releaseVersion)
 			Expect(err).ToNot(HaveOccurred())
-			cassandraVersion := fmt.Sprintf(strings.Split(cassandraImage, ":")[1])
-			cassandraVersion = fmt.Sprintf(strings.Split(cassandraVersion, "-")[0])
-			Expect(releaseVersion).To(Equal(cassandraVersion))
+			Expect(releaseVersion).To(Equal("3.11.9"))
 
 			By("Running cql query: creating test keyspace...")
 			cqlQuery := `CREATE KEYSPACE IF NOT EXISTS %s WITH REPLICATION = { 'class' : 'NetworkTopologyStrategy', '%s' : 3 }`

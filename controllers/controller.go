@@ -45,10 +45,11 @@ import (
 )
 
 const (
-	cassandraRolesDir           = "/etc/cassandra-roles"
 	maintenanceDir              = "/etc/maintenance"
 	cassandraCommitLogDir       = "/var/lib/cassandra-commitlog"
 	defaultCQLConfigMapLabelKey = "cql-scripts"
+	retryAttempts               = 3
+	initialRetryDelaySeconds    = 5
 )
 
 // CassandraClusterReconciler reconciles a CassandraCluster object
@@ -60,7 +61,7 @@ type CassandraClusterReconciler struct {
 	Clientset      *kubernetes.Clientset
 	RESTConfig     *rest.Config
 	ProberClient   func(url *url.URL) prober.ProberClient
-	NodetoolClient func(clientset *kubernetes.Clientset, config *rest.Config) nodetool.NodetoolClient
+	NodetoolClient func(clientset *kubernetes.Clientset, config *rest.Config, roleName, password string) nodetool.NodetoolClient
 	CqlClient      func(cluster *gocql.ClusterConfig) (cql.CqlClient, error)
 	ReaperClient   func(url *url.URL) reaper.ReaperClient
 }
@@ -70,7 +71,7 @@ type CassandraClusterReconciler struct {
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;delete;patch
 // +kubebuilder:rbac:groups="",resources=configmaps/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
-// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;delete;
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;patch;create;update;
 // +kubebuilder:rbac:groups="",resources=pods/status,verbs=get;patch;update
 // +kubebuilder:rbac:groups="",resources=pods/exec,verbs=create
@@ -110,16 +111,17 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 
 	r.defaultCassandraCluster(cc)
 
+	activeAdminSecret, err := r.reconcileAdminAuth(ctx, cc)
+	if err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error reconciling Admin Auth Secrets")
+	}
+
 	if err := r.reconcileScriptsConfigMap(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling scripts configmap")
 	}
 
 	if err := r.reconcileMaintenanceConfigMap(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling maintenance configmap")
-	}
-
-	if err := r.reconcileRolesSecret(ctx, cc); err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Error reconciling roles secret")
 	}
 
 	if err := r.reconcileProber(ctx, cc); err != nil {
@@ -141,10 +143,6 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	if !proberReady {
 		r.Log.Warnf("Prober is not ready. Err: %#v. Trying again in %s...", err, r.Cfg.RetryDelay)
 		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
-	}
-
-	if err := r.reconcileJMXSecret(ctx, cc); err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Error reconciling jxm secret")
 	}
 
 	if err := r.reconcileCassandraConfigMap(ctx, cc); err != nil {
@@ -177,23 +175,32 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 	}
 
-	ntClient := r.NodetoolClient(r.Clientset, r.RESTConfig)
-	cqlClient, err := r.CqlClient(newCassandraConfig(cc))
+	cqlClient, err := r.reconcileAdminRole(ctx, cc, activeAdminSecret)
 	if err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Can't create cassandra session")
+		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile Admin Role")
 	}
+	defer cqlClient.CloseSession()
+
+	// Get the up-to-date version of the secret as it could have changed during admin role reconcile
+	err = r.Get(ctx, types.NamespacedName{Name: names.ActiveAdminSecret(cc.Name), Namespace: cc.Namespace}, activeAdminSecret)
+	if err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Can't get secret "+names.ActiveAdminSecret(cc.Name))
+	}
+
+	ntClient := r.NodetoolClient(r.Clientset, r.RESTConfig, v1alpha1.CassandraOperatorAdminRole, string(activeAdminSecret.Data[v1alpha1.CassandraOperatorAdminRole]))
 
 	err = r.reconcileKeyspaces(cc, cqlClient, ntClient)
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile keyspaces")
 	}
 
-	err = r.reconcileRoles(cqlClient)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
+	// Todo: reimplement Roles logic in next PR
+	//err = r.reconcileRoles(cqlClient)
+	//if err != nil {
+	//	return ctrl.Result{}, err
+	//}
 
-	if err = r.reconcileCQLConfigMaps(ctx, cc, cqlClient, ntClient); err != nil {
+	if err = r.reconcileCQLConfigMaps(ctx, cc, cqlClient, ntClient, activeAdminSecret); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile CQL config maps")
 	}
 
@@ -202,7 +209,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	}
 
 	for index, dc := range cc.Spec.DCs {
-		if err = r.reconcileReaperDeployment(ctx, cc, dc); err != nil {
+		if err = r.reconcileReaperDeployment(ctx, cc, dc, activeAdminSecret); err != nil {
 			return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile reaper deployment")
 		}
 
@@ -317,19 +324,38 @@ func (r *CassandraClusterReconciler) unreadyRegions(ctx context.Context, cc *v1a
 	return unreadyRegions, nil
 }
 
-func newCassandraConfig(cc *v1alpha1.CassandraCluster) *gocql.ClusterConfig {
+func newCassandraConfig(cc *v1alpha1.CassandraCluster, adminRole string, adminPwd string) *gocql.ClusterConfig {
 	cassCfg := gocql.NewCluster(fmt.Sprintf("%s.%s.svc.cluster.local", names.DCService(cc.Name, cc.Spec.DCs[0].Name), cc.Namespace))
 	cassCfg.Authenticator = &gocql.PasswordAuthenticator{
-		Username: v1alpha1.CassandraRole,
-		Password: v1alpha1.CassandraPassword,
+		Username: adminRole,
+		Password: adminPwd,
 	}
 
 	cassCfg.Timeout = 6 * time.Second
 	cassCfg.ConnectTimeout = 6 * time.Second
 	cassCfg.ProtoVersion = 4
 	cassCfg.Consistency = gocql.LocalQuorum
+	cassCfg.ReconnectionPolicy = &gocql.ConstantReconnectionPolicy{
+		MaxRetries: 3,
+		Interval:   time.Second * 1,
+	}
 
 	return cassCfg
+}
+
+func (r *CassandraClusterReconciler) doWithRetry(retryFunc func() error) error {
+	for currentAttempt := 1; currentAttempt <= retryAttempts; currentAttempt++ {
+		err := retryFunc()
+		if err != nil {
+			delay := initialRetryDelaySeconds * time.Second * time.Duration(currentAttempt)
+			r.Log.Warnf("Attempt %d of %d failed. Error: %s. Trying again in %s.", currentAttempt, retryAttempts, err.Error(), delay.String())
+			time.Sleep(delay)
+			continue
+		}
+		break
+	}
+
+	return nil
 }
 
 func SetupCassandraReconciler(r reconcile.Reconciler, mgr manager.Manager, logr *zap.SugaredLogger) error {

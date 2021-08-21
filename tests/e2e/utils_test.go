@@ -166,15 +166,6 @@ func findFirstMapByKV(repair []map[string]interface{}, k string, v []string) map
 	return nil
 }
 
-func findFirstElemByKey(m map[string]interface{}, key string) interface{} {
-	for k, v := range m {
-		if k == key {
-			return v
-		}
-	}
-	return nil
-}
-
 func testReaperRescheduleTime(reqTime time.Time, respTime time.Time, nowTime time.Time) {
 	Expect(respTime.Weekday()).To(BeEquivalentTo(reqTime.Weekday()), "Week day should match.")
 

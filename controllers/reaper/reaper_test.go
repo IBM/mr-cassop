@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	testError            = errors.New("Test error message")
+	testError            = errors.New("test error message")
 	nilContextError      = errors.New("net/http: nil Context")
 	timeoutExceededError = errors.New("(Client.Timeout exceeded while awaiting headers)")
 	defaultClient        = http.DefaultClient

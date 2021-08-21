@@ -1,0 +1,64 @@
+apiVersion: skaffold/v2beta16
+kind: Config
+build:
+  artifacts:
+  - image: "us.icr.io/cassandra-operator/cassandra-operator"
+    context: .
+    docker:
+      dockerfile: Dockerfile
+
+  - image: "us.icr.io/cassandra-operator/prober"
+    context: prober/
+    docker:
+      dockerfile: Dockerfile
+
+  - image: "us.icr.io/cassandra-operator/cassandra"
+    context: cassandra/
+    docker:
+      dockerfile: Dockerfile
+
+  - image: "us.icr.io/cassandra-operator/jolokia"
+    context: jolokia/
+    docker:
+      dockerfile: Dockerfile
+
+  tagPolicy:
+    envTemplate:
+      template: "{{.USER}}"
+  local:
+#    push: true
+    useDockerCLI: false
+    concurrency: 1
+deploy:
+  helm:
+    releases:
+    - name: "cassandra-operator-{{.USER}}"
+      chartPath: ./cassandra-operator
+      valuesFiles:
+      - cassandra-operator/values.yaml
+      setValueTemplates:
+        container.image: "us.icr.io/cassandra-operator/cassandra-operator:{{.USER}}"
+        container.imagePullSecret: icm-coreeng-pull-secret
+        container.imagePullPolicy: Always
+        logLevel: INFO # DEBUG
+        proberImage: "us.icr.io/cassandra-operator/prober:{{.USER}}"
+        jolokiaImage: "us.icr.io/cassandra-operator/jolokia:{{.USER}}"
+        cassandraImage: "us.icr.io/cassandra-operator/cassandra:{{.USER}}"
+      createNamespace: true
+      wait: true
+      packaged:
+        version: 0.0.1
+        appVersion: 0.0.1
+      # Sets image.tag and image.repository separately
+      imageStrategy:
+        helm: {}
+      recreatePods: true
+#  kubectl:
+#    manifests:
+#    - ./config/samples/cassandracluster.yaml
+#    flags:
+#      global: []
+#      apply:
+#      - --force=true
+#      delete: []
+

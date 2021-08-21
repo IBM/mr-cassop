@@ -2,6 +2,8 @@ package util
 
 import (
 	v1 "k8s.io/api/core/v1"
+	"math/rand"
+	"time"
 )
 
 func MergeMap(a, b map[string]string) map[string]string {
@@ -28,4 +30,23 @@ func GetNodeIP(addressType v1.NodeAddressType, nodeAddresses []v1.NodeAddress) s
 		}
 	}
 	return ""
+}
+
+func GenerateAdminPassword() string {
+	rand.Seed(time.Now().UnixNano())
+	digits := "0123456789"
+	specials := "_" // Todo: add validation for generated password to deal with reaper password read issue
+
+	allChars := "ABCDEFGHIJKLMNOPQRSTUVWXYZ" + "abcdefghijklmnopqrstuvwxyz" + digits + specials
+	length := 16
+	buf := make([]byte, length)
+	buf[0] = digits[rand.Intn(len(digits))]
+	buf[1] = specials[rand.Intn(len(specials))]
+	for i := 2; i < length; i++ {
+		buf[i] = allChars[rand.Intn(len(allChars))]
+	}
+	rand.Shuffle(len(buf), func(i, j int) {
+		buf[i], buf[j] = buf[j], buf[i]
+	})
+	return string(buf)
 }

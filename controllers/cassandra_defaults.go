@@ -41,10 +41,6 @@ func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.Cass
 			}
 		}
 	}
-
-	if cc.Spec.HostPort.Enabled && len(cc.Spec.HostPort.Ports) == 0 {
-		cc.Spec.HostPort.Ports = dbv1alpha1.DefaultHostPorts
-	}
 }
 
 func (r *CassandraClusterReconciler) defaultReaper(cc *dbv1alpha1.CassandraCluster) {

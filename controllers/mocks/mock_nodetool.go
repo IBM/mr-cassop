@@ -35,15 +35,15 @@ func (m *MockNodetoolClient) EXPECT() *MockNodetoolClientMockRecorder {
 }
 
 // RepairKeyspace mocks base method.
-func (m *MockNodetoolClient) RepairKeyspace(cc *v1alpha1.CassandraCluster, keyspace string) error {
+func (m *MockNodetoolClient) RepairKeyspace(cc *v1alpha1.CassandraCluster, user string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RepairKeyspace", cc, keyspace)
+	ret := m.ctrl.Call(m, "RepairKeyspace", cc, user)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // RepairKeyspace indicates an expected call of RepairKeyspace.
-func (mr *MockNodetoolClientMockRecorder) RepairKeyspace(cc, keyspace interface{}) *gomock.Call {
+func (mr *MockNodetoolClientMockRecorder) RepairKeyspace(cc, user interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RepairKeyspace", reflect.TypeOf((*MockNodetoolClient)(nil).RepairKeyspace), cc, keyspace)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RepairKeyspace", reflect.TypeOf((*MockNodetoolClient)(nil).RepairKeyspace), cc, user)
 }

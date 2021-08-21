@@ -42,9 +42,6 @@ spec:
       secret: "v4-us-south-3f3037ed650e84f558a8839c9ec8a6ed-0000"
       annotations:
         "ingress.bluemix.net/redirect-to-https": "True"
-    dcsIngressDomains:
-    - v4-us-east-3f3037ed650e84f558a8839c9ec8a6ed-0000.us-east.containers.appdomain.cloud
-    - v4-us-south-3f3037ed650e84f558a8839c9ec8a6ed-0000.us-south.containers.appdomain.cloud
   reaper:
     image: ""
     imagePullPolicy: IfNotPresent
@@ -84,7 +81,6 @@ spec:
     - name: dc2
       rf: 2
     names:
-    - system_auth
     - system_distributed
     - system_traces
   hostPort:

@@ -16,9 +16,6 @@ bin
 # Local files
 *.local
 
-# Skaffold
-skaffold.yaml
-
 # Helm files
 tiller
 

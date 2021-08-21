@@ -31,7 +31,6 @@ var (
 	cassandraCluster    *v1alpha1.CassandraCluster
 
 	err                error
-	cassandraImage     string
 	cassandraNamespace string
 	cassandraRelease   string
 	imagePullSecret    string
@@ -117,8 +116,6 @@ var _ = BeforeSuite(func() {
 	err = yaml.Unmarshal(content, &valuesYaml)
 	Expect(err).ToNot(HaveOccurred())
 
-	cassandraImage = fmt.Sprint(findFirstElemByKey(valuesYaml, "cassandraImage"))
-
 	By("Configuring API Clients for REST...")
 	restClientConfig, err = ctrl.GetConfig()
 	Expect(err).ToNot(HaveOccurred())
@@ -145,7 +142,7 @@ var _ = BeforeSuite(func() {
 			DCs:                 cassandraDCs,
 			ImagePullSecretName: imagePullSecret,
 			Cassandra: &v1alpha1.Cassandra{
-				ImagePullPolicy: "IfNotPresent",
+				ImagePullPolicy: v1.PullAlways,
 				Resources:       cassandraResources,
 				NumSeeds:        2,
 			},
@@ -154,7 +151,7 @@ var _ = BeforeSuite(func() {
 				Resources:       proberResources,
 				Debug:           false,
 				Jolokia: v1alpha1.Jolokia{
-					ImagePullPolicy: "IfNotPresent",
+					ImagePullPolicy: v1.PullAlways,
 					Resources:       proberResources,
 				},
 			},

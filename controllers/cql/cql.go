@@ -16,7 +16,10 @@ type CqlClient interface {
 	GetRoles() ([]Role, error)
 	CreateRole(role Role) error
 	UpdateRole(role Role) error
+	UpdateRolePassword(roleName, newPassword string) error
 	Query(stmt string, values ...interface{}) error
+	DropRole(role Role) error
+	CloseSession()
 }
 
 type cassandraClient struct {
@@ -111,4 +114,18 @@ func (c *cassandraClient) UpdateRole(role Role) error {
 
 	query := fmt.Sprintf("ALTER ROLE '%s' WITH SUPERUSER = %t AND LOGIN = %t %s", role.Role, role.Super, role.Login, passwordQuery)
 	return c.Session.Query(query).Exec()
+}
+
+func (c *cassandraClient) UpdateRolePassword(roleName, newPassword string) error {
+	query := fmt.Sprintf("ALTER ROLE '%s' WITH PASSWORD = '%s'", roleName, newPassword)
+	return c.Session.Query(query).Exec()
+}
+
+func (c *cassandraClient) DropRole(role Role) error {
+	query := fmt.Sprintf("DROP ROLE IF EXISTS %s", role.Role)
+	return c.Session.Query(query).Exec()
+}
+
+func (c *cassandraClient) CloseSession() {
+	c.Session.Close()
 }
