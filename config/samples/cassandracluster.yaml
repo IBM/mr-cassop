@@ -99,10 +99,8 @@ spec:
     - cql
     - jmx
     - thrift
-#  status:
-#    readyAllDCs: false
   jvm:
     maxHeapSize: 1024M
   jmx:
-#    authentication: local_files
-    ssl: false
+    authentication: internal
+#    ssl: false
