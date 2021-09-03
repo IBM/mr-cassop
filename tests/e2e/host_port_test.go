@@ -39,8 +39,8 @@ func newCassandraCluster(useExternalHostIP bool) *v1alpha1.CassandraCluster {
 }
 
 func execOnPod(podName string, cmd []string) string {
-	r := execPod(podName, cassandraNamespace, cmd)
-
+	r, err := execPod(podName, cassandraNamespace, cmd)
+	Expect(err).ToNot(HaveOccurred())
 	r.stdout = strings.TrimSuffix(r.stdout, "\n")
 	r.stdout = strings.TrimSpace(r.stdout)
 	Expect(len(r.stderr)).To(Equal(0))

@@ -18,6 +18,9 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/ibm/cassandra-operator/controllers/eventhandler"
+	"sigs.k8s.io/controller-runtime/pkg/source"
+
 	"github.com/gocql/gocql"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/config"
@@ -194,11 +197,10 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile keyspaces")
 	}
 
-	// Todo: reimplement Roles logic in next PR
-	//err = r.reconcileRoles(cqlClient)
-	//if err != nil {
-	//	return ctrl.Result{}, err
-	//}
+	err = r.reconcileRoles(ctx, cc, cqlClient)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
 	if err = r.reconcileCQLConfigMaps(ctx, cc, cqlClient, ntClient, activeAdminSecret); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile CQL config maps")
@@ -370,6 +372,7 @@ func SetupCassandraReconciler(r reconcile.Reconciler, mgr manager.Manager, logr 
 		Owns(&rbac.Role{}).
 		Owns(&rbac.RoleBinding{}).
 		Owns(&v1.ServiceAccount{}).
+		Watches(&source.Kind{Type: &v1.Secret{}}, eventhandler.NewAnnotationEventHandler()).
 		//WithEventFilter(predicate.NewPredicate(logr)). //uncomment to see kubernetes events in the logs, e.g. ConfigMap updates
 		Complete(r)
 }

@@ -26,6 +26,7 @@ const (
 	CassandraClusterInstance  = "cassandra-cluster-instance"
 	CassandraClusterComponent = "cassandra-cluster-component"
 	CassandraClusterDC        = "cassandra-cluster-dc"
+	CassandraClusterChecksum  = "cassandra-cluster-checksum"
 
 	CassandraClusterComponentProber    = "prober"
 	CassandraClusterComponentReaper    = "reaper"
@@ -58,6 +59,7 @@ type CassandraClusterSpec struct {
 	// +kubebuilder:validation:Enum=OrderedReady;Parallel
 	PodManagementPolicy appsv1.PodManagementPolicyType `json:"podManagementPolicy,omitempty"`
 	Cassandra           *Cassandra                     `json:"cassandra,omitempty"`
+	Roles               Roles                          `json:"roles,omitempty"`
 	Maintenance         []Maintenance                  `json:"maintenance,omitempty" diff:"maintenance"`
 	SystemKeyspaces     SystemKeyspaces                `json:"systemKeyspaces,omitempty"`
 	Prober              Prober                         `json:"prober,omitempty"`
@@ -182,6 +184,10 @@ type Cassandra struct {
 	PurgeGossip  bool        `json:"purgeGossip,omitempty"`
 	Persistence  Persistence `json:"persistence,omitempty"`
 	ZonesAsRacks bool        `json:"zonesAsRacks,omitempty"`
+}
+
+type Roles struct {
+	SecretName string `json:"secretName"`
 }
 
 type Persistence struct {

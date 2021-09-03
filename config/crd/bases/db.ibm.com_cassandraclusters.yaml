@@ -797,6 +797,13 @@ spec:
                       type: object
                     type: array
                 type: object
+              roles:
+                properties:
+                  secretName:
+                    type: string
+                required:
+                - secretName
+                type: object
               systemKeyspaces:
                 properties:
                   dcs:

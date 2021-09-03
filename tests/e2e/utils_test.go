@@ -166,19 +166,6 @@ func findFirstMapByKV(repair []map[string]interface{}, k string, v []string) map
 	return nil
 }
 
-func testReaperRescheduleTime(reqTime time.Time, respTime time.Time, nowTime time.Time) {
-	Expect(respTime.Weekday()).To(BeEquivalentTo(reqTime.Weekday()), "Week day should match.")
-
-	if respTime.Year() == reqTime.Year() { // There is a case when schedules set with previous year
-		Expect(respTime.YearDay()).To(BeNumerically(">=", reqTime.YearDay()), "Year day should be equal or greater than scheduled.")
-		Expect(respTime.YearDay()).To(BeNumerically(">=", nowTime.YearDay()), "Year day should be equal or greater than current.")
-	}
-
-	Expect(respTime.Unix()).To(BeNumerically(">=", respTime.Unix()), "Unix timestamp should be greater or equal scheduled.")
-	Expect(respTime.Unix()).To(BeNumerically(">=", nowTime.Unix()), "Unix timestamp should be greater or equal current.")
-	Expect(respTime.YearDay()-reqTime.YearDay()).To(BeNumerically("<=", 7), "Year day difference should be less or equal 7.")
-}
-
 func getPodLogs(pod v1.Pod, podLogOpts v1.PodLogOptions) (string, error) {
 	req := kubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &podLogOpts)
 	podLogs, err := req.Stream(context.Background())
@@ -202,7 +189,7 @@ func readFile(file string) ([]byte, error) {
 	return content, err
 }
 
-func execPod(podName string, namespace string, cmd []string) ExecResult {
+func execPod(podName string, namespace string, cmd []string) (ExecResult, error) {
 	req := kubeClient.CoreV1().RESTClient().Post().Resource("pods").Name(podName).
 		Namespace(namespace).SubResource("exec")
 	option := &v1.PodExecOptions{
@@ -228,12 +215,11 @@ func execPod(podName string, namespace string, cmd []string) ExecResult {
 		Stderr: stderr,
 		Tty:    false,
 	})
-	Expect(err).ToNot(HaveOccurred())
 
 	return ExecResult{
 		stdout: fmt.Sprint(stdout),
 		stderr: fmt.Sprint(stderr),
-	}
+	}, err
 }
 
 func deployCassandraCluster(cassandraCluster *v1alpha1.CassandraCluster) {

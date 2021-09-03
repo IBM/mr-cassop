@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/ibm/cassandra-operator/controllers/names"
 	"strings"
 	"time"
 
+	"github.com/ibm/cassandra-operator/controllers/names"
+
 	"github.com/gocql/gocql"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -262,3 +263,16 @@ var _ = Describe("Cassandra cluster", func() {
 		})
 	})
 })
+
+func testReaperRescheduleTime(reqTime time.Time, respTime time.Time, nowTime time.Time) {
+	Expect(respTime.Weekday()).To(BeEquivalentTo(reqTime.Weekday()), "Week day should match.")
+
+	if respTime.Year() == reqTime.Year() { // There is a case when schedules set with previous year
+		Expect(respTime.YearDay()).To(BeNumerically(">=", reqTime.YearDay()), "Year day should be equal or greater than scheduled.")
+		Expect(respTime.YearDay()).To(BeNumerically(">=", nowTime.YearDay()), "Year day should be equal or greater than current.")
+	}
+
+	Expect(respTime.Unix()).To(BeNumerically(">=", respTime.Unix()), "Unix timestamp should be greater or equal scheduled.")
+	Expect(respTime.Unix()).To(BeNumerically(">=", nowTime.Unix()), "Unix timestamp should be greater or equal current.")
+	Expect(respTime.YearDay()-reqTime.YearDay()).To(BeNumerically("<=", 7), "Year day difference should be less or equal 7.")
+}

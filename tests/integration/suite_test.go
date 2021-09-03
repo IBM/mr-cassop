@@ -20,6 +20,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/url"
+	"path/filepath"
+	"strconv"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/go-logr/zapr"
 	"github.com/gocql/gocql"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
@@ -43,18 +50,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"net/url"
-	"path/filepath"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"strconv"
-	"sync"
-	"testing"
-	"time"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -169,7 +170,7 @@ var _ = BeforeSuite(func() {
 	}
 
 	testReconciler := SetupTestReconcile(cassandraCtrl)
-	err = controllers.SetupCassandraReconciler(testReconciler, mgr, nil)
+	err = controllers.SetupCassandraReconciler(testReconciler, mgr, zap.NewNop().Sugar())
 	Expect(err).ToNot(HaveOccurred())
 
 	mgrStopCh = StartTestManager(mgr)
@@ -452,5 +453,5 @@ func waitForDCsToBeCreated(cc *v1alpha1.CassandraCluster) {
 		Expect(err).ShouldNot(HaveOccurred())
 
 		return len(dcs.Items) == len(cc.Spec.DCs)
-	}, shortTimeout, shortRetry).Should(BeTrue())
+	}, mediumTimeout, mediumRetry).Should(BeTrue())
 }

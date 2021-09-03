@@ -54,7 +54,8 @@ var _ = Describe("Cassandra cluster", func() {
 				podName := p.Name
 				nodeName := p.Spec.NodeName
 
-				r := execPod(podName, cassandraNamespace, cmd)
+				r, err := execPod(podName, cassandraNamespace, cmd)
+				Expect(err).ToNot(HaveOccurred())
 
 				r.stdout = strings.TrimSuffix(r.stdout, "\n")
 				r.stdout = strings.TrimSpace(r.stdout)
@@ -89,7 +90,8 @@ var _ = Describe("Cassandra cluster", func() {
 
 			for _, p := range podList.Items {
 				podName := p.Name
-				r := execPod(podName, cassandraNamespace, cmd)
+				r, err := execPod(podName, cassandraNamespace, cmd)
+				Expect(err).ToNot(HaveOccurred())
 
 				r.stdout = strings.TrimSuffix(r.stdout, "\n")
 				r.stdout = strings.TrimSpace(r.stdout)
