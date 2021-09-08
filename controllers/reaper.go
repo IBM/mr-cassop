@@ -10,6 +10,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/compare"
+	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/ibm/cassandra-operator/controllers/labels"
 	"github.com/ibm/cassandra-operator/controllers/names"
 	"github.com/ibm/cassandra-operator/controllers/reaper"
@@ -29,7 +30,7 @@ const (
 	reaperAdminPort = 8081
 )
 
-func (r *CassandraClusterReconciler) reconcileReaper(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
+func (r *CassandraClusterReconciler) reconcileReaper(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cqlClient cql.CqlClient) error {
 	if err := r.reconcileShiroConfigMap(ctx, cc); err != nil {
 		return errors.Wrap(err, "Error reconciling shiro configmap")
 	}
@@ -40,7 +41,7 @@ func (r *CassandraClusterReconciler) reconcileReaper(ctx context.Context, cc *db
 		}
 	}
 
-	if err := r.reconcileReaperCqlConfigMap(ctx, cc); err != nil {
+	if err := r.reconcileReaperKeyspace(cc, cqlClient); err != nil {
 		return errors.Wrap(err, "Error reconciling reaper cql configmap")
 	}
 
@@ -79,7 +80,7 @@ func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Conte
 					Containers: []v1.Container{
 						reaperContainer(cc, dc, adminSecret),
 					},
-					Volumes:                       reaperVolumes(cc, dc),
+					Volumes:                       reaperVolumes(cc),
 					ImagePullSecrets:              imagePullSecrets(cc),
 					Tolerations:                   cc.Spec.Reaper.Tolerations,
 					NodeSelector:                  cc.Spec.Reaper.NodeSelector,
@@ -196,13 +197,14 @@ func (r *CassandraClusterReconciler) reconcileReaperService(ctx context.Context,
 
 func (r CassandraClusterReconciler) reconcileScheduleRepairs(ctx context.Context, cc *dbv1alpha1.CassandraCluster, reaperClient reaper.ReaperClient) error {
 	for _, repair := range cc.Spec.Reaper.ScheduleRepairs.Repairs {
-		if err := rescheduleTimestamp(&repair); err != nil {
+		scheduledRepair := repair
+		if err := rescheduleTimestamp(&scheduledRepair); err != nil {
 			return errors.Wrap(err, "Error rescheduling repair")
 		}
-		repair.Owner = dbv1alpha1.CassandraOperatorAdminRole
-		err := reaperClient.ScheduleRepair(ctx, cc.Name, repair)
+		scheduledRepair.Owner = reaper.OwnerCassandraOperator
+		err := reaperClient.ScheduleRepair(ctx, scheduledRepair)
 		if err != nil {
-			return errors.Wrapf(err, "Error scheduling repair on keyspace %s", repair.Keyspace)
+			return errors.Wrapf(err, "Error scheduling repair on keyspace %s", scheduledRepair.Keyspace)
 		}
 	}
 	return nil
@@ -272,7 +274,7 @@ func reaperContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, adminSec
 	}
 }
 
-func reaperVolumes(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) []v1.Volume {
+func reaperVolumes(cc *dbv1alpha1.CassandraCluster) []v1.Volume {
 	return []v1.Volume{
 		{
 			Name:         "reaper-auth",
@@ -294,14 +296,19 @@ func reaperVolumes(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) []v1.Volum
 
 func (r CassandraClusterReconciler) reaperInitialization(ctx context.Context, cc *dbv1alpha1.CassandraCluster, reaperClient reaper.ReaperClient) error {
 	seed := getSeedHostname(cc, cc.Spec.DCs[0].Name, 0, true)
-	clusterExists, err := reaperClient.ClusterExists(ctx, cc.Name)
+	clusterExists, err := reaperClient.ClusterExists(ctx)
 	if err != nil {
 		return err
 	}
 	if !clusterExists {
 		r.Log.Infof("Cluster %s does not exist in reaper. Adding cluster seed...", cc.Name)
-		if err = reaperClient.AddCluster(ctx, cc.Name, seed); err != nil {
+		if err = reaperClient.AddCluster(ctx, seed); err != nil {
 			return err
+		}
+
+		err := reaperClient.RunRepair(ctx, cc.Spec.Reaper.Keyspace, repairCauseReaperInit)
+		if err != nil {
+			return errors.Wrapf(err, "failed to run repair on %s keyspace", cc.Spec.Reaper.Keyspace)
 		}
 	}
 	return nil

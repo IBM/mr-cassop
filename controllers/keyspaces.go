@@ -1,15 +1,17 @@
 package controllers
 
 import (
+	"context"
 	"fmt"
+
 	"github.com/google/go-cmp/cmp"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
-	"github.com/ibm/cassandra-operator/controllers/nodetool"
+	"github.com/ibm/cassandra-operator/controllers/reaper"
 	"github.com/pkg/errors"
 )
 
-func (r *CassandraClusterReconciler) reconcileKeyspaces(cc *dbv1alpha1.CassandraCluster, cqlClient cql.CqlClient, ntClient nodetool.NodetoolClient) error {
+func (r *CassandraClusterReconciler) reconcileKeyspaces(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cqlClient cql.CqlClient, reaperClient reaper.ReaperClient) error {
 	keyspacesToReconcile := cc.Spec.SystemKeyspaces.Names
 	if !keyspaceExists(keyspacesToReconcile, "system_auth") {
 		keyspacesToReconcile = append(keyspacesToReconcile, "system_auth")
@@ -37,13 +39,12 @@ func (r *CassandraClusterReconciler) reconcileKeyspaces(cc *dbv1alpha1.Cassandra
 			r.Log.Infof("Done updating keyspace %q", systemKeyspace)
 
 			r.Log.Infof("Repairing keyspace %s", string(systemKeyspace))
-			err = ntClient.RepairKeyspace(cc, string(systemKeyspace))
+			err := reaperClient.RunRepair(ctx, string(systemKeyspace), repairCauseKeyspacesInit)
 			if err != nil {
-				return errors.Wrapf(err, "failed to repair %q keyspace", systemKeyspace)
+				return errors.Wrapf(err, "failed to run repair on %q keyspace", systemKeyspace)
 			}
-			r.Log.Infof("Done repairing keyspace %q", systemKeyspace)
 		} else {
-			r.Log.Debugf("No updates to %q keyspaces", systemKeyspace)
+			r.Log.Debugf("No updates to %q keyspace", systemKeyspace)
 		}
 	}
 

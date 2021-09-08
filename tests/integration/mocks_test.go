@@ -2,6 +2,7 @@ package integration
 
 import (
 	"context"
+
 	"github.com/gocql/gocql"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
@@ -144,17 +145,26 @@ func (n *nodetoolMock) RepairKeyspace(cc *dbv1alpha1.CassandraCluster, keyspace 
 func (r *reaperMock) IsRunning(ctx context.Context) (bool, error) {
 	return r.isRunning, r.err
 }
-func (r *reaperMock) ClusterExists(ctx context.Context, name string) (bool, error) {
+func (r *reaperMock) ClusterExists(ctx context.Context) (bool, error) {
 	return r.clusterExists, r.err
 }
-func (r *reaperMock) AddCluster(ctx context.Context, name, seed string) error {
+func (r *reaperMock) AddCluster(ctx context.Context, seed string) error {
 	if !r.clusterExists {
 		r.clusterExists = true
 	}
 	return r.err
 }
-func (r *reaperMock) ScheduleRepair(ctx context.Context, clusterName string, repair dbv1alpha1.Repair) error {
+func (r *reaperMock) ScheduleRepair(ctx context.Context, repair dbv1alpha1.Repair) error {
+	for _, existingRepair := range r.repairs { // TODO a hack until https://github.com/TheWeatherCompany/cassandra-operator/issues/174 is resolved
+		if existingRepair.Keyspace == repair.Keyspace {
+			return nil
+		}
+	}
+
 	r.repairs = append(r.repairs, repair)
+	return r.err
+}
+func (r *reaperMock) RunRepair(ctx context.Context, keyspace, cause string) error {
 	return r.err
 }
 
@@ -166,7 +176,7 @@ func markMocksAsReady(cc *dbv1alpha1.CassandraCluster) {
 	mockProberClient.ready = true
 	mockNodetoolClient.err = nil
 	mockReaperClient.err = nil
-	mockReaperClient.isRunning = false
+	mockReaperClient.isRunning = true
 	mockReaperClient.clusterExists = true
 	mockCQLClient.err = nil
 	mockCQLClient.cassandraRoles = []cql.Role{{Role: "cassandra", Super: true}}

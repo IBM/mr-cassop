@@ -2,6 +2,7 @@ package cql
 
 import (
 	"fmt"
+
 	"github.com/gocql/gocql"
 	"github.com/pkg/errors"
 )
@@ -71,16 +72,20 @@ func (c cassandraClient) GetKeyspacesInfo() ([]Keyspace, error) {
 }
 
 func (c cassandraClient) UpdateRF(keyspaceName string, rfOptions map[string]string) error {
-	rfOptionsQuery := ""
+	query := fmt.Sprintf("ALTER KEYSPACE %s %s ;", keyspaceName, ReplicationQuery(rfOptions))
+	return c.Session.Query(query).Exec()
+}
+
+func ReplicationQuery(rfOptions map[string]string) string {
+	query := ""
 	for optionKey, optionValue := range rfOptions {
-		if rfOptionsQuery != "" {
-			rfOptionsQuery = rfOptionsQuery + ","
+		if query != "" {
+			query = query + ","
 		}
-		rfOptionsQuery = rfOptionsQuery + fmt.Sprintf("'%s' : '%s'", optionKey, optionValue)
+		query = query + fmt.Sprintf("'%s' : '%s'", optionKey, optionValue)
 	}
 
-	query := fmt.Sprintf("ALTER KEYSPACE %s WITH replication = { %s } ;", keyspaceName, rfOptionsQuery)
-	return c.Session.Query(query).Exec()
+	return fmt.Sprintf("WITH replication = { %s }", query)
 }
 
 func (c *cassandraClient) GetRoles() ([]Role, error) {

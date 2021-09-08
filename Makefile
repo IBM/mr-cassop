@@ -40,7 +40,7 @@ integration-tests:
 e2e-tests:
 	go test ./tests/e2e/ \
 		-ginkgo.v -ginkgo.reportPassed -ginkgo.progress \
-		-test.v -test.timeout=30m -ginkgo.failFast \
+		-test.v -test.timeout=40m -ginkgo.failFast \
 		-cassandraNamespace=$(K8S_NAMESPACE) \
 		-cassandraRelease=$(CASSANDRA_RELEASE_NAME) \
 		-imagePullSecret=$(IMAGE_PULL_SECRET) \
@@ -94,7 +94,6 @@ vet:
 generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 	mockgen -package=mocks -source=./controllers/cql/cql.go -destination=./controllers/mocks/mock_cql.go
-	mockgen -package=mocks -source=./controllers/nodetool/nodetool.go -destination=./controllers/mocks/mock_nodetool.go
 	mockgen -package=mocks -source=./controllers/prober/prober.go -destination=./controllers/mocks/mock_prober.go
 	mockgen -package=mocks -source=./controllers/reaper/reaper.go -destination=./controllers/mocks/mock_reaper.go
 

@@ -93,7 +93,11 @@ var _ = Describe("reaper deployment", func() {
 		for _, tc := range tests {
 			It(tc.name, func() {
 				cc := tc.cc.DeepCopy()
-				createReadyCluster(cc)
+				Expect(k8sClient.Create(ctx, cc)).To(Succeed())
+				markMocksAsReady(cc)
+				waitForDCsToBeCreated(cc)
+				markAllDCsReady(cc)
+				createCassandraPods(cc)
 				for index, dc := range cc.Spec.DCs {
 					reaperLabels := map[string]string{
 						"cassandra-cluster-component": "reaper",
@@ -128,14 +132,9 @@ var _ = Describe("reaper deployment", func() {
 				By("reaper client should add C* cluster to reaper")
 				mockReaperClient.isRunning = true
 				mockReaperClient.err = nil
-				_ = mockReaperClient.AddCluster(ctx, cc.Name, "seed")
-				Expect(mockReaperClient.clusterExists).To(BeTrue())
-
+				Eventually(mockReaperClient.clusterExists).Should(BeTrue())
 				By("reaper client should schedule all repair jobs")
-				for _, repair := range cc.Spec.Reaper.ScheduleRepairs.Repairs {
-					_ = mockReaperClient.ScheduleRepair(ctx, cc.Name, repair)
-				}
-				Expect(mockReaperClient.repairs).To(Equal(cc.Spec.Reaper.ScheduleRepairs.Repairs))
+				Eventually(mockReaperClient.repairs).Should(HaveLen(len(cc.Spec.Reaper.ScheduleRepairs.Repairs)))
 			})
 		}
 	})

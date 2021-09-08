@@ -35,7 +35,6 @@ import (
 	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/ibm/cassandra-operator/controllers/logger"
 	"github.com/ibm/cassandra-operator/controllers/names"
-	"github.com/ibm/cassandra-operator/controllers/nodetool"
 	"github.com/ibm/cassandra-operator/controllers/prober"
 	"github.com/ibm/cassandra-operator/controllers/reaper"
 	. "github.com/onsi/ginkgo"
@@ -47,7 +46,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -160,13 +158,9 @@ var _ = BeforeSuite(func() {
 		CqlClient: func(clusterConfig *gocql.ClusterConfig) (cql.CqlClient, error) {
 			return mockCQLClient, nil
 		},
-		NodetoolClient: func(clientset *kubernetes.Clientset, config *rest.Config, roleName, password string) nodetool.NodetoolClient {
-			return mockNodetoolClient
-		},
-		ReaperClient: func(url *url.URL) reaper.ReaperClient {
+		ReaperClient: func(url *url.URL, clusterName string) reaper.ReaperClient {
 			return mockReaperClient
 		},
-		RESTConfig: cfg,
 	}
 
 	testReconciler := SetupTestReconcile(cassandraCtrl)
@@ -454,4 +448,10 @@ func waitForDCsToBeCreated(cc *v1alpha1.CassandraCluster) {
 
 		return len(dcs.Items) == len(cc.Spec.DCs)
 	}, mediumTimeout, mediumRetry).Should(BeTrue())
+}
+
+func waitForResourceToBeCreated(name types.NamespacedName, obj client.Object) {
+	Eventually(func() error {
+		return k8sClient.Get(ctx, name, obj)
+	}, mediumTimeout, mediumRetry).Should(Succeed())
 }

@@ -4,15 +4,17 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+
+	"github.com/ibm/cassandra-operator/controllers/reaper"
+
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
-	"github.com/ibm/cassandra-operator/controllers/nodetool"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r *CassandraClusterReconciler) reconcileCQLConfigMaps(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cqlClient cql.CqlClient, ntClient nodetool.NodetoolClient, adminSecret *v1.Secret) error {
+func (r *CassandraClusterReconciler) reconcileCQLConfigMaps(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cqlClient cql.CqlClient, reaperClient reaper.ReaperClient) error {
 	cmList := &v1.ConfigMapList{}
 	err := r.List(ctx, cmList, client.HasLabels{cc.Spec.CQLConfigMapLabelKey}, client.InNamespace(cc.Namespace))
 	if err != nil {
@@ -40,10 +42,10 @@ func (r *CassandraClusterReconciler) reconcileCQLConfigMaps(ctx context.Context,
 
 		keyspaceToRepair := cm.Annotations["cql-repairKeyspace"]
 		if len(keyspaceToRepair) > 0 {
-			r.Log.Debugf("Repairing %q keyspace", keyspaceToRepair)
-
-			if err = ntClient.RepairKeyspace(cc, keyspaceToRepair); err != nil {
-				return errors.Wrapf(err, "Failed to repair %q keyspace", keyspaceToRepair)
+			r.Log.Infof("Starting a repair for %q keyspace", keyspaceToRepair)
+			err := reaperClient.RunRepair(ctx, keyspaceToRepair, repairCauseCQLConfigMap)
+			if err != nil {
+				return errors.Wrapf(err, "failed to run repair on %q keyspace", keyspaceToRepair)
 			}
 		} else {
 			r.Log.Warnf("Keyspace for ConfigMap %q is not set. Skipping repair.", cm.Name)

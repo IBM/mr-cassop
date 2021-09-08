@@ -1,6 +1,9 @@
 package controllers
 
 import (
+	"context"
+	"testing"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/mock/gomock"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
@@ -12,7 +15,6 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
 )
 
 func TestReconcileRFSettings(t *testing.T) {
@@ -73,8 +75,8 @@ func TestReconcileRFSettings(t *testing.T) {
 		reconciler, mCtrl, mocks := createMockedReconciler(t)
 		mocks.cql.EXPECT().GetKeyspacesInfo().Times(1).Return([]cql.Keyspace{{Name: "system_auth", Replication: map[string]string{"class": "smth"}}}, nil)
 		mocks.cql.EXPECT().UpdateRF("system_auth", map[string]string{"class": cql.ReplicationClassNetworkTopologyStrategy, "dc1": "3"}).Times(1).Return(nil)
-		mocks.nodetool.EXPECT().RepairKeyspace(ccWithEmptySystemKeyspaces, "system_auth").Times(1).Return(nil)
-		err := reconciler.reconcileKeyspaces(ccWithEmptySystemKeyspaces, mocks.cql, mocks.nodetool)
+		mocks.reaper.EXPECT().RunRepair(gomock.Any(), "system_auth", "keyspaces-init").Times(1).Return(nil)
+		err := reconciler.reconcileKeyspaces(context.Background(), ccWithEmptySystemKeyspaces, mocks.cql, mocks.reaper)
 
 		asserts.Expect(err).To(BeNil())
 		mCtrl.Finish()
@@ -83,7 +85,7 @@ func TestReconcileRFSettings(t *testing.T) {
 	t.Run("return error if can't get keyspace info", func(t *testing.T) {
 		reconciler, mCtrl, mocks := createMockedReconciler(t)
 		mocks.cql.EXPECT().GetKeyspacesInfo().Times(1).Return([]cql.Keyspace{}, errors.New("query error"))
-		err := reconciler.reconcileKeyspaces(cc, mocks.cql, mocks.nodetool)
+		err := reconciler.reconcileKeyspaces(context.Background(), cc, mocks.cql, mocks.reaper)
 		asserts.Expect(err).ToNot(BeNil())
 		mCtrl.Finish()
 	})
@@ -101,8 +103,8 @@ func TestReconcileRFSettings(t *testing.T) {
 			"class": "org.apache.cassandra.locator.NetworkTopologyStrategy",
 			"dc1":   "3",
 		}).Times(1).Return(nil)
-		mocks.nodetool.EXPECT().RepairKeyspace(cc, "system_auth").Times(1).Return(nil)
-		err := reconciler.reconcileKeyspaces(cc, mocks.cql, mocks.nodetool)
+		mocks.reaper.EXPECT().RunRepair(gomock.Any(), "system_auth", "keyspaces-init").Times(1).Return(nil)
+		err := reconciler.reconcileKeyspaces(context.Background(), cc, mocks.cql, mocks.reaper)
 		asserts.Expect(err).To(BeNil())
 		mCtrl.Finish()
 	})
@@ -117,9 +119,9 @@ func TestReconcileRFSettings(t *testing.T) {
 			},
 		}}, nil)
 		mocks.cql.EXPECT().UpdateRF("system_auth", gomock.Any()).Times(1).Return(nil)
-		mocks.nodetool.EXPECT().RepairKeyspace(cc, "system_auth").Times(1).Return(errors.New("err while repair"))
+		mocks.reaper.EXPECT().RunRepair(gomock.Any(), "system_auth", "keyspaces-init").Times(1).Return(errors.New("err while repair"))
 
-		err := reconciler.reconcileKeyspaces(cc, mocks.cql, mocks.nodetool)
+		err := reconciler.reconcileKeyspaces(context.Background(), cc, mocks.cql, mocks.reaper)
 		asserts.Expect(err).ToNot(BeNil())
 		mCtrl.Finish()
 	})

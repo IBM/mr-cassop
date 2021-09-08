@@ -36,32 +36,32 @@ func (m *MockReaperClient) EXPECT() *MockReaperClientMockRecorder {
 }
 
 // AddCluster mocks base method.
-func (m *MockReaperClient) AddCluster(ctx context.Context, clusterName, seed string) error {
+func (m *MockReaperClient) AddCluster(ctx context.Context, seed string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddCluster", ctx, clusterName, seed)
+	ret := m.ctrl.Call(m, "AddCluster", ctx, seed)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // AddCluster indicates an expected call of AddCluster.
-func (mr *MockReaperClientMockRecorder) AddCluster(ctx, clusterName, seed interface{}) *gomock.Call {
+func (mr *MockReaperClientMockRecorder) AddCluster(ctx, seed interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCluster", reflect.TypeOf((*MockReaperClient)(nil).AddCluster), ctx, clusterName, seed)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCluster", reflect.TypeOf((*MockReaperClient)(nil).AddCluster), ctx, seed)
 }
 
 // ClusterExists mocks base method.
-func (m *MockReaperClient) ClusterExists(ctx context.Context, clusterName string) (bool, error) {
+func (m *MockReaperClient) ClusterExists(ctx context.Context) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ClusterExists", ctx, clusterName)
+	ret := m.ctrl.Call(m, "ClusterExists", ctx)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ClusterExists indicates an expected call of ClusterExists.
-func (mr *MockReaperClientMockRecorder) ClusterExists(ctx, clusterName interface{}) *gomock.Call {
+func (mr *MockReaperClientMockRecorder) ClusterExists(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClusterExists", reflect.TypeOf((*MockReaperClient)(nil).ClusterExists), ctx, clusterName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClusterExists", reflect.TypeOf((*MockReaperClient)(nil).ClusterExists), ctx)
 }
 
 // IsRunning mocks base method.
@@ -79,16 +79,30 @@ func (mr *MockReaperClientMockRecorder) IsRunning(ctx interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsRunning", reflect.TypeOf((*MockReaperClient)(nil).IsRunning), ctx)
 }
 
-// ScheduleRepair mocks base method.
-func (m *MockReaperClient) ScheduleRepair(ctx context.Context, clusterName string, repair v1alpha1.Repair) error {
+// RunRepair mocks base method.
+func (m *MockReaperClient) RunRepair(ctx context.Context, keyspace, cause string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ScheduleRepair", ctx, clusterName, repair)
+	ret := m.ctrl.Call(m, "RunRepair", ctx, keyspace, cause)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RunRepair indicates an expected call of RunRepair.
+func (mr *MockReaperClientMockRecorder) RunRepair(ctx, keyspace, cause interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunRepair", reflect.TypeOf((*MockReaperClient)(nil).RunRepair), ctx, keyspace, cause)
+}
+
+// ScheduleRepair mocks base method.
+func (m *MockReaperClient) ScheduleRepair(ctx context.Context, repair v1alpha1.Repair) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ScheduleRepair", ctx, repair)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // ScheduleRepair indicates an expected call of ScheduleRepair.
-func (mr *MockReaperClientMockRecorder) ScheduleRepair(ctx, clusterName, repair interface{}) *gomock.Call {
+func (mr *MockReaperClientMockRecorder) ScheduleRepair(ctx, repair interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ScheduleRepair", reflect.TypeOf((*MockReaperClient)(nil).ScheduleRepair), ctx, clusterName, repair)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ScheduleRepair", reflect.TypeOf((*MockReaperClient)(nil).ScheduleRepair), ctx, repair)
 }

@@ -26,7 +26,6 @@ import (
 	"github.com/ibm/cassandra-operator/controllers/config"
 	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/ibm/cassandra-operator/controllers/names"
-	"github.com/ibm/cassandra-operator/controllers/nodetool"
 	"github.com/ibm/cassandra-operator/controllers/prober"
 	"github.com/ibm/cassandra-operator/controllers/reaper"
 	"github.com/pkg/errors"
@@ -38,9 +37,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -53,20 +50,21 @@ const (
 	defaultCQLConfigMapLabelKey = "cql-scripts"
 	retryAttempts               = 3
 	initialRetryDelaySeconds    = 5
+
+	repairCauseKeyspacesInit = "keyspaces-init"
+	repairCauseCQLConfigMap  = "cql-configmap"
+	repairCauseReaperInit    = "reaper-init"
 )
 
 // CassandraClusterReconciler reconciles a CassandraCluster object
 type CassandraClusterReconciler struct {
 	client.Client
-	Log            *zap.SugaredLogger
-	Scheme         *runtime.Scheme
-	Cfg            config.Config
-	Clientset      *kubernetes.Clientset
-	RESTConfig     *rest.Config
-	ProberClient   func(url *url.URL) prober.ProberClient
-	NodetoolClient func(clientset *kubernetes.Clientset, config *rest.Config, roleName, password string) nodetool.NodetoolClient
-	CqlClient      func(cluster *gocql.ClusterConfig) (cql.CqlClient, error)
-	ReaperClient   func(url *url.URL) reaper.ReaperClient
+	Log          *zap.SugaredLogger
+	Scheme       *runtime.Scheme
+	Cfg          config.Config
+	ProberClient func(url *url.URL) prober.ProberClient
+	CqlClient    func(cluster *gocql.ClusterConfig) (cql.CqlClient, error)
+	ReaperClient func(url *url.URL, clusterName string) reaper.ReaperClient
 }
 
 // +kubebuilder:rbac:groups=db.ibm.com,resources=cassandraclusters,verbs=get;list;watch;create;update;patch;delete
@@ -190,23 +188,12 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Can't get secret "+names.ActiveAdminSecret(cc.Name))
 	}
 
-	ntClient := r.NodetoolClient(r.Clientset, r.RESTConfig, v1alpha1.CassandraOperatorAdminRole, string(activeAdminSecret.Data[v1alpha1.CassandraOperatorAdminRole]))
-
-	err = r.reconcileKeyspaces(cc, cqlClient, ntClient)
-	if err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile keyspaces")
-	}
-
 	err = r.reconcileRoles(ctx, cc, cqlClient)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	if err = r.reconcileCQLConfigMaps(ctx, cc, cqlClient, ntClient, activeAdminSecret); err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile CQL config maps")
-	}
-
-	if err = r.reconcileReaper(ctx, cc); err != nil {
+	if err = r.reconcileReaper(ctx, cc, cqlClient); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling reaper")
 	}
 
@@ -237,7 +224,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error parsing reaper service url")
 	}
-	reaperClient := r.ReaperClient(reaperServiceUrl)
+	reaperClient := r.ReaperClient(reaperServiceUrl, cc.Name)
 	isRunning, err := reaperClient.IsRunning(ctx)
 	if err != nil {
 		r.Log.Warnf("Reaper ping request failed: %s. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
@@ -247,7 +234,8 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		r.Log.Infof("Reaper is not ready. Trying again in %s...", r.Cfg.RetryDelay)
 		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 	}
-	if err := r.reaperInitialization(ctx, cc, reaperClient); err != nil {
+
+	if err = r.reaperInitialization(ctx, cc, reaperClient); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Failed to initialize reaper")
 	}
 
@@ -255,6 +243,15 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		if err := r.reconcileScheduleRepairs(ctx, cc, reaperClient); err != nil {
 			return ctrl.Result{}, errors.Wrap(err, "Failed to schedule reaper reapairs")
 		}
+	}
+
+	err = r.reconcileKeyspaces(ctx, cc, cqlClient, reaperClient)
+	if err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile keyspaces")
+	}
+
+	if err = r.reconcileCQLConfigMaps(ctx, cc, cqlClient, reaperClient); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile CQL config maps")
 	}
 
 	return ctrl.Result{}, nil

@@ -64,4 +64,9 @@ func createReadyCluster(cc *v1alpha1.CassandraCluster) {
 	waitForDCsToBeCreated(cc)
 	markAllDCsReady(cc)
 	createCassandraPods(cc)
+	for _, dc := range cc.Spec.DCs {
+		reaperDeploymentName := types.NamespacedName{Name: names.ReaperDeployment(cc.Name, dc.Name), Namespace: cc.Namespace}
+		waitForResourceToBeCreated(reaperDeploymentName, &appsv1.Deployment{})
+		markDeploymentAsReady(reaperDeploymentName)
+	}
 }

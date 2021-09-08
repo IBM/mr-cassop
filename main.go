@@ -24,16 +24,13 @@ import (
 	operatorCfg "github.com/ibm/cassandra-operator/controllers/config"
 	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/ibm/cassandra-operator/controllers/logger"
-	"github.com/ibm/cassandra-operator/controllers/nodetool"
 	"github.com/ibm/cassandra-operator/controllers/prober"
 	"github.com/ibm/cassandra-operator/controllers/reaper"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	"k8s.io/client-go/rest"
 	"net/http"
 	"net/url"
 	"os"
@@ -95,13 +92,6 @@ func main() {
 	ctrl.SetLogger(zapr.NewLogger(logr.Desugar()))
 
 	restCfg := ctrl.GetConfigOrDie()
-
-	clientset, err := kubernetes.NewForConfig(restCfg)
-	if err != nil {
-		logr.With(zap.Error(err), "unable to create client")
-		os.Exit(1)
-	}
-
 	mgr, err := ctrl.NewManager(restCfg, ctrl.Options{
 		Scheme:                  scheme,
 		MetricsBindAddress:      fmt.Sprintf(":%d", operatorConfig.MetricsPort),
@@ -119,14 +109,11 @@ func main() {
 		Log:          logr,
 		Scheme:       mgr.GetScheme(),
 		Cfg:          *operatorConfig,
-		Clientset:    clientset,
-		RESTConfig:   restCfg,
 		ProberClient: func(url *url.URL) prober.ProberClient { return prober.NewProberClient(url, httpClient) },
 		CqlClient:    func(cluster *gocql.ClusterConfig) (cql.CqlClient, error) { return cql.NewCQLClient(cluster) },
-		NodetoolClient: func(clientset *kubernetes.Clientset, config *rest.Config, roleName, password string) nodetool.NodetoolClient {
-			return nodetool.NewNodetoolClient(clientset, config, roleName, password)
+		ReaperClient: func(url *url.URL, clusterName string) reaper.ReaperClient {
+			return reaper.NewReaperClient(url, clusterName, httpClient)
 		},
-		ReaperClient: func(url *url.URL) reaper.ReaperClient { return reaper.NewReaperClient(url, httpClient) },
 	}
 	err = controllers.SetupCassandraReconciler(cassandraReconciler, mgr, logr)
 	if err != nil {
