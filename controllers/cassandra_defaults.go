@@ -80,30 +80,35 @@ func (r *CassandraClusterReconciler) defaultReaper(cc *dbv1alpha1.CassandraClust
 		cc.Spec.Reaper.NodeSelector = nil
 	}
 
-	if len(cc.Spec.Reaper.ScheduleRepairs.Repairs) != 0 {
-		for i, repair := range cc.Spec.Reaper.ScheduleRepairs.Repairs {
+	if len(cc.Spec.Reaper.RepairSchedules.Repairs) != 0 {
+		for i, repair := range cc.Spec.Reaper.RepairSchedules.Repairs {
 			if repair.RepairParallelism == "" {
-				cc.Spec.Reaper.ScheduleRepairs.Repairs[i].RepairParallelism = "datacenter_aware"
+				cc.Spec.Reaper.RepairSchedules.Repairs[i].RepairParallelism = "DATACENTER_AWARE"
 			}
 
 			// RepairParallelism must be 'parallel' if IncrementalRepair is 'true'
 			if repair.IncrementalRepair {
-				cc.Spec.Reaper.ScheduleRepairs.Repairs[i].RepairParallelism = "parallel"
+				cc.Spec.Reaper.RepairSchedules.Repairs[i].RepairParallelism = "PARALLEL"
 			}
 
 			if repair.ScheduleDaysBetween == 0 {
-				cc.Spec.Reaper.ScheduleRepairs.Repairs[i].ScheduleDaysBetween = 7
+				cc.Spec.Reaper.RepairSchedules.Repairs[i].ScheduleDaysBetween = 7
 			}
 
-			if len(repair.Datacenters) == 0 {
+			if repair.Intensity == "" {
+				cc.Spec.Reaper.RepairSchedules.Repairs[i].Intensity = "1.0"
+			}
+
+			// Can't set both `nodes` and `datacenters` so set defaults for `datacenters` only if `nodes` not set
+			if len(repair.Datacenters) == 0 && len(repair.Nodes) == 0 {
 				dcNames := make([]string, 0, len(cc.Spec.DCs))
 				for _, dc := range cc.Spec.DCs {
 					dcNames = append(dcNames, dc.Name)
 				}
-				cc.Spec.Reaper.ScheduleRepairs.Repairs[i].Datacenters = dcNames
+				cc.Spec.Reaper.RepairSchedules.Repairs[i].Datacenters = dcNames
 			}
 			if repair.RepairThreadCount == 0 {
-				cc.Spec.Reaper.ScheduleRepairs.Repairs[i].RepairThreadCount = 2
+				cc.Spec.Reaper.RepairSchedules.Repairs[i].RepairThreadCount = 2
 			}
 		}
 	}

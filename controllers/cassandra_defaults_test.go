@@ -51,8 +51,8 @@ func TestDefaultingFunction(t *testing.T) {
 				},
 			},
 			Reaper: &v1alpha1.Reaper{
-				ScheduleRepairs: v1alpha1.ScheduleRepairs{
-					Repairs: []v1alpha1.Repair{
+				RepairSchedules: v1alpha1.RepairSchedules{
+					Repairs: []v1alpha1.RepairSchedule{
 						{
 							Keyspace: "system_auth",
 						},
@@ -69,11 +69,11 @@ func TestDefaultingFunction(t *testing.T) {
 	reconciler.defaultCassandraCluster(cc)
 	g.Expect(cc.Spec.Reaper.DCs).To(Equal(cc.Spec.DCs))
 	g.Expect(cc.Spec.SystemKeyspaces.DCs).To(Equal([]v1alpha1.SystemKeyspaceDC{{Name: "dc1", RF: 3}}))
-	g.Expect(cc.Spec.Reaper.ScheduleRepairs.Repairs[0].Keyspace).To(Equal("system_auth"))
-	g.Expect(cc.Spec.Reaper.ScheduleRepairs.Repairs[0].RepairParallelism).To(Equal("datacenter_aware"))
-	g.Expect(cc.Spec.Reaper.ScheduleRepairs.Repairs[0].ScheduleDaysBetween).To(Equal(int32(7)))
-	g.Expect(cc.Spec.Reaper.ScheduleRepairs.Repairs[0].Datacenters).To(Equal([]string{"dc1"}))
-	g.Expect(cc.Spec.Reaper.ScheduleRepairs.Repairs[0].RepairThreadCount).To(Equal(int32(2)))
+	g.Expect(cc.Spec.Reaper.RepairSchedules.Repairs[0].Keyspace).To(Equal("system_auth"))
+	g.Expect(cc.Spec.Reaper.RepairSchedules.Repairs[0].RepairParallelism).To(Equal("DATACENTER_AWARE"))
+	g.Expect(cc.Spec.Reaper.RepairSchedules.Repairs[0].ScheduleDaysBetween).To(Equal(int32(7)))
+	g.Expect(cc.Spec.Reaper.RepairSchedules.Repairs[0].Datacenters).To(Equal([]string{"dc1"}))
+	g.Expect(cc.Spec.Reaper.RepairSchedules.Repairs[0].RepairThreadCount).To(Equal(int32(2)))
 	g.Expect(cc.Spec.Maintenance[0].DC).To(Equal("dc1"))
 	g.Expect(cc.Spec.Maintenance[0].Pods).ToNot(BeEmpty())
 }

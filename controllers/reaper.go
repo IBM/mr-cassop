@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"strings"
 	"time"
 
@@ -30,15 +31,9 @@ const (
 	reaperAdminPort = 8081
 )
 
-func (r *CassandraClusterReconciler) reconcileReaper(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cqlClient cql.CqlClient) error {
+func (r *CassandraClusterReconciler) reconcileReaperPrerequisites(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cqlClient cql.CqlClient) error {
 	if err := r.reconcileShiroConfigMap(ctx, cc); err != nil {
 		return errors.Wrap(err, "Error reconciling shiro configmap")
-	}
-
-	if cc.Spec.Reaper.ScheduleRepairs.Enabled {
-		if err := r.reconcileRepairsConfigMap(ctx, cc); err != nil {
-			return errors.Wrap(err, "Failed to reconcile reaper repairs configmap")
-		}
 	}
 
 	if err := r.reconcileReaperKeyspace(cc, cqlClient); err != nil {
@@ -46,6 +41,33 @@ func (r *CassandraClusterReconciler) reconcileReaper(ctx context.Context, cc *db
 	}
 
 	return nil
+}
+
+func (r *CassandraClusterReconciler) reconcileReaper(ctx context.Context, cc *dbv1alpha1.CassandraCluster, activeAdminSecret *v1.Secret) (ctrl.Result, error) {
+	for index, dc := range cc.Spec.DCs {
+		if err := r.reconcileReaperDeployment(ctx, cc, dc, activeAdminSecret); err != nil {
+			return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile reaper deployment")
+		}
+
+		if err := r.reconcileReaperService(ctx, cc); err != nil {
+			return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile reaper service")
+		}
+
+		if index == 0 { // Wait for 1st reaper deployment to finish, otherwise we can get an error 'Schema migration is locked by another instance'
+			reaperDeployment := &appsv1.Deployment{}
+			err := r.Get(ctx, types.NamespacedName{Name: names.ReaperDeployment(cc.Name, dc.Name), Namespace: cc.Namespace}, reaperDeployment)
+			if err != nil {
+				return ctrl.Result{}, errors.Wrap(err, "Failed to get reaper deployment")
+			}
+
+			if reaperDeployment.Status.ReadyReplicas != dbv1alpha1.ReaperReplicasNumber {
+				r.Log.Infof("Waiting for the first reaper deployment to be ready. Trying again in %s...", r.Cfg.RetryDelay)
+				return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
+			}
+		}
+	}
+
+	return ctrl.Result{}, nil
 }
 
 func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Context, cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, adminSecret *v1.Secret) error {
@@ -195,21 +217,6 @@ func (r *CassandraClusterReconciler) reconcileReaperService(ctx context.Context,
 	return nil
 }
 
-func (r CassandraClusterReconciler) reconcileScheduleRepairs(ctx context.Context, cc *dbv1alpha1.CassandraCluster, reaperClient reaper.ReaperClient) error {
-	for _, repair := range cc.Spec.Reaper.ScheduleRepairs.Repairs {
-		scheduledRepair := repair
-		if err := rescheduleTimestamp(&scheduledRepair); err != nil {
-			return errors.Wrap(err, "Error rescheduling repair")
-		}
-		scheduledRepair.Owner = reaper.OwnerCassandraOperator
-		err := reaperClient.ScheduleRepair(ctx, scheduledRepair)
-		if err != nil {
-			return errors.Wrapf(err, "Error scheduling repair on keyspace %s", scheduledRepair.Keyspace)
-		}
-	}
-	return nil
-}
-
 func reaperContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, adminSecret *v1.Secret) v1.Container {
 	return v1.Container{
 		Name:            "reaper",
@@ -332,11 +339,14 @@ func (r CassandraClusterReconciler) reaperInitialization(ctx context.Context, cc
 	input: 2020-11-29T02:00:00
 	output: 2020-11-29T02:00:00
 */
-func rescheduleTimestamp(repair *dbv1alpha1.Repair) error {
+func rescheduleTimestamp(repair *dbv1alpha1.RepairSchedule) error {
 	hms := "15:04:05"
 	isoFormat := "2006-01-02T" + hms // YYYY-MM-DDThh:mm:ss format (reaper API dates do not include timezone)
 	now := time.Now()
 	unixToday := now.Unix()
+	if len(repair.ScheduleTriggerTime) == 0 {
+		return nil
+	}
 	scheduleTriggerTime, err := time.Parse(isoFormat, repair.ScheduleTriggerTime)
 	if err != nil {
 		return err

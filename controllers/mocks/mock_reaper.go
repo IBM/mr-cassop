@@ -10,6 +10,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	v1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
+	reaper "github.com/ibm/cassandra-operator/controllers/reaper"
 )
 
 // MockReaperClient is a mock of ReaperClient interface.
@@ -64,6 +65,34 @@ func (mr *MockReaperClientMockRecorder) ClusterExists(ctx interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClusterExists", reflect.TypeOf((*MockReaperClient)(nil).ClusterExists), ctx)
 }
 
+// CreateRepairSchedule mocks base method.
+func (m *MockReaperClient) CreateRepairSchedule(ctx context.Context, repair v1alpha1.RepairSchedule) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateRepairSchedule", ctx, repair)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CreateRepairSchedule indicates an expected call of CreateRepairSchedule.
+func (mr *MockReaperClientMockRecorder) CreateRepairSchedule(ctx, repair interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateRepairSchedule", reflect.TypeOf((*MockReaperClient)(nil).CreateRepairSchedule), ctx, repair)
+}
+
+// DeleteRepairSchedule mocks base method.
+func (m *MockReaperClient) DeleteRepairSchedule(ctx context.Context, repairScheduleID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteRepairSchedule", ctx, repairScheduleID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteRepairSchedule indicates an expected call of DeleteRepairSchedule.
+func (mr *MockReaperClientMockRecorder) DeleteRepairSchedule(ctx, repairScheduleID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRepairSchedule", reflect.TypeOf((*MockReaperClient)(nil).DeleteRepairSchedule), ctx, repairScheduleID)
+}
+
 // IsRunning mocks base method.
 func (m *MockReaperClient) IsRunning(ctx context.Context) (bool, error) {
 	m.ctrl.T.Helper()
@@ -77,6 +106,21 @@ func (m *MockReaperClient) IsRunning(ctx context.Context) (bool, error) {
 func (mr *MockReaperClientMockRecorder) IsRunning(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsRunning", reflect.TypeOf((*MockReaperClient)(nil).IsRunning), ctx)
+}
+
+// RepairSchedules mocks base method.
+func (m *MockReaperClient) RepairSchedules(ctx context.Context) ([]reaper.RepairSchedule, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RepairSchedules", ctx)
+	ret0, _ := ret[0].([]reaper.RepairSchedule)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RepairSchedules indicates an expected call of RepairSchedules.
+func (mr *MockReaperClientMockRecorder) RepairSchedules(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RepairSchedules", reflect.TypeOf((*MockReaperClient)(nil).RepairSchedules), ctx)
 }
 
 // RunRepair mocks base method.
@@ -93,16 +137,16 @@ func (mr *MockReaperClientMockRecorder) RunRepair(ctx, keyspace, cause interface
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunRepair", reflect.TypeOf((*MockReaperClient)(nil).RunRepair), ctx, keyspace, cause)
 }
 
-// ScheduleRepair mocks base method.
-func (m *MockReaperClient) ScheduleRepair(ctx context.Context, repair v1alpha1.Repair) error {
+// SetRepairScheduleState mocks base method.
+func (m *MockReaperClient) SetRepairScheduleState(ctx context.Context, repairScheduleID string, active bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ScheduleRepair", ctx, repair)
+	ret := m.ctrl.Call(m, "SetRepairScheduleState", ctx, repairScheduleID, active)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// ScheduleRepair indicates an expected call of ScheduleRepair.
-func (mr *MockReaperClientMockRecorder) ScheduleRepair(ctx, repair interface{}) *gomock.Call {
+// SetRepairScheduleState indicates an expected call of SetRepairScheduleState.
+func (mr *MockReaperClientMockRecorder) SetRepairScheduleState(ctx, repairScheduleID, active interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ScheduleRepair", reflect.TypeOf((*MockReaperClient)(nil).ScheduleRepair), ctx, repair)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetRepairScheduleState", reflect.TypeOf((*MockReaperClient)(nil).SetRepairScheduleState), ctx, repairScheduleID, active)
 }

@@ -37,10 +37,10 @@ var _ = Describe("Cassandra cluster", func() {
 				testRepairReaperKeyspace       = "test_keyspace"
 				testRepairReaperTables         = []string{"test_table1", "test_table2", "test_table3", "test_table4", "test_table5", "test_table6"}
 				intensity                      = "1.0"
-				repairParallelism              = "parallel"
+				repairParallelism              = "PARALLEL"
 				segmentCount                   = 10
 				repairThreadCount        int32 = 4
-				reaperRepairSchedules    []v1alpha1.Repair
+				reaperRepairSchedules    []v1alpha1.RepairSchedule
 				respBody                 []byte
 				responseData             map[string]interface{}
 				responsesData            []map[string]interface{}
@@ -54,9 +54,8 @@ var _ = Describe("Cassandra cluster", func() {
 
 			// Generate repair schedules
 			reaperRepairSchedules = append(reaperRepairSchedules,
-				v1alpha1.Repair{
+				v1alpha1.RepairSchedule{
 					Keyspace:            testRepairReaperKeyspace,
-					Owner:               "cassandra",
 					Tables:              []string{"test_table1", "test_table2"},
 					ScheduleDaysBetween: 7,
 					ScheduleTriggerTime: currentTime.AddDate(0, 0, 5).Format(reaperRequestTimeLayout),
@@ -66,9 +65,8 @@ var _ = Describe("Cassandra cluster", func() {
 					Intensity:           intensity,
 					RepairParallelism:   repairParallelism,
 				},
-				v1alpha1.Repair{
+				v1alpha1.RepairSchedule{
 					Keyspace:            testRepairReaperKeyspace,
-					Owner:               "cassandra",
 					Tables:              []string{"test_table3"},
 					ScheduleDaysBetween: 7,
 					ScheduleTriggerTime: currentTime.AddDate(0, 0, -5).Format(reaperRequestTimeLayout),
@@ -78,9 +76,8 @@ var _ = Describe("Cassandra cluster", func() {
 					Intensity:           intensity,
 					RepairParallelism:   repairParallelism,
 				},
-				v1alpha1.Repair{
+				v1alpha1.RepairSchedule{
 					Keyspace:            testRepairReaperKeyspace,
-					Owner:               "cassandra",
 					Tables:              []string{"test_table4", "test_table5"},
 					ScheduleDaysBetween: 7,
 					ScheduleTriggerTime: currentTime.Add(time.Hour * 2).Format(reaperRequestTimeLayout),
@@ -167,10 +164,9 @@ var _ = Describe("Cassandra cluster", func() {
 			}, deployedCassandraCluster)
 			Expect(err).ToNot(HaveOccurred())
 
-			deployedCassandraCluster.Spec.Reaper.ScheduleRepairs = v1alpha1.ScheduleRepairs{
-				Enabled:        true,
-				StartRepairsIn: "60 minutes",
-				Repairs:        reaperRepairSchedules,
+			deployedCassandraCluster.Spec.Reaper.RepairSchedules = v1alpha1.RepairSchedules{
+				Enabled: true,
+				Repairs: reaperRepairSchedules,
 			}
 			Expect(restClient.Update(context.Background(), deployedCassandraCluster)).To(Succeed())
 

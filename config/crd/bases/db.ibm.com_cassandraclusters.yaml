@@ -680,6 +680,59 @@ spec:
                   repairManagerSchedulingIntervalSeconds:
                     format: int32
                     type: integer
+                  repairSchedules:
+                    properties:
+                      enabled:
+                        type: boolean
+                      repairs:
+                        items:
+                          properties:
+                            blacklistedTables:
+                              items:
+                                type: string
+                              type: array
+                            datacenters:
+                              items:
+                                type: string
+                              type: array
+                            incrementalRepair:
+                              type: boolean
+                            intensity:
+                              type: string
+                            keyspace:
+                              type: string
+                            nodes:
+                              items:
+                                type: string
+                              type: array
+                            repairParallelism:
+                              enum:
+                              - SEQUENTIAL
+                              - PARALLEL
+                              - DATACENTER_AWARE
+                              type: string
+                            repairThreadCount:
+                              format: int32
+                              maximum: 4
+                              minimum: 1
+                              type: integer
+                            scheduleDaysBetween:
+                              format: int32
+                              type: integer
+                            scheduleTriggerTime:
+                              type: string
+                            segmentCountPerNode:
+                              format: int32
+                              type: integer
+                            tables:
+                              items:
+                                type: string
+                              type: array
+                          required:
+                          - keyspace
+                          type: object
+                        type: array
+                    type: object
                   resources:
                     description: ResourceRequirements describes the compute resource
                       requirements.
@@ -706,55 +759,6 @@ spec:
                           it defaults to Limits if that is explicitly specified, otherwise
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                         type: object
-                    type: object
-                  scheduleRepairs:
-                    properties:
-                      enabled:
-                        type: boolean
-                      repairs:
-                        items:
-                          properties:
-                            datacenters:
-                              items:
-                                type: string
-                              type: array
-                            incrementalRepair:
-                              type: boolean
-                            intensity:
-                              type: string
-                            keyspace:
-                              type: string
-                            owner:
-                              type: string
-                            repairParallelism:
-                              enum:
-                              - sequential
-                              - parallel
-                              - datacenter_aware
-                              type: string
-                            repairThreadCount:
-                              format: int32
-                              maximum: 4
-                              minimum: 1
-                              type: integer
-                            scheduleDaysBetween:
-                              format: int32
-                              type: integer
-                            scheduleTriggerTime:
-                              type: string
-                            tables:
-                              items:
-                                type: string
-                              type: array
-                          required:
-                          - intensity
-                          - keyspace
-                          - repairParallelism
-                          - repairThreadCount
-                          type: object
-                        type: array
-                      startRepairsIn:
-                        type: string
                     type: object
                   tolerations:
                     items:

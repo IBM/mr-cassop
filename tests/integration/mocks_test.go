@@ -2,6 +2,10 @@ package integration
 
 import (
 	"context"
+	"reflect"
+	"strconv"
+
+	"github.com/ibm/cassandra-operator/controllers/reaper"
 
 	"github.com/gocql/gocql"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
@@ -27,10 +31,10 @@ type nodetoolMock struct {
 }
 
 type reaperMock struct {
-	repairs       []dbv1alpha1.Repair
-	isRunning     bool
-	clusterExists bool
-	err           error
+	repairSchedules []reaper.RepairSchedule
+	isRunning       bool
+	clusterExists   bool
+	err             error
 }
 
 func (r proberMock) Ready(ctx context.Context) (bool, error) {
@@ -154,16 +158,67 @@ func (r *reaperMock) AddCluster(ctx context.Context, seed string) error {
 	}
 	return r.err
 }
-func (r *reaperMock) ScheduleRepair(ctx context.Context, repair dbv1alpha1.Repair) error {
-	for _, existingRepair := range r.repairs { // TODO a hack until https://github.com/TheWeatherCompany/cassandra-operator/issues/174 is resolved
-		if existingRepair.Keyspace == repair.Keyspace {
+func (r *reaperMock) CreateRepairSchedule(ctx context.Context, repair dbv1alpha1.RepairSchedule) error {
+	for _, existingRepair := range r.repairSchedules {
+		if existingRepair.KeyspaceName == repair.Keyspace && reflect.DeepEqual(existingRepair.Tables, repair.Tables) {
+			return errors.Errorf("Repair schedule for keyspace %s with tables %v already exists", existingRepair.KeyspaceName, repair.Tables)
+		}
+	}
+	var intensity float64
+	var err error
+	intensity, err = strconv.ParseFloat(repair.Intensity, 64)
+	if err != nil {
+		intensity = 1.0
+	}
+
+	schedule := reaper.RepairSchedule{
+		ID:                  "id-" + strconv.Itoa(len(r.repairSchedules)),
+		KeyspaceName:        repair.Keyspace,
+		SegmentCount:        repair.SegmentCountPerNode,
+		Owner:               reaper.OwnerCassandraOperator,
+		State:               "ACTIVE",
+		Tables:              repair.Tables,
+		ScheduleDaysBetween: repair.ScheduleDaysBetween,
+		Datacenters:         repair.Datacenters,
+		IncrementalRepair:   repair.IncrementalRepair,
+		RepairThreadCount:   repair.RepairThreadCount,
+		Intensity:           intensity,
+		RepairParallelism:   repair.RepairParallelism,
+	}
+
+	r.repairSchedules = append(r.repairSchedules, schedule)
+	return r.err
+}
+
+func (r *reaperMock) RepairSchedules(ctx context.Context) ([]reaper.RepairSchedule, error) {
+	return r.repairSchedules, r.err
+}
+
+func (r *reaperMock) DeleteRepairSchedule(ctx context.Context, repairScheduleID string) error {
+	for i, schedule := range r.repairSchedules {
+		if schedule.ID == repairScheduleID {
+			r.repairSchedules = append(r.repairSchedules[:i], r.repairSchedules[i+1:]...)
+			return nil
+		}
+	}
+	return errors.New("unable to remove repair schedule: not found")
+}
+
+func (r *reaperMock) SetRepairScheduleState(ctx context.Context, repairScheduleID string, active bool) error {
+	for i, schedule := range r.repairSchedules {
+		if schedule.ID == repairScheduleID {
+			state := "ACTIVE"
+			if !active {
+				state = "PAUSED"
+			}
+			r.repairSchedules[i].State = state
 			return nil
 		}
 	}
 
-	r.repairs = append(r.repairs, repair)
-	return r.err
+	return errors.New("unable to update repair schedule state: not found")
 }
+
 func (r *reaperMock) RunRepair(ctx context.Context, keyspace, cause string) error {
 	return r.err
 }

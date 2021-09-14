@@ -193,31 +193,12 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, err
 	}
 
-	if err = r.reconcileReaper(ctx, cc, cqlClient); err != nil {
+	if err = r.reconcileReaperPrerequisites(ctx, cc, cqlClient); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling reaper")
 	}
 
-	for index, dc := range cc.Spec.DCs {
-		if err = r.reconcileReaperDeployment(ctx, cc, dc, activeAdminSecret); err != nil {
-			return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile reaper deployment")
-		}
-
-		if err := r.reconcileReaperService(ctx, cc); err != nil {
-			return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile reaper service")
-		}
-
-		if index == 0 { // Wait for 1st reaper deployment to finish, otherwise we can get an error 'Schema migration is locked by another instance'
-			reaperDeployment := &appsv1.Deployment{}
-			err = r.Get(ctx, types.NamespacedName{Name: names.ReaperDeployment(cc.Name, dc.Name), Namespace: cc.Namespace}, reaperDeployment)
-			if err != nil {
-				return ctrl.Result{}, errors.Wrap(err, "Failed to get reaper deployment")
-			}
-
-			if reaperDeployment.Status.ReadyReplicas != v1alpha1.ReaperReplicasNumber {
-				r.Log.Infof("Waiting for the first reaper deployment to be ready. Trying again in %s...", r.Cfg.RetryDelay)
-				return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
-			}
-		}
+	if res, err := r.reconcileReaper(ctx, cc, activeAdminSecret); needsRequeue(res, err) {
+		return res, err
 	}
 
 	reaperServiceUrl, err := url.Parse(fmt.Sprintf("http://%s.%s.svc.cluster.local:8080", names.ReaperService(cc.Name), cc.Namespace))
@@ -239,10 +220,8 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Failed to initialize reaper")
 	}
 
-	if cc.Spec.Reaper.ScheduleRepairs.Enabled {
-		if err := r.reconcileScheduleRepairs(ctx, cc, reaperClient); err != nil {
-			return ctrl.Result{}, errors.Wrap(err, "Failed to schedule reaper reapairs")
-		}
+	if err := r.reconcileRepairSchedules(ctx, cc, reaperClient); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile repair schedules")
 	}
 
 	err = r.reconcileKeyspaces(ctx, cc, cqlClient, reaperClient)
@@ -255,6 +234,10 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func needsRequeue(result ctrl.Result, err error) bool {
+	return result.Requeue || result.RequeueAfter.Nanoseconds() > 0 || err != nil
 }
 
 func (r *CassandraClusterReconciler) clusterReady(ctx context.Context, cc *v1alpha1.CassandraCluster, proberClient prober.ProberClient) (bool, error) {

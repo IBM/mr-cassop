@@ -81,7 +81,7 @@ spec:
         repairThreadCount: 2
         intensity: "1.0"
         incrementalRepair: false
-        repairParallelism: "datacenter_aware"
+        repairParallelism: "DATACENTER_AWARE"
   systemKeyspaces:
     dcs:
     - name: dc1

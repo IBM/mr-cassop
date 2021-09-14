@@ -86,7 +86,7 @@ type Reaper struct {
 	RepairManagerSchedulingIntervalSeconds int32                   `json:"repairManagerSchedulingIntervalSeconds,omitempty"`
 	BlacklistTWCS                          bool                    `json:"blacklistTWCS,omitempty"`
 	Resources                              v1.ResourceRequirements `json:"resources,omitempty"`
-	ScheduleRepairs                        ScheduleRepairs         `json:"scheduleRepairs,omitempty"`
+	RepairSchedules                        RepairSchedules         `json:"repairSchedules,omitempty"`
 	AutoScheduling                         AutoScheduling          `json:"autoScheduling,omitempty"`
 }
 
@@ -119,26 +119,27 @@ type JMX struct {
 	//SSL            bool   `json:"ssl,omitempty"`
 }
 
-type ScheduleRepairs struct {
-	Enabled        bool     `json:"enabled,omitempty"`
-	StartRepairsIn string   `json:"startRepairsIn,omitempty"`
-	Repairs        []Repair `json:"repairs,omitempty"`
+type RepairSchedules struct {
+	Enabled bool             `json:"enabled,omitempty"`
+	Repairs []RepairSchedule `json:"repairs,omitempty"`
 }
 
-type Repair struct {
+type RepairSchedule struct {
 	Keyspace            string   `json:"keyspace" url:"keyspace"`
-	Owner               string   `json:"owner,omitempty" url:"owner"`
-	Tables              []string `json:"tables,omitempty" url:"tables,comma"`
+	Tables              []string `json:"tables,omitempty" url:"tables,comma,omitempty"`
+	SegmentCountPerNode int32    `json:"segmentCountPerNode,omitempty" url:"segmentCountPerNode,omitempty"`
+	// +kubebuilder:validation:Enum:=SEQUENTIAL;PARALLEL;DATACENTER_AWARE
+	RepairParallelism   string   `json:"repairParallelism,omitempty" url:"repairParallelism,omitempty"`
+	Intensity           string   `json:"intensity,omitempty" url:"intensity,omitempty"` // value between 0.0 and 1.0, but must never be 0.0.
+	IncrementalRepair   bool     `json:"incrementalRepair,omitempty" url:"incrementalRepair,omitempty"`
 	ScheduleDaysBetween int32    `json:"scheduleDaysBetween,omitempty" url:"scheduleDaysBetween"`
-	ScheduleTriggerTime string   `json:"scheduleTriggerTime,omitempty" url:"scheduleTriggerTime"`
-	Datacenters         []string `json:"datacenters,omitempty" url:"datacenters,comma"`
-	IncrementalRepair   bool     `json:"incrementalRepair,omitempty" url:"incrementalRepair"`
+	ScheduleTriggerTime string   `json:"scheduleTriggerTime,omitempty" url:"scheduleTriggerTime,omitempty"`
+	Nodes               []string `json:"nodes,omitempty" url:"nodes,comma,omitempty"`
+	Datacenters         []string `json:"datacenters,omitempty" url:"datacenters,comma,omitempty"`
+	BlacklistedTables   []string `json:"blacklistedTables,omitempty" url:"blacklistedTables,comma,omitempty"`
 	// +kubebuilder:validation:Minimum:=1
 	// +kubebuilder:validation:Maximum:=4
-	RepairThreadCount int32  `json:"repairThreadCount" url:"repairThreadCount"`
-	Intensity         string `json:"intensity" url:"intensity"` // value between 0.0 and 1.0, but must never be 0.0.
-	// +kubebuilder:validation:Enum:=sequential;parallel;datacenter_aware
-	RepairParallelism string `json:"repairParallelism" url:"repairParallelism"`
+	RepairThreadCount int32 `json:"repairThreadCount,omitempty" url:"repairThreadCount,omitempty"`
 }
 
 type AutoScheduling struct {

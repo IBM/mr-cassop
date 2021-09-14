@@ -56,7 +56,7 @@ func waitForPodsReadiness(namespace string, labels map[string]string) {
 			}
 		}
 		return true
-	}, time.Minute*10, time.Second*2).Should(BeTrue(), "Pods should become ready: ", labels[v1alpha1.CassandraClusterComponent])
+	}, time.Minute*10, time.Second*2).Should(BeTrue(), fmt.Sprintf("Pods should become ready: %s", labels[v1alpha1.CassandraClusterComponent]))
 }
 
 func waitPodsTermination(namespace string, labels map[string]string) {

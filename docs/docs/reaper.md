@@ -29,7 +29,7 @@ Here's an example of a weekly, datacenter aware repair on the counter1 table of 
       datacenters: [dc1]
       repairThreadCount: 2
       intensity: "0.75"
-      repairParallelism: "datacenter_aware"
+      repairParallelism: "DATACENTER_AWARE"
 ```
 
 Here's another example of a repair that occurs weekly but will repair all the tables in the keyspace and across all DCs.
@@ -38,5 +38,5 @@ Here's another example of a repair that occurs weekly but will repair all the ta
       scheduleDaysBetween: 7
       scheduleTriggerTime: "2021-01-06T04:00:00"
       repairThreadCount: 4
-      repairParallelism: "parallel"
+      repairParallelism: "PARALLEL"
 ```
