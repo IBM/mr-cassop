@@ -340,14 +340,7 @@ func (r *CassandraClusterReconciler) reconcileDCService(ctx context.Context, cc 
 func getLocalSeedsHostnames(cc *dbv1alpha1.CassandraCluster, broadcastAddresses map[string]string) []string {
 	seedsList := make([]string, 0)
 	for _, dc := range cc.Spec.DCs {
-		numSeeds := cc.Spec.Cassandra.NumSeeds
-		if numSeeds >= *dc.Replicas { // don't configure all dc's nodes as seeds
-			numSeeds = *dc.Replicas - 1 // minimum of 1 non-seed node
-			if *dc.Replicas <= 1 {      // unless dc.Replicas only has 1 or 0 nodes
-				numSeeds = *dc.Replicas
-			}
-		}
-
+		numSeeds := dcNumberOfSeeds(cc, dc)
 		for i := int32(0); i < numSeeds; i++ {
 			seed := getSeedHostname(cc, dc.Name, i, !cc.Spec.HostPort.Enabled)
 			if cc.Spec.HostPort.Enabled {
@@ -358,6 +351,27 @@ func getLocalSeedsHostnames(cc *dbv1alpha1.CassandraCluster, broadcastAddresses 
 	}
 
 	return seedsList
+}
+
+func isSeedPod(pod v1.Pod) bool {
+	if pod.Labels == nil {
+		return false
+	}
+
+	_, labelExists := pod.Labels[dbv1alpha1.CassandraClusterSeed]
+	return labelExists
+}
+
+func dcNumberOfSeeds(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) int32 {
+	numSeeds := cc.Spec.Cassandra.NumSeeds
+	if numSeeds >= *dc.Replicas { // don't configure all dc's nodes as seeds
+		numSeeds = *dc.Replicas - 1 // minimum of 1 non-seed node
+		if *dc.Replicas <= 1 {      // unless dc.Replicas only has 1 or 0 nodes
+			numSeeds = *dc.Replicas
+		}
+	}
+
+	return numSeeds
 }
 
 func getSeedHostname(cc *dbv1alpha1.CassandraCluster, dcName string, podSuffix int32, isFQDN bool) string {

@@ -27,6 +27,7 @@ const (
 	CassandraClusterComponent = "cassandra-cluster-component"
 	CassandraClusterDC        = "cassandra-cluster-dc"
 	CassandraClusterChecksum  = "cassandra-cluster-checksum"
+	CassandraClusterSeed      = "cassandra-cluster-seed"
 
 	CassandraClusterComponentProber    = "prober"
 	CassandraClusterComponentReaper    = "reaper"

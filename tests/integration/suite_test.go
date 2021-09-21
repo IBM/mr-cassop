@@ -455,3 +455,16 @@ func waitForResourceToBeCreated(name types.NamespacedName, obj client.Object) {
 		return k8sClient.Get(ctx, name, obj)
 	}, mediumTimeout, mediumRetry).Should(Succeed())
 }
+
+func createReadyCluster(cc *v1alpha1.CassandraCluster) {
+	Expect(k8sClient.Create(ctx, cc)).To(Succeed())
+	markMocksAsReady(cc)
+	waitForDCsToBeCreated(cc)
+	markAllDCsReady(cc)
+	createCassandraPods(cc)
+	for _, dc := range cc.Spec.DCs {
+		reaperDeploymentName := types.NamespacedName{Name: names.ReaperDeployment(cc.Name, dc.Name), Namespace: cc.Namespace}
+		waitForResourceToBeCreated(reaperDeploymentName, &apps.Deployment{})
+		markDeploymentAsReady(reaperDeploymentName)
+	}
+}

@@ -57,16 +57,3 @@ var _ = Describe("prober deployment", func() {
 		})
 	})
 })
-
-func createReadyCluster(cc *v1alpha1.CassandraCluster) {
-	Expect(k8sClient.Create(ctx, cc)).To(Succeed())
-	markMocksAsReady(cc)
-	waitForDCsToBeCreated(cc)
-	markAllDCsReady(cc)
-	createCassandraPods(cc)
-	for _, dc := range cc.Spec.DCs {
-		reaperDeploymentName := types.NamespacedName{Name: names.ReaperDeployment(cc.Name, dc.Name), Namespace: cc.Namespace}
-		waitForResourceToBeCreated(reaperDeploymentName, &appsv1.Deployment{})
-		markDeploymentAsReady(reaperDeploymentName)
-	}
-}

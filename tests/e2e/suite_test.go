@@ -68,10 +68,6 @@ var (
 			Name:     "dc1",
 			Replicas: proto.Int32(3),
 		},
-		{
-			Name:     "dc2",
-			Replicas: proto.Int32(3),
-		},
 	}
 )
 

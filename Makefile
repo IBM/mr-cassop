@@ -40,7 +40,7 @@ integration-tests:
 e2e-tests:
 	go test ./tests/e2e/ \
 		-ginkgo.v -ginkgo.reportPassed -ginkgo.progress \
-		-test.v -test.timeout=40m -ginkgo.failFast \
+		-test.v -test.timeout=60m -ginkgo.failFast \
 		-cassandraNamespace=$(K8S_NAMESPACE) \
 		-cassandraRelease=$(CASSANDRA_RELEASE_NAME) \
 		-imagePullSecret=$(IMAGE_PULL_SECRET) \

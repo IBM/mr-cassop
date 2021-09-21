@@ -2,6 +2,9 @@ package controllers
 
 import (
 	"context"
+	"net/url"
+	"testing"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/mock/gomock"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
@@ -14,13 +17,25 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"net/url"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"testing"
 )
 
 func TestPodsConfigMapData(t *testing.T) {
+	readyStatefulSet := &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-cluster-cassandra-dc1",
+			Namespace: "default",
+		},
+		Spec: appsv1.StatefulSetSpec{
+			Replicas: proto.Int32(3),
+		},
+		Status: appsv1.StatefulSetStatus{
+			Replicas:      3,
+			ReadyReplicas: 3,
+		},
+	}
+
 	asserts := NewGomegaWithT(t)
 	cases := []struct {
 		name                 string
@@ -97,6 +112,7 @@ func TestPodsConfigMapData(t *testing.T) {
 					},
 				},
 			},
+			k8sObjects: []client.Object{readyStatefulSet},
 			expectedCMData: map[string]string{
 				"test-cluster-cassandra-dc1-0_uid1.sh": `export CASSANDRA_BROADCAST_ADDRESS=10.1.1.3
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.3
@@ -117,7 +133,7 @@ export PAUSE_INIT=false
 			expectedError: nil,
 		},
 		{
-			name: "with not found pods and error should be returned",
+			name: "with not found no error should be returned",
 			cc: &v1alpha1.CassandraCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-cluster",
@@ -126,7 +142,7 @@ export PAUSE_INIT=false
 			},
 			k8sLists:       []client.ObjectList{},
 			expectedCMData: nil,
-			expectedError:  ErrPodNotScheduled,
+			expectedError:  nil,
 		},
 		{
 			name: "hostport enabled, no external DC domains",
@@ -147,6 +163,7 @@ export PAUSE_INIT=false
 					},
 				},
 			},
+			k8sObjects: []client.Object{readyStatefulSet},
 			k8sLists: []client.ObjectList{
 				&v1.PodList{
 					Items: []v1.Pod{
@@ -286,6 +303,7 @@ export PAUSE_INIT=false
 					},
 				},
 			},
+			k8sObjects: []client.Object{readyStatefulSet},
 			k8sLists: []client.ObjectList{
 				&v1.PodList{
 					Items: []v1.Pod{
@@ -1913,6 +1931,7 @@ export PAUSE_INIT=true
 					},
 				},
 			},
+			k8sObjects: []client.Object{readyStatefulSet},
 			k8sLists: []client.ObjectList{
 				&v1.PodList{
 					Items: []v1.Pod{
@@ -2052,6 +2071,7 @@ export PAUSE_INIT=false
 	for _, c := range cases {
 		clietnBuilder := fake.NewClientBuilder().WithScheme(baseScheme)
 		clietnBuilder.WithLists(c.k8sLists...)
+		clietnBuilder.WithObjects(c.k8sObjects...)
 		tClient := clietnBuilder.Build()
 
 		mCtrl := gomock.NewController(t)

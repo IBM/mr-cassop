@@ -13,7 +13,6 @@ import (
 	"github.com/ibm/cassandra-operator/controllers/names"
 	"github.com/pkg/errors"
 	"k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -25,9 +24,16 @@ var (
 )
 
 func (r *CassandraClusterReconciler) reconcileCassandraPodsConfigMap(ctx context.Context, cc *v1alpha1.CassandraCluster, proberClient prober.ProberClient) error {
-	desiredCM, err := r.createConfigIfNotExists(ctx, cc)
-	if err != nil {
-		return err
+	desiredCM := &v1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      names.PodsConfigConfigmap(cc.Name),
+			Namespace: cc.Namespace,
+			Labels:    labels.CombinedComponentLabels(cc, v1alpha1.CassandraClusterComponentCassandra),
+		},
+	}
+	if err := controllerutil.SetControllerReference(cc, desiredCM, r.Scheme); err != nil {
+		return errors.Wrap(err, "Cannot set controller reference")
 	}
 
 	podsConfigMapData, err := r.podsConfigMapData(ctx, cc, proberClient)
@@ -46,7 +52,7 @@ func (r *CassandraClusterReconciler) podsConfigMapData(ctx context.Context, cc *
 	}
 
 	if len(podList.Items) == 0 {
-		return nil, ErrPodNotScheduled
+		return nil, nil // the statefulset may not be created yet
 	}
 
 	broadcastAddresses, err := r.getBroadcastAddresses(ctx, cc)
@@ -100,49 +106,56 @@ func (r *CassandraClusterReconciler) podsConfigMapData(ctx context.Context, cc *
 			pausePodInit = false
 		} else { // start pod if it's in the next selected DC
 			pausePodInit = nextDCToInit != pod.Labels[v1alpha1.CassandraClusterDC]
+			if !dcSeedPodsReady(podList.Items, nextDCToInit) && !isSeedPod(pod) {
+				pausePodInit = true
+			}
 		}
+
 		cmData[entryName] += fmt.Sprintln("export PAUSE_INIT=" + fmt.Sprint(pausePodInit))
 	}
 
 	return cmData, nil
 }
 
-func (r *CassandraClusterReconciler) createConfigIfNotExists(ctx context.Context, cc *v1alpha1.CassandraCluster) (*v1.ConfigMap, error) {
-	desiredCM := &v1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.PodsConfigConfigmap(cc.Name),
-			Namespace: cc.Namespace,
-			Labels:    labels.CombinedComponentLabels(cc, v1alpha1.CassandraClusterComponentCassandra),
-		},
+func dcSeedPodsReady(pods []v1.Pod, dc string) bool {
+	if len(pods) == 0 {
+		return false
 	}
-	if err := controllerutil.SetControllerReference(cc, desiredCM, r.Scheme); err != nil {
-		return nil, errors.Wrap(err, "Cannot set controller reference")
-	}
-	actualCM := &v1.ConfigMap{}
-	err := r.Get(ctx, client.ObjectKeyFromObject(desiredCM), actualCM)
-	if err != nil && kerrors.IsNotFound(err) {
-		r.Log.Infof("Creating %s", desiredCM.Name)
-		if err = r.Create(ctx, desiredCM); err != nil {
-			return nil, errors.Wrapf(err, "Unable to create %s", desiredCM.Name)
+	for _, pod := range pods {
+		if pod.Labels[v1alpha1.CassandraClusterDC] == dc && isSeedPod(pod) {
+			for _, containerStatus := range pod.Status.ContainerStatuses {
+				if !containerStatus.Ready {
+					return false
+				}
+			}
 		}
 	}
-	return desiredCM, nil
+
+	return true
 }
 
 func (r *CassandraClusterReconciler) getInitOrderInfo(ctx context.Context, cc *v1alpha1.CassandraCluster, proberClient prober.ProberClient) (currentRegionPaused bool, nextLocalDCToInit string, err error) {
+	unreadyLocalDCs, err := r.unreadyDCs(ctx, cc)
+	if err != nil {
+		return false, "", errors.Wrap(err, "Can't get not ready DCs info")
+	}
+	nextLocalDCToInit = getNextLocalDCToInit(cc, unreadyLocalDCs)
+
 	if !cc.Spec.HostPort.Enabled {
-		return false, "", nil
+		return false, nextLocalDCToInit, nil
 	}
 
 	if len(cc.Spec.Prober.ExternalDCsIngressDomains) == 0 {
 		return false, "", nil
 	}
 
-	clusterRegionsStatuses, notReadyLocalDCs, err := r.getClusterRegionsStatuses(ctx, cc, proberClient)
+	clusterRegionsStatuses, err := r.getRemoteClusterRegionsStatuses(ctx, cc, proberClient)
 	if err != nil {
 		return false, "", err
 	}
+
+	currentRegionHost := names.ProberIngressDomain(cc.Name, cc.Spec.Prober.Ingress.Domain, cc.Namespace)
+	clusterRegionsStatuses[currentRegionHost] = len(unreadyLocalDCs) == 0
 
 	nextRegionToInit := getNextRegionToInit(cc, clusterRegionsStatuses)
 	if nextRegionToInit == "" { //all regions are ready
@@ -150,7 +163,6 @@ func (r *CassandraClusterReconciler) getInitOrderInfo(ctx context.Context, cc *v
 		return false, "", nil
 	}
 
-	currentRegionHost := names.ProberIngressDomain(cc.Name, cc.Spec.Prober.Ingress.Domain, cc.Namespace)
 	if clusterRegionsStatuses[currentRegionHost] { //region is ready
 		r.Log.Debugf("Current region (%q) is initialized", currentRegionHost)
 		return false, "", nil
@@ -161,32 +173,24 @@ func (r *CassandraClusterReconciler) getInitOrderInfo(ctx context.Context, cc *v
 		return true, "", nil
 	}
 
-	nextLocalDCToInit = getNextLocalDCToInit(cc, notReadyLocalDCs)
+	nextLocalDCToInit = getNextLocalDCToInit(cc, unreadyLocalDCs)
 	r.Log.Infof("Current region (%q) is initializing. DC %q is initializing", currentRegionHost, nextLocalDCToInit)
 	return false, nextLocalDCToInit, nil
 }
 
-func (r *CassandraClusterReconciler) getClusterRegionsStatuses(ctx context.Context, cc *v1alpha1.CassandraCluster, proberClient prober.ProberClient) (clusterRegionsStatuses map[string]bool, notReadyLocalDCs []string, err error) {
-	notReadyLocalDCs, err = r.unreadyDCs(ctx, cc)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "Can't get not ready DCs info")
-	}
-
+func (r *CassandraClusterReconciler) getRemoteClusterRegionsStatuses(ctx context.Context, cc *v1alpha1.CassandraCluster, proberClient prober.ProberClient) (clusterRegionsStatuses map[string]bool, err error) {
 	clusterRegionsStatuses = make(map[string]bool)
 	for _, domain := range cc.Spec.Prober.ExternalDCsIngressDomains {
 		proberHost := names.ProberIngressDomain(cc.Name, domain, cc.Namespace)
 		regionsReady, err := proberClient.DCsReady(ctx, proberHost)
 		if err != nil {
 			r.Log.Warnf(fmt.Sprintf("Unable to get DC status from prober %q. Err: %#v", proberHost, err))
-			return nil, nil, ErrRegionNotReady
+			return nil, ErrRegionNotReady
 		}
 		clusterRegionsStatuses[proberHost] = regionsReady
 	}
 
-	currentRegionHost := names.ProberIngressDomain(cc.Name, cc.Spec.Prober.Ingress.Domain, cc.Namespace)
-	clusterRegionsStatuses[currentRegionHost] = len(notReadyLocalDCs) == 0
-
-	return clusterRegionsStatuses, notReadyLocalDCs, nil
+	return clusterRegionsStatuses, nil
 }
 
 func getAllRegionsHosts(cc *v1alpha1.CassandraCluster) []string {
@@ -200,9 +204,9 @@ func getAllRegionsHosts(cc *v1alpha1.CassandraCluster) []string {
 	return allRegionsHosts
 }
 
-func getNextLocalDCToInit(cc *v1alpha1.CassandraCluster, notReadyLocalDCs []string) string {
+func getNextLocalDCToInit(cc *v1alpha1.CassandraCluster, unreadyLocalDCs []string) string {
 	for _, dc := range cc.Spec.DCs {
-		if util.Contains(notReadyLocalDCs, dc.Name) {
+		if util.Contains(unreadyLocalDCs, dc.Name) {
 			return dc.Name
 		}
 	}
