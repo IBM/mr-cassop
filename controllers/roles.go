@@ -2,8 +2,8 @@ package controllers
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
+	"github.com/ibm/cassandra-operator/controllers/util"
 
 	"sigs.k8s.io/yaml"
 
@@ -42,7 +42,7 @@ func (r *CassandraClusterReconciler) reconcileRoles(ctx context.Context, cc *dbv
 	}
 
 	currentChecksum := rolesSecret.Annotations[dbv1alpha1.CassandraClusterChecksum]
-	newChecksum := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%v", rolesSecret.Data)))
+	newChecksum := util.Sha1(fmt.Sprintf("%v", rolesSecret.Data))
 	if currentChecksum == newChecksum {
 		r.Log.Debugf("No updates to user provided cassandra roles")
 		return nil
@@ -56,11 +56,13 @@ func (r *CassandraClusterReconciler) reconcileRoles(ctx context.Context, cc *dbv
 	}
 
 	r.Log.Debugf("updating roles secret")
-	rolesSecret.Annotations[dbv1alpha1.CassandraClusterChecksum] = newChecksum
-	rolesSecret.Annotations[dbv1alpha1.CassandraClusterInstance] = cc.Name
-	err = r.Update(ctx, rolesSecret)
+	annotations := make(map[string]string)
+	annotations[dbv1alpha1.CassandraClusterChecksum] = newChecksum
+	annotations[dbv1alpha1.CassandraClusterInstance] = cc.Name
+
+	err = r.reconcileAnnotations(ctx, rolesSecret, annotations)
 	if err != nil {
-		return errors.Wrap(err, "failed to update roles secret")
+		return errors.Wrapf(err, "Failed to reconcile Annotations for Secret %s", rolesSecret.Name)
 	}
 
 	return nil

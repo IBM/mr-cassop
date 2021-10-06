@@ -8,6 +8,8 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	apixv1Client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -17,10 +19,6 @@ import (
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/yaml"
-
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 )
 
 var (
@@ -71,8 +69,6 @@ var (
 	}
 )
 
-const valuesFile = "../../cassandra-operator/values.yaml"
-
 func init() {
 	flag.StringVar(&cassandraNamespace, "cassandraNamespace", "default", "Set the namespace for e2e tests run.")
 	flag.StringVar(&cassandraRelease, "cassandraRelease", "e2e-tests", "Set the cassandra cluster release name for e2e tests run.")
@@ -101,15 +97,6 @@ var _ = BeforeSuite(func() {
 	By("Configuring environment...")
 
 	err = v1alpha1.AddToScheme(scheme.Scheme)
-	Expect(err).ToNot(HaveOccurred())
-
-	By("Getting C* image name...")
-	content, err := readFile(valuesFile)
-	Expect(err).ToNot(HaveOccurred())
-
-	valuesYaml := make(map[string]interface{})
-
-	err = yaml.Unmarshal(content, &valuesYaml)
 	Expect(err).ToNot(HaveOccurred())
 
 	By("Configuring API Clients for REST...")

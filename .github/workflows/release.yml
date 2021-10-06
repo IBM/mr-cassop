@@ -357,7 +357,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v1
         with:
-          node-version: 14.15.4 # This is recommended LTS version which includes npm 6.14.10
+          node-version: 16
       - name: Publish docs website
         env:
           USE_SSH: false

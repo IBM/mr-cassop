@@ -9,7 +9,6 @@ module.exports = {
   organizationName: 'TheWeatherCompany',
   projectName: 'cassandra-operator',
   themeConfig: {
-    sidebarCollapsible: true,
     hideableSidebar: true,
     colorMode: {
       defaultMode: 'dark',
@@ -44,6 +43,7 @@ module.exports = {
       '@docusaurus/preset-classic',
       {
         docs: {
+          path: 'docs',
           routeBasePath: '/',
           sidebarPath: require.resolve('./sidebars.js'),
           showLastUpdateTime: true,
@@ -52,7 +52,7 @@ module.exports = {
           ],
         },
         theme: {
-          customCss: require.resolve('./theme-custom.css'),
+          customCss: [require.resolve('./theme-custom.css')],
         },
       },
     ],

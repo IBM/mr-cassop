@@ -68,6 +68,7 @@ type CassandraClusterSpec struct {
 	HostPort            HostPort                       `json:"hostPort,omitempty"`
 	JVM                 JVM                            `json:"jvm,omitempty"`
 	JMX                 JMX                            `json:"jmx,omitempty"`
+	Encryption          Encryption                     `json:"encryption,omitempty"`
 	//Monitoring           Monitoring      `json:"monitoring,omitempty"` //TODO part of monitoring implementation
 }
 
@@ -114,11 +115,48 @@ type JVM struct {
 }
 
 type JMX struct {
-	// Authentication is always enabled and by default set to `internal`, available option: local_files.
+	// Authentication is always enabled and by default is set to `internal`. Available options: `internal`, `local_files`.
 	// +kubebuilder:validation:Enum:=local_files;internal
 	Authentication string `json:"authentication,omitempty"`
 	//SSL            bool   `json:"ssl,omitempty"`
 }
+
+type Encryption struct {
+	Server Server `json:"server,omitempty"`
+	//Client Client `json:"client,omitempty"`
+}
+
+// Server defines encryption between Cassandra nodes
+type Server struct {
+	// InternodeEncryption enables server encryption and by default is set to `none`. Available options: `none`, `rack`, `dc`, `all`.
+	// +kubebuilder:validation:Enum:=none;rack;dc;all
+	InternodeEncryption string `json:"internodeEncryption,omitempty"`
+	// TLS Secret fields configuration
+	TLSSecret                   TLSSecret `json:"tlsSecret,omitempty"`
+	Protocol                    string    `json:"protocol,omitempty"`
+	Algorithm                   string    `json:"algorithm,omitempty"`
+	StoreType                   string    `json:"storeType,omitempty"`
+	CipherSuites                []string  `json:"cipherSuites,omitempty"`
+	RequireClientAuth           *bool     `json:"requireClientAuth,omitempty"`
+	RequireEndpointVerification bool      `json:"requireEndpointVerification,omitempty"`
+}
+
+type TLSSecret struct {
+	Name                  string `json:"name,omitempty"`
+	KeystoreFileKey       string `json:"keystoreFileKey,omitempty"`
+	KeystorePasswordKey   string `json:"keystorePasswordKey,omitempty"`
+	TruststoreFileKey     string `json:"truststoreFileKey,omitempty"`
+	TruststorePasswordKey string `json:"truststorePasswordKey,omitempty"`
+}
+
+// Client defines encryption between Cassandra nodes and clients like reaper, cqlsh, etc.
+//type Client struct {
+//	Enabled bool `json:"enabled,omitempty"` // Default false
+//	// If enabled and optional is set to true encrypted and unencrypted connections are handled.
+//	Optional bool `json:"optional,omitempty"` // Default: false
+//
+//	RequireClientAuth      bool     `json:"requireClientAuth,omitempty"`      // Default: true
+//}
 
 type RepairSchedules struct {
 	Enabled bool             `json:"enabled,omitempty"`

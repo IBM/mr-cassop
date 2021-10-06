@@ -15,6 +15,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"github.com/ibm/cassandra-operator/controllers/util"
 	"net/url"
 	"time"
 
@@ -45,8 +46,12 @@ import (
 )
 
 const (
-	maintenanceDir              = "/etc/maintenance"
-	cassandraCommitLogDir       = "/var/lib/cassandra-commitlog"
+	maintenanceDir               = "/etc/maintenance"
+	cassandraCommitLogDir        = "/var/lib/cassandra-commitlog"
+	cassandraServerTLSDir        = "/etc/cassandra-server-tls"
+	cassandraServerTLSVolumeName = "server-keystore"
+	//cassandraClientTLSDir        = "/etc/cassandra-client-tls"
+	//cassandraClientTLSVolumeName = "client-keystore"
 	defaultCQLConfigMapLabelKey = "cql-scripts"
 	retryAttempts               = 3
 	initialRetryDelaySeconds    = 5
@@ -54,7 +59,13 @@ const (
 	repairCauseKeyspacesInit = "keyspaces-init"
 	repairCauseCQLConfigMap  = "cql-configmap"
 	repairCauseReaperInit    = "reaper-init"
+
+	InternodeEncryptionNone     = "none"
+	jmxAuthenticationInternal   = "internal"
+	jmxAuthenticationLocalFiles = "local_files"
 )
+
+type InternodeEncryption string
 
 // CassandraClusterReconciler reconciles a CassandraCluster object
 type CassandraClusterReconciler struct {
@@ -361,4 +372,22 @@ func SetupCassandraReconciler(r reconcile.Reconciler, mgr manager.Manager, logr 
 		Watches(&source.Kind{Type: &v1.Secret{}}, eventhandler.NewAnnotationEventHandler()).
 		//WithEventFilter(predicate.NewPredicate(logr)). //uncomment to see kubernetes events in the logs, e.g. ConfigMap updates
 		Complete(r)
+}
+
+func (r *CassandraClusterReconciler) reconcileAnnotations(ctx context.Context, object client.Object, annotations map[string]string) error {
+	currentAnnotations := object.GetAnnotations()
+
+	if currentAnnotations == nil {
+		object.SetAnnotations(annotations)
+	} else {
+		util.MergeMap(currentAnnotations, annotations)
+		object.SetAnnotations(currentAnnotations)
+	}
+
+	err := r.Update(ctx, object)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

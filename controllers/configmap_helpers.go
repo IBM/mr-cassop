@@ -21,6 +21,17 @@ func (r *CassandraClusterReconciler) getConfigMap(ctx context.Context, name, nam
 	return cm, nil
 }
 
+func (r *CassandraClusterReconciler) getSecret(ctx context.Context, name, namespace string) (*v1.Secret, error) {
+	st := &v1.Secret{}
+	if err := r.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, st); err != nil {
+		if kerrors.IsNotFound(err) {
+			return nil, errors.Wrapf(err, "%s secret doesn't exist", name)
+		}
+		return nil, errors.Wrapf(err, "can't get %s", name)
+	}
+	return st, nil
+}
+
 func (r *CassandraClusterReconciler) reconcileConfigMap(ctx context.Context, desiredCM *v1.ConfigMap) error {
 	actualCM := &v1.ConfigMap{}
 	err := r.Get(ctx, types.NamespacedName{Name: desiredCM.Name, Namespace: desiredCM.Namespace}, actualCM)

@@ -8,6 +8,6 @@ import (
 func createAuthVolumes(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) []v1.Volume {
 	return []v1.Volume{
 		scriptsVolume(cc),
-		cassandraDCConfigVolume(cc, dc),
+		cassandraDCConfigVolume(cc),
 	}
 }

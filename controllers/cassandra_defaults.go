@@ -41,6 +41,14 @@ func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.Cass
 			}
 		}
 	}
+
+	if cc.Spec.JMX.Authentication == "" {
+		cc.Spec.JMX.Authentication = jmxAuthenticationInternal
+	}
+
+	if cc.Spec.Encryption.Server.InternodeEncryption != InternodeEncryptionNone {
+		r.defaultServerTLS(cc)
+	}
 }
 
 func (r *CassandraClusterReconciler) defaultReaper(cc *dbv1alpha1.CassandraCluster) {
@@ -170,4 +178,46 @@ func (r *CassandraClusterReconciler) defaultCassandra(cc *dbv1alpha1.CassandraCl
 	}
 
 	cc.Spec.Cassandra.Persistence.CommitLogVolumeClaimSpec.AccessModes = []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce}
+}
+
+func (r *CassandraClusterReconciler) defaultServerTLS(cc *dbv1alpha1.CassandraCluster) {
+	if cc.Spec.Encryption.Server.InternodeEncryption == "" {
+		cc.Spec.Encryption.Server.InternodeEncryption = InternodeEncryptionNone
+	}
+
+	if cc.Spec.Encryption.Server.TLSSecret.KeystoreFileKey == "" {
+		cc.Spec.Encryption.Server.TLSSecret.KeystoreFileKey = "keystore.jks"
+	}
+
+	if cc.Spec.Encryption.Server.TLSSecret.KeystorePasswordKey == "" {
+		cc.Spec.Encryption.Server.TLSSecret.KeystorePasswordKey = "keystore.password"
+	}
+
+	if cc.Spec.Encryption.Server.TLSSecret.TruststoreFileKey == "" {
+		cc.Spec.Encryption.Server.TLSSecret.TruststoreFileKey = "truststore.jks"
+	}
+
+	if cc.Spec.Encryption.Server.TLSSecret.TruststorePasswordKey == "" {
+		cc.Spec.Encryption.Server.TLSSecret.TruststorePasswordKey = "truststore.password"
+	}
+
+	if cc.Spec.Encryption.Server.Protocol == "" {
+		cc.Spec.Encryption.Server.Protocol = "TLS"
+	}
+
+	if cc.Spec.Encryption.Server.Algorithm == "" {
+		cc.Spec.Encryption.Server.Algorithm = "SunX509"
+	}
+
+	if cc.Spec.Encryption.Server.StoreType == "" {
+		cc.Spec.Encryption.Server.StoreType = "JKS"
+	}
+
+	if len(cc.Spec.Encryption.Server.CipherSuites) == 0 {
+		cc.Spec.Encryption.Server.CipherSuites = []string{"TLS_RSA_WITH_AES_128_CBC_SHA", "TLS_RSA_WITH_AES_256_CBC_SHA"}
+	}
+
+	if cc.Spec.Encryption.Server.RequireClientAuth == nil {
+		cc.Spec.Encryption.Server.RequireClientAuth = proto.Bool(true)
+	}
 }

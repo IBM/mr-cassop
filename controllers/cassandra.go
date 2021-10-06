@@ -39,14 +39,24 @@ func (r *CassandraClusterReconciler) reconcileCassandra(ctx context.Context, cc 
 }
 
 func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context, cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) error {
-	desiredSts := cassandraStatefulSet(cc, dc)
+	var serverTLSSecretChecksum string
+	var err error
+
+	if cc.Spec.Encryption.Server.InternodeEncryption != InternodeEncryptionNone {
+		serverTLSSecretChecksum, err = r.getServerTLSSecretChecksum(ctx, cc)
+		if err != nil {
+			return errors.Wrap(err, "Cannot get TLS Server Secret checksum")
+		}
+	}
+
+	desiredSts := cassandraStatefulSet(cc, dc, serverTLSSecretChecksum)
 
 	if err := controllerutil.SetControllerReference(cc, desiredSts, r.Scheme); err != nil {
 		return errors.Wrap(err, "Cannot set controller reference")
 	}
 
 	actualSts := &appsv1.StatefulSet{}
-	err := r.Get(ctx, types.NamespacedName{Name: names.DC(cc.Name, dc.Name), Namespace: cc.Namespace}, actualSts)
+	err = r.Get(ctx, types.NamespacedName{Name: names.DC(cc.Name, dc.Name), Namespace: cc.Namespace}, actualSts)
 	if err != nil && apierrors.IsNotFound(err) {
 		r.Log.Infof("Creating cassandra statefulset for DC %q", dc.Name)
 		err = r.Create(ctx, desiredSts)
@@ -73,7 +83,7 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 	return nil
 }
 
-func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) *appsv1.StatefulSet {
+func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, serverTLSSecretChecksum string) *appsv1.StatefulSet {
 	stsLabels := labels.CombinedComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra)
 	stsLabels = labels.WithDCLabel(stsLabels, dc.Name)
 	desiredSts := &appsv1.StatefulSet{
@@ -98,7 +108,7 @@ func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) *ap
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
-						cassandraContainer(cc, dc),
+						cassandraContainer(cc, dc, serverTLSSecretChecksum),
 					},
 					InitContainers: []v1.Container{
 						maintenanceContainer(cc),
@@ -108,7 +118,7 @@ func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) *ap
 					Volumes: []v1.Volume{
 						scriptsVolume(cc),
 						maintenanceVolume(cc),
-						cassandraDCConfigVolume(cc, dc),
+						cassandraDCConfigVolume(cc),
 						podsConfigVolume(cc),
 						authVolume(cc),
 					},
@@ -126,10 +136,17 @@ func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) *ap
 	} else {
 		desiredSts.Spec.Template.Spec.Volumes = append(desiredSts.Spec.Template.Spec.Volumes, emptyDirDataVolume())
 	}
+
+	if cc.Spec.Encryption.Server.InternodeEncryption != InternodeEncryptionNone {
+		desiredSts.Spec.Template.Spec.Volumes = append(desiredSts.Spec.Template.Spec.Volumes, cassandraServerTLSVolume(cc))
+	}
+
+	// Todo: client TLS
+
 	return desiredSts
 }
 
-func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Container {
+func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, serverTLSSecretChecksum string) v1.Container {
 	container := v1.Container{
 		Name:            "cassandra",
 		Image:           cc.Spec.Cassandra.Image,
@@ -241,6 +258,17 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) v1.Co
 	if cc.Spec.Cassandra.Persistence.Enabled && cc.Spec.Cassandra.Persistence.CommitLogVolume {
 		container.VolumeMounts = append(container.VolumeMounts, commitLogVolumeMount())
 	}
+
+	if cc.Spec.Encryption.Server.InternodeEncryption != InternodeEncryptionNone {
+		container.VolumeMounts = append(container.VolumeMounts, cassandraServerTLSVolumeMount())
+		container.Env = append(container.Env, v1.EnvVar{
+			Name:  "SERVER_TLS_SHA1",
+			Value: serverTLSSecretChecksum,
+		})
+
+	}
+
+	// Todo: client TLS
 
 	return container
 }
@@ -402,12 +430,14 @@ func getCassandraRunCommand(cc *dbv1alpha1.CassandraCluster) string {
 		"-Dcom.sun.management.jmxremote.authenticate=true",
 	}
 
-	if cc.Spec.JMX.Authentication == "local_files" {
+	if cc.Spec.JMX.Authentication == jmxAuthenticationLocalFiles {
 		cassandraRunCommand = append(cassandraRunCommand,
 			"-Dcom.sun.management.jmxremote.password.file=/etc/cassandra-auth-config/jmxremote.password",
 			"-Dcom.sun.management.jmxremote.access.file=/etc/cassandra-auth-config/jmxremote.access",
 		)
-	} else { // Internal auth is default
+	}
+
+	if cc.Spec.JMX.Authentication == jmxAuthenticationInternal {
 		cassandraRunCommand = append(cassandraRunCommand,
 			"-Dcassandra.jmx.remote.login.config=CassandraLogin",
 			"-Djava.security.auth.login.config=$CASSANDRA_HOME/conf/cassandra-jaas.config",
@@ -689,7 +719,7 @@ func authVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
 		},
 	}
 
-	if cc.Spec.JMX.Authentication == "local_files" {
+	if cc.Spec.JMX.Authentication == jmxAuthenticationLocalFiles {
 		volume.VolumeSource.Secret.Items = append(volume.VolumeSource.Secret.Items, v1.KeyToPath{
 			Key:  "jmxremote.password",
 			Path: "jmxremote.password",
@@ -709,3 +739,66 @@ func authVolumeMount() v1.VolumeMount {
 		MountPath: "/etc/cassandra-auth-config/",
 	}
 }
+
+func cassandraServerTLSVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
+	return v1.Volume{
+		Name: cassandraServerTLSVolumeName,
+		VolumeSource: v1.VolumeSource{
+			Secret: &v1.SecretVolumeSource{
+				SecretName: cc.Spec.Encryption.Server.TLSSecret.Name,
+				Items: []v1.KeyToPath{
+					{
+						Key:  cc.Spec.Encryption.Server.TLSSecret.KeystoreFileKey,
+						Path: cc.Spec.Encryption.Server.TLSSecret.KeystoreFileKey,
+					},
+					{
+						Key:  cc.Spec.Encryption.Server.TLSSecret.TruststoreFileKey,
+						Path: cc.Spec.Encryption.Server.TLSSecret.TruststoreFileKey,
+					},
+				},
+				DefaultMode: proto.Int32(v1.SecretVolumeSourceDefaultMode),
+			},
+		},
+	}
+}
+
+func cassandraServerTLSVolumeMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      cassandraServerTLSVolumeName,
+		MountPath: cassandraServerTLSDir,
+	}
+}
+
+func (r *CassandraClusterReconciler) getServerTLSSecretChecksum(ctx context.Context, cc *dbv1alpha1.CassandraCluster) (string, error) {
+	serverTLSSecret := &v1.Secret{}
+	err := r.Get(ctx, types.NamespacedName{Name: cc.Spec.Encryption.Server.TLSSecret.Name, Namespace: cc.Namespace}, serverTLSSecret)
+	if err != nil {
+		return "", errors.Wrapf(err, "Cannot get server TLS Secret %s", cc.Spec.Encryption.Server.TLSSecret.Name)
+	}
+
+	serverTLSSecretRequiredFields := []string{
+		cc.Spec.Encryption.Server.TLSSecret.KeystoreFileKey,
+		cc.Spec.Encryption.Server.TLSSecret.KeystorePasswordKey,
+		cc.Spec.Encryption.Server.TLSSecret.TruststoreFileKey,
+		cc.Spec.Encryption.Server.TLSSecret.TruststorePasswordKey,
+	}
+
+	emptyFields := util.EmptySecretFields(serverTLSSecret, serverTLSSecretRequiredFields)
+	if serverTLSSecret.Data == nil || len(emptyFields) != 0 {
+		return "", errors.New(fmt.Sprintf("TLS Server Secret %s has some empty or missing fields: %v", serverTLSSecret.Name, emptyFields))
+	}
+
+	serverTLSSecretChecksum := util.Sha1(fmt.Sprintf("%v", serverTLSSecret.Data))
+
+	annotations := make(map[string]string)
+	annotations[dbv1alpha1.CassandraClusterInstance] = cc.Name
+
+	err = r.reconcileAnnotations(ctx, serverTLSSecret, annotations)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to reconcile Annotations for Secret %s", serverTLSSecret.Name)
+	}
+
+	return serverTLSSecretChecksum, nil
+}
+
+// Todo: client TLS

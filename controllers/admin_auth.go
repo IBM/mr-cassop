@@ -215,7 +215,8 @@ func genAdminAuthConfigSecret(cc *dbv1alpha1.CassandraCluster, cassandraAdminRol
 	}
 
 	data := make(map[string][]byte)
-	if cc.Spec.JMX.Authentication == "local_files" {
+
+	if cc.Spec.JMX.Authentication == jmxAuthenticationLocalFiles {
 		data["jmxremote.password"] = []byte(fmt.Sprintf("%s %s\n", cassandraAdminRole, cassandraAdminPassword))
 		// jmxremote.access file is not hot-reload in runtime, so we need to set the cassandra role before the start
 		data["jmxremote.access"] = []byte(fmt.Sprintf(`%s readwrite \
@@ -226,6 +227,7 @@ create javax.management.monitor.*, javax.management.timer.* \
 unregister
 `, cassandraAdminRole, dbv1alpha1.CassandraOperatorAdminRole))
 	}
+
 	data["cqlshrc"] = []byte(fmt.Sprintf(`
 [authentication]
 username = %s

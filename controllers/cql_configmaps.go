@@ -2,8 +2,8 @@ package controllers
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
+	"github.com/ibm/cassandra-operator/controllers/util"
 
 	"github.com/ibm/cassandra-operator/controllers/reaper"
 
@@ -28,7 +28,7 @@ func (r *CassandraClusterReconciler) reconcileCQLConfigMaps(ctx context.Context,
 
 	for _, cm := range cmList.Items {
 		lastChecksum := cm.Annotations["cql-checksum"]
-		checksum := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%v", cm.Data)))
+		checksum := util.Sha1(fmt.Sprintf("%v", cm.Data))
 		if lastChecksum == checksum {
 			continue
 		}

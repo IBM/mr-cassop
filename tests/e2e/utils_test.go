@@ -184,11 +184,6 @@ func getPodLogs(pod v1.Pod, podLogOpts v1.PodLogOptions) (string, error) {
 	return str, err
 }
 
-func readFile(file string) ([]byte, error) {
-	content, err := ioutil.ReadFile(file)
-	return content, err
-}
-
 func execPod(podName string, namespace string, cmd []string) (ExecResult, error) {
 	req := kubeClient.CoreV1().RESTClient().Post().Resource("pods").Name(podName).
 		Namespace(namespace).SubResource("exec")

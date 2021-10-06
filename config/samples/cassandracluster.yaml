@@ -101,6 +101,3 @@ spec:
     - thrift
   jvm:
     maxHeapSize: 1024M
-  jmx:
-    authentication: internal
-#    ssl: false

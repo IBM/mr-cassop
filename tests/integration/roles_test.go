@@ -1,8 +1,8 @@
 package integration
 
 import (
-	"encoding/base64"
 	"fmt"
+	"github.com/ibm/cassandra-operator/controllers/util"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
@@ -10,7 +10,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
-	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -33,7 +33,7 @@ var _ = Describe("user roles", func() {
 	}
 
 	baseRolesSecret := &v1.Secret{
-		ObjectMeta: v12.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      rolesSecretName,
 			Namespace: cassandraObjectMeta.Namespace,
 		},
@@ -70,13 +70,13 @@ var _ = Describe("user roles", func() {
 					Password: "bar",
 				},
 			))
-
+			rolesSecretDataChecksum := util.Sha1(fmt.Sprintf("%v", rolesSecretData))
 			updatedSecret := &v1.Secret{}
 			Eventually(func() []string {
 				err := k8sClient.Get(ctx, types.NamespacedName{Name: rolesSecret.Name, Namespace: rolesSecret.Namespace}, updatedSecret)
 				Expect(err).ToNot(HaveOccurred())
 				return []string{updatedSecret.Annotations[v1alpha1.CassandraClusterChecksum], updatedSecret.Annotations[v1alpha1.CassandraClusterInstance]}
-			}).Should(ContainElements(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%v", rolesSecretData))), baseCC.Name))
+			}).Should(ContainElements(rolesSecretDataChecksum, baseCC.Name))
 
 			rolesSecretData["alice"] = []byte(`{"password": "newpassword", "login": false, "super": false}`)
 			updatedSecret.Data = rolesSecretData

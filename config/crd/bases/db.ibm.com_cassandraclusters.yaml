@@ -457,6 +457,51 @@ spec:
                   type: object
                 minItems: 1
                 type: array
+              encryption:
+                properties:
+                  server:
+                    description: Server defines encryption between Cassandra nodes
+                    properties:
+                      algorithm:
+                        type: string
+                      cipherSuites:
+                        items:
+                          type: string
+                        type: array
+                      internodeEncryption:
+                        description: 'InternodeEncryption enables server encryption
+                          and by default is set to `none`. Available options: `none`,
+                          `rack`, `dc`, `all`.'
+                        enum:
+                        - none
+                        - rack
+                        - dc
+                        - all
+                        type: string
+                      protocol:
+                        type: string
+                      requireClientAuth:
+                        type: boolean
+                      requireEndpointVerification:
+                        type: boolean
+                      storeType:
+                        type: string
+                      tlsSecret:
+                        description: TLS Secret fields configuration
+                        properties:
+                          keystoreFileKey:
+                            type: string
+                          keystorePasswordKey:
+                            type: string
+                          name:
+                            type: string
+                          truststoreFileKey:
+                            type: string
+                          truststorePasswordKey:
+                            type: string
+                        type: object
+                    type: object
+                type: object
               hostPort:
                 properties:
                   enabled:
@@ -475,7 +520,7 @@ spec:
                 properties:
                   authentication:
                     description: 'Authentication is always enabled and by default
-                      set to `internal`, available option: local_files.'
+                      is set to `internal`. Available options: `internal`, `local_files`.'
                     enum:
                     - local_files
                     - internal

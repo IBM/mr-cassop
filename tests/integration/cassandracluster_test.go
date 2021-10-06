@@ -7,6 +7,7 @@ import (
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/ibm/cassandra-operator/controllers/names"
+	"github.com/ibm/cassandra-operator/controllers/util"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -104,6 +105,8 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 			activeAdminSecret := &v1.Secret{}
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.ActiveAdminSecret(cc.Name), Namespace: cc.Namespace}, activeAdminSecret)).To(Succeed())
 
+			adminSecretChecksum := util.Sha1(fmt.Sprintf("%v", activeAdminSecret.Data))
+
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cc.Name, Namespace: cc.Namespace}, cc)).To(Succeed())
 			markAllDCsReady(cc)
 			createCassandraPods(cc)
@@ -123,8 +126,8 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 
 				Expect(reaperDeployment.Spec.Template.Spec.Containers[0].Env).Should(BeEquivalentTo([]v1.EnvVar{
 					{
-						Name:  "ACTIVE_ADMIN_SECRET_VERSION",
-						Value: activeAdminSecret.ResourceVersion,
+						Name:  "ACTIVE_ADMIN_SECRET_SHA1",
+						Value: adminSecretChecksum,
 					},
 					{
 						Name:  "REAPER_CASS_ACTIVATE_QUERY_LOGGER",

@@ -18,12 +18,11 @@ slug: /development
 
 ## Run Operator Locally
 
-The operator can be run only using the whole Helm chart with all necessary components. The operator interacts with Cassandra clusters so it has to live in the cluster. It is not possible to run the operator having the binary locally (the `make run` way).
+The operator can be run only using the whole Helm chart with all necessary components. The operator interacts with Cassandra clusters, so it has to live in the cluster. It is not possible to run the operator having the binary locally (the `make run` way).
 
-To run your code with changes, you need to build the docker image and deploy it to the cluster. It can be done by manually building and pushing the container image, or using [skaffold](https://skaffold.dev/). See example below:
+To run your code with changes, you need to build the docker image and deploy it to the cluster. It can be done by manually building and pushing the container images, or using [skaffold](https://skaffold.dev/). See example below:
 
 ```bash
-export YOUR_USERNAME=anton
 skaffold run
 skaffold apply ./config/samples/cassandracluster.yaml
 ```

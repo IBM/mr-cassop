@@ -43,9 +43,10 @@ func (r *CassandraClusterReconciler) reconcileReaperPrerequisites(ctx context.Co
 	return nil
 }
 
-func (r *CassandraClusterReconciler) reconcileReaper(ctx context.Context, cc *dbv1alpha1.CassandraCluster, activeAdminSecret *v1.Secret) (ctrl.Result, error) {
+func (r *CassandraClusterReconciler) reconcileReaper(ctx context.Context, cc *dbv1alpha1.CassandraCluster, adminSecret *v1.Secret) (ctrl.Result, error) {
+	adminSecretChecksum := util.Sha1(fmt.Sprintf("%v", adminSecret.Data))
 	for index, dc := range cc.Spec.DCs {
-		if err := r.reconcileReaperDeployment(ctx, cc, dc, activeAdminSecret); err != nil {
+		if err := r.reconcileReaperDeployment(ctx, cc, dc, adminSecretChecksum); err != nil {
 			return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile reaper deployment")
 		}
 
@@ -70,7 +71,7 @@ func (r *CassandraClusterReconciler) reconcileReaper(ctx context.Context, cc *db
 	return ctrl.Result{}, nil
 }
 
-func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Context, cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, adminSecret *v1.Secret) error {
+func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Context, cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, adminSecretChecksum string) error {
 	reaperLabels := labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterComponentReaper)
 	reaperLabels = labels.WithDCLabel(reaperLabels, dc.Name)
 	percent25 := intstr.FromInt(25)
@@ -100,7 +101,7 @@ func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Conte
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
-						reaperContainer(cc, dc, adminSecret),
+						reaperContainer(cc, dc, adminSecretChecksum),
 					},
 					Volumes:                       reaperVolumes(cc),
 					ImagePullSecrets:              imagePullSecrets(cc),
@@ -217,7 +218,7 @@ func (r *CassandraClusterReconciler) reconcileReaperService(ctx context.Context,
 	return nil
 }
 
-func reaperContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, adminSecret *v1.Secret) v1.Container {
+func reaperContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, adminSecretChecksum string) v1.Container {
 	return v1.Container{
 		Name:            "reaper",
 		Image:           cc.Spec.Reaper.Image,
@@ -263,7 +264,7 @@ func reaperContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, adminSec
 			InitialDelaySeconds: 120,
 		},
 		Resources: cc.Spec.Reaper.Resources,
-		Env:       reaperEnvironment(cc, dc, adminSecret),
+		Env:       reaperEnvironment(cc, dc, adminSecretChecksum),
 		VolumeMounts: []v1.VolumeMount{
 			{
 				Name:      "shiro-config",

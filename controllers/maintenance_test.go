@@ -66,7 +66,7 @@ func mockedRunningCassandraPod(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC, i 
 		},
 		Spec: v1.PodSpec{
 			Containers: []v1.Container{
-				cassandraContainer(cc, dc),
+				cassandraContainer(cc, dc, ""),
 			},
 			InitContainers: []v1.Container{
 				maintenanceContainer(cc),
@@ -75,7 +75,7 @@ func mockedRunningCassandraPod(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC, i 
 			Volumes: []v1.Volume{
 				scriptsVolume(cc),
 				maintenanceVolume(cc),
-				cassandraDCConfigVolume(cc, dc),
+				cassandraDCConfigVolume(cc),
 				podsConfigVolume(cc),
 			},
 			RestartPolicy:                 v1.RestartPolicyAlways,
@@ -297,7 +297,7 @@ func TestGetPod(t *testing.T) {
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
-						cassandraContainer(baseCC, baseCC.Spec.DCs[0]),
+						cassandraContainer(baseCC, baseCC.Spec.DCs[0], ""),
 					},
 					InitContainers: []v1.Container{
 						maintenanceContainer(baseCC),

@@ -10,10 +10,10 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-func reaperEnvironment(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC, adminSecret *v1.Secret) []v1.EnvVar {
+func reaperEnvironment(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC, adminSecretChecksumStr string) []v1.EnvVar {
 	reaperEnv := []v1.EnvVar{
 		// http://cassandra-reaper.io/docs/configuration/docker_vars/
-		{Name: "ACTIVE_ADMIN_SECRET_VERSION", Value: adminSecret.ResourceVersion},
+		{Name: "ACTIVE_ADMIN_SECRET_SHA1", Value: adminSecretChecksumStr},
 		{Name: "REAPER_CASS_ACTIVATE_QUERY_LOGGER", Value: "true"},
 		{Name: "REAPER_LOGGING_ROOT_LEVEL", Value: "INFO"},
 		{Name: "REAPER_LOGGING_APPENDERS_CONSOLE_THRESHOLD", Value: "INFO"},

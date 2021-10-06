@@ -14,14 +14,6 @@ batch_size_warn_threshold_in_kb: 5
 batchlog_replay_throttle_in_kb: 1024
 cas_contention_timeout_in_ms: 1000
 cdc_enabled: false
-client_encryption_options:
-  enabled: false
-  keystore: /etc/cassandra/certstore/client_certstore/keystore.jks
-  keystore_password: cassandra
-  optional: false
-  require_client_auth: true
-  truststore: /etc/cassandra/certstore/client_certstore/truststore.jks
-  truststore_password: cassandra
 cluster_name: Test Cluster
 column_index_cache_size_in_kb: 2
 column_index_size_in_kb: 64
@@ -85,13 +77,6 @@ seed_provider:
   - class_name: org.apache.cassandra.locator.SimpleSeedProvider
     parameters:
       - seeds: 127.0.0.1
-server_encryption_options:
-  internode_encryption: none
-  keystore: /etc/cassandra/certstore/cluster_certstore/keystore.jks
-  keystore_password: cassandra
-  require_client_auth: true
-  truststore: /etc/cassandra/certstore/cluster_certstore/truststore.jks
-  truststore_password: cassandra
 slow_query_log_timeout_in_ms: 500
 snapshot_before_compaction: false
 ssl_storage_port: 7001
@@ -125,3 +110,7 @@ windows_timer_interval: 1
 write_request_timeout_in_ms: 2000
 broadcast_address:
 broadcast_rpc_address:
+server_encryption_options:
+  internode_encryption: none
+client_encryption_options:
+  enabled: false

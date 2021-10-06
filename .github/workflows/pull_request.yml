@@ -15,9 +15,6 @@ env:
   IKS_CLUSTER: icm-cassandra-ci
   IKS_NAMESPACE: cassandra-operator-ci
   ICR_NAMESPACE: cassandra-operator
-  DOCKER_PROXY_REGISTRY: ${{ secrets.DOCKER_PROXY_REGISTRY }}
-  DOCKER_PROXY_USER: ${{ secrets.ARTIFACTORY_USER }}
-  DOCKER_PROXY_PASS: ${{ secrets.ARTIFACTORY_PASS }}
   IMAGE_PULL_SECRET: icm-coreeng-pull-secret
   CASSANDRA_RELEASE_NAME: e2e-tests-ci
 
@@ -84,9 +81,9 @@ jobs:
       - name: Authenticate to Docker Proxy Registry
         uses: docker/login-action@adb73476b6e06caddec5db0bc1deacbec8cdd947 # v1.6.0
         with:
-          registry: ${{ env.DOCKER_PROXY_REGISTRY }}
-          username: ${{ env.DOCKER_PROXY_USER }}
-          password: ${{ env.DOCKER_PROXY_PASS }}
+          registry: ${{ secrets.DOCKER_PROXY_REGISTRY }}
+          username: ${{ secrets.ARTIFACTORY_USER }}
+          password: ${{ secrets.ARTIFACTORY_PASS }}
 
       - name: Build operator image
         uses: docker/build-push-action@v2
@@ -94,7 +91,7 @@ jobs:
           file: Dockerfile
           build-args: |
             VERSION=${{ env.GITHUB_REF_SLUG }}
-            DOCKER_PROXY_REGISTRY=${{ env.DOCKER_PROXY_REGISTRY }}/
+            DOCKER_PROXY_REGISTRY=${{ secrets.DOCKER_PROXY_REGISTRY }}/
           tags: us.icr.io/${{ env.ICR_NAMESPACE }}/cassandra-operator:${{ env.GITHUB_REF_SLUG }}
           outputs: type=docker,dest=cassandra-operator.tar
 
@@ -125,9 +122,9 @@ jobs:
       - name: Authenticate to Docker Proxy Registry
         uses: docker/login-action@adb73476b6e06caddec5db0bc1deacbec8cdd947 # v1.6.0
         with:
-          registry: ${{ env.DOCKER_PROXY_REGISTRY }}
-          username: ${{ env.DOCKER_PROXY_USER }}
-          password: ${{ env.DOCKER_PROXY_PASS }}
+          registry: ${{ secrets.DOCKER_PROXY_REGISTRY }}
+          username: ${{ secrets.ARTIFACTORY_USER }}
+          password: ${{ secrets.ARTIFACTORY_PASS }}
 
       - name: Build cassandra image
         uses: docker/build-push-action@v2
@@ -136,7 +133,7 @@ jobs:
           context: ./cassandra
           tags: us.icr.io/${{ env.ICR_NAMESPACE }}/cassandra:${{ env.GITHUB_REF_SLUG }}
           build-args: |
-            DOCKER_PROXY_REGISTRY=${{ env.DOCKER_PROXY_REGISTRY }}/
+            DOCKER_PROXY_REGISTRY=${{ secrets.DOCKER_PROXY_REGISTRY }}/
           outputs: type=docker,dest=cassandra.tar
 
       - name: Upload cassandra image artifact
@@ -166,9 +163,9 @@ jobs:
       - name: Authenticate to Docker Proxy Registry
         uses: docker/login-action@adb73476b6e06caddec5db0bc1deacbec8cdd947 # v1.6.0
         with:
-          registry: ${{ env.DOCKER_PROXY_REGISTRY }}
-          username: ${{ env.DOCKER_PROXY_USER }}
-          password: ${{ env.DOCKER_PROXY_PASS }}
+          registry: ${{ secrets.DOCKER_PROXY_REGISTRY }}
+          username: ${{ secrets.ARTIFACTORY_USER }}
+          password: ${{ secrets.ARTIFACTORY_PASS }}
 
       - name: Build prober image
         uses: docker/build-push-action@v2
@@ -177,7 +174,7 @@ jobs:
           context: ./prober
           build-args: |
             VERSION=${{ env.GITHUB_REF_SLUG }}
-            DOCKER_PROXY_REGISTRY=${{ env.DOCKER_PROXY_REGISTRY }}/
+            DOCKER_PROXY_REGISTRY=${{ secrets.DOCKER_PROXY_REGISTRY }}/
           tags: us.icr.io/${{ env.ICR_NAMESPACE }}/prober:${{ env.GITHUB_REF_SLUG }}
           outputs: type=docker,dest=prober.tar
 
@@ -208,9 +205,9 @@ jobs:
       - name: Authenticate to Docker Proxy Registry
         uses: docker/login-action@adb73476b6e06caddec5db0bc1deacbec8cdd947 # v1.6.0
         with:
-          registry: ${{ env.DOCKER_PROXY_REGISTRY }}
-          username: ${{ env.DOCKER_PROXY_USER }}
-          password: ${{ env.DOCKER_PROXY_PASS }}
+          registry: ${{ secrets.DOCKER_PROXY_REGISTRY }}
+          username: ${{ secrets.ARTIFACTORY_USER }}
+          password: ${{ secrets.ARTIFACTORY_PASS }}
 
       - name: Build jolokia image
         uses: docker/build-push-action@v2
@@ -218,7 +215,7 @@ jobs:
           file: ./jolokia/Dockerfile
           context: ./jolokia
           build-args: |
-            DOCKER_PROXY_REGISTRY=${{ env.DOCKER_PROXY_REGISTRY }}/
+            DOCKER_PROXY_REGISTRY=${{ secrets.DOCKER_PROXY_REGISTRY }}/
           tags: us.icr.io/${{ env.ICR_NAMESPACE }}/jolokia:${{ env.GITHUB_REF_SLUG }}
           outputs: type=docker,dest=jolokia.tar
 
@@ -270,7 +267,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v1
         with:
-          node-version: 14.15.4 # This is recommended LTS version which includes npm 6.14.10
+          node-version: 16
       - name: Build docs website
         run: |
           npm -v

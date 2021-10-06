@@ -1,6 +1,8 @@
 package util
 
 import (
+	"crypto/sha1"
+	"fmt"
 	v1 "k8s.io/api/core/v1"
 	"math/rand"
 	"time"
@@ -49,4 +51,27 @@ func GenerateAdminPassword() string {
 		buf[i], buf[j] = buf[j], buf[i]
 	})
 	return string(buf)
+}
+
+func Sha1(s string) string {
+	h := sha1.New()
+	h.Write([]byte(fmt.Sprintf("%v", s)))
+	bs := h.Sum(nil)
+	// Use the %x format verb to convert a hash results to a hex string
+	return fmt.Sprintf("%x", bs)
+}
+
+func EmptySecretFields(secret *v1.Secret, fields []string) []string {
+	var emptyFields []string
+
+	if secret.Data == nil {
+		return []string{}
+	}
+
+	for _, field := range fields {
+		if len(secret.Data[field]) == 0 {
+			emptyFields = append(emptyFields, field)
+		}
+	}
+	return emptyFields
 }
