@@ -7,7 +7,7 @@ on:
 
 env:
   GO_VERSION: 1.16
-  HELM_VERSION: v3.5.4
+  HELM_VERSION: v3.7.0
   PYTHON_VERSION: 3.7 # required for helm tester
   IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
   IBM_CLOUD_REGION: us-south
@@ -16,7 +16,6 @@ env:
   IKS_NAMESPACE: cassandra-operator-ci
   ICR_NAMESPACE: cassandra-operator
   IMAGE_PULL_SECRET: icm-coreeng-pull-secret
-  CASSANDRA_RELEASE_NAME: e2e-tests-ci
 
 jobs:
 
@@ -69,17 +68,16 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Inject slug/short variables
-        uses: rlespinasse/github-slug-action@e4699e49fcf890a3172a02c56ba78d867dbb9fd5 # 3.1.0
+        uses: rlespinasse/github-slug-action@3.6.0
 
       - name: Modify GITHUB_REF_SLUG
-        if: ${{ github.event_name != 'release' }}
         run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
 
       - name: Setup Buildx
         uses: docker/setup-buildx-action@v1
 
       - name: Authenticate to Docker Proxy Registry
-        uses: docker/login-action@adb73476b6e06caddec5db0bc1deacbec8cdd947 # v1.6.0
+        uses: docker/login-action@v1
         with:
           registry: ${{ secrets.DOCKER_PROXY_REGISTRY }}
           username: ${{ secrets.ARTIFACTORY_USER }}
@@ -110,17 +108,16 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Inject slug/short variables
-        uses: rlespinasse/github-slug-action@e4699e49fcf890a3172a02c56ba78d867dbb9fd5 # 3.1.0
+        uses: rlespinasse/github-slug-action@3.6.0
 
       - name: Modify GITHUB_REF_SLUG
-        if: ${{ github.event_name != 'release' }}
         run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
 
       - name: Setup Buildx
         uses: docker/setup-buildx-action@v1
 
       - name: Authenticate to Docker Proxy Registry
-        uses: docker/login-action@adb73476b6e06caddec5db0bc1deacbec8cdd947 # v1.6.0
+        uses: docker/login-action@v1
         with:
           registry: ${{ secrets.DOCKER_PROXY_REGISTRY }}
           username: ${{ secrets.ARTIFACTORY_USER }}
@@ -151,17 +148,16 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Inject slug/short variables
-        uses: rlespinasse/github-slug-action@e4699e49fcf890a3172a02c56ba78d867dbb9fd5 # 3.1.0
+        uses: rlespinasse/github-slug-action@3.6.0
 
       - name: Modify GITHUB_REF_SLUG
-        if: ${{ github.event_name != 'release' }}
         run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
 
       - name: Setup Buildx
         uses: docker/setup-buildx-action@v1
 
       - name: Authenticate to Docker Proxy Registry
-        uses: docker/login-action@adb73476b6e06caddec5db0bc1deacbec8cdd947 # v1.6.0
+        uses: docker/login-action@v1
         with:
           registry: ${{ secrets.DOCKER_PROXY_REGISTRY }}
           username: ${{ secrets.ARTIFACTORY_USER }}
@@ -193,17 +189,16 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Inject slug/short variables
-        uses: rlespinasse/github-slug-action@e4699e49fcf890a3172a02c56ba78d867dbb9fd5 # 3.1.0
+        uses: rlespinasse/github-slug-action@3.6.0
 
       - name: Modify GITHUB_REF_SLUG
-        if: ${{ github.event_name != 'release' }}
         run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
 
       - name: Setup Buildx
         uses: docker/setup-buildx-action@v1
 
       - name: Authenticate to Docker Proxy Registry
-        uses: docker/login-action@adb73476b6e06caddec5db0bc1deacbec8cdd947 # v1.6.0
+        uses: docker/login-action@v1
         with:
           registry: ${{ secrets.DOCKER_PROXY_REGISTRY }}
           username: ${{ secrets.ARTIFACTORY_USER }}
@@ -247,7 +242,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Setup chart-testing
-        uses: helm/chart-testing-action@v2.0.1
+        uses: helm/chart-testing-action@v2.1.0
 
       - name: Run chart-testing (list-changed)
         id: list-changed
@@ -278,16 +273,17 @@ jobs:
 
   push-images-for-e2e:
     if: "!contains(github.event.head_commit.message, 'e2e skip')"
-    needs: [build-operator, build-cassandra, build-prober, build-jolokia]
+    needs: [build-operator, build-cassandra, build-prober, build-jolokia, validate-helm-charts]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Inject slug/short variables
-        uses: rlespinasse/github-slug-action@e4699e49fcf890a3172a02c56ba78d867dbb9fd5 # 3.1.0
+        uses: rlespinasse/github-slug-action@3.6.0
+
       # We have below variable value replacement to prevent re-push of the image within branch during parallel workflows run
       - name: Modify GITHUB_REF_SLUG
-        if: ${{ github.event_name != 'release' }}
         run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
+
       - name: Install IBM Cloud CLI
         run: |
           curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
@@ -295,7 +291,7 @@ jobs:
           ibmcloud config --check-version=false
           ibmcloud plugin install -f container-registry
       - name: Authenticate with IBM Cloud CLI
-        uses: nick-invision/retry@7c68161adf97a48beb850a595b8784ec57a98cbb # v2.4.0
+        uses: nick-invision/retry@v2
         id: retry
         continue-on-error: false
         with:
@@ -339,13 +335,14 @@ jobs:
           docker push "us.icr.io/${{ env.ICR_NAMESPACE }}/prober:$GITHUB_REF_SLUG"
           docker push "us.icr.io/${{ env.ICR_NAMESPACE }}/cassandra:$GITHUB_REF_SLUG"
           docker push "us.icr.io/${{ env.ICR_NAMESPACE }}/jolokia:$GITHUB_REF_SLUG"
+
   run-e2e-tests:
     needs: [ push-images-for-e2e ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Block Concurrent Executions for the Deployment
-        uses: softprops/turnstyle@2da824432fd1b605d097378101a35779dc3cd35a # v1
+        uses: softprops/turnstyle@v1
         with:
           poll-interval-seconds: 10
           abort-after-seconds: 7200
@@ -353,9 +350,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Inject slug/short variables
-        uses: rlespinasse/github-slug-action@e4699e49fcf890a3172a02c56ba78d867dbb9fd5 # 3.1.0
+        uses: rlespinasse/github-slug-action@3.6.0
       - name: Modify GITHUB_REF_SLUG
-        if: ${{ github.event_name != 'release' }}
         run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
       - name: Install IBM Cloud CLI
         run: |
@@ -365,7 +361,7 @@ jobs:
           ibmcloud plugin install -f kubernetes-service
           ibmcloud plugin install -f container-registry
       - name: Authenticate with IBM Cloud CLI
-        uses: nick-invision/retry@7c68161adf97a48beb850a595b8784ec57a98cbb # v2.4.0
+        uses: nick-invision/retry@v2
         id: retry
         continue-on-error: false
         with:
@@ -380,7 +376,7 @@ jobs:
             kubectl config current-context
             kubectl config set-context --current --namespace $IKS_NAMESPACE
       - name: Deploy C* operator helm chart
-        uses: nick-invision/retry@7c68161adf97a48beb850a595b8784ec57a98cbb # v2.4.0
+        uses: nick-invision/retry@v2
         with:
           timeout_seconds: 60
           max_attempts: 3
@@ -408,6 +404,7 @@ jobs:
         run: go mod download
       - name: Run e2e tests
         run: |
+          export CASSANDRA_RELEASE_NAME=e2e-tests-ci
           make e2e-tests
       - name: Uninstall C* operator helm chart
         if: ${{ always() }}
@@ -416,7 +413,7 @@ jobs:
       # We have below logic bc when multiple tags exist for the same image digest within a repository, the ibmcloud cr image-rm command removes the underlying image and all its tags. See details: https://cloud.ibm.com/docs/container-registry-cli-plugin?topic=container-registry-cli-plugin-containerregcli#bx_cr_image_rm
       # We can also add a check if commit message contains `no_image_del` then skip the image deletion step
       - name: Cleanup Images
-        if: ${{ always() && github.event_name != 'release' }}
+        if: ${{ always() }}
         run: |
           for image_name in cassandra-operator prober cassandra jolokia; do
             image_digest=$(ibmcloud cr image-list --restrict ${{ env.ICR_NAMESPACE }} --format "{{if and (eq .Repository \"us.icr.io/cassandra-operator/$image_name\") (eq .Tag \"$GITHUB_REF_SLUG\")}}{{.Digest}}{{end}}" --no-trunc)
@@ -429,4 +426,3 @@ jobs:
               ibmcloud cr image-rm "us.icr.io/${{ env.ICR_NAMESPACE }}/$image_name:$GITHUB_REF_SLUG"
             fi
           done
-  #     Add a slack notification about successful or failed releases
