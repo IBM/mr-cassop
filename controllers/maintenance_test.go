@@ -3,6 +3,8 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/labels"
@@ -13,7 +15,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"testing"
 )
 
 var (
@@ -75,7 +76,7 @@ func mockedRunningCassandraPod(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC, i 
 			Volumes: []v1.Volume{
 				scriptsVolume(cc),
 				maintenanceVolume(cc),
-				cassandraDCConfigVolume(cc),
+				cassandraConfigVolume(cc),
 				podsConfigVolume(cc),
 			},
 			RestartPolicy:                 v1.RestartPolicyAlways,

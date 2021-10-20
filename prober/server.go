@@ -1,14 +1,18 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"os"
+
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"net/http"
-	"os"
 
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/julienschmidt/httprouter"
@@ -17,14 +21,16 @@ import (
 )
 
 var (
-	log        = ctrl.Log.WithName("prober-server")
-	serverPort = os.Getenv("SERVER_PORT")
-	seeds      []string
-	readyLocalDCs bool
-	Version       = "undefined"
-	clientSet  *kubernetes.Clientset
-	controller cache.Controller
-	store      cache.Store
+	log             = ctrl.Log.WithName("prober-server")
+	serverPort      = os.Getenv("SERVER_PORT")
+	podNamespace    = os.Getenv("POD_NAMESPACE")
+	adminSecretName = os.Getenv("ADMIN_SECRET_NAME")
+	seeds           []string
+	readyLocalDCs   bool
+	Version         = "undefined"
+	clientSet       *kubernetes.Clientset
+	controller      cache.Controller
+	store           cache.Store
 )
 
 func setupRoutes(router *httprouter.Router) {
@@ -45,7 +51,10 @@ func healthCheck(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		log.V(1).Info("health check failed", "host", r.RemoteAddr, "broadcastIP", broadcastIp, "isReady", isReady)
 		w.WriteHeader(http.StatusNotFound)
 	}
-	response, _ := json.Marshal(states)
+	response, err := json.Marshal(states)
+	if err != nil {
+		log.Error(err, "can't marshal states")
+	}
 	w.Write(response)
 }
 
@@ -62,8 +71,10 @@ func putReadyLocalDCs(w http.ResponseWriter, r *http.Request, _ httprouter.Param
 	var ready bool
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
+		log.Error(err, "can't ready body")
 		w.WriteHeader(http.StatusInternalServerError)
 	} else if json.Unmarshal(body, &ready) != nil {
+		log.Error(err, "can't unmarshal json")
 		w.WriteHeader(http.StatusBadRequest)
 	} else {
 		readyLocalDCs = ready
@@ -71,7 +82,10 @@ func putReadyLocalDCs(w http.ResponseWriter, r *http.Request, _ httprouter.Param
 }
 
 func getSeeds(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
-	response, _ := json.Marshal(seeds)
+	response, err := json.Marshal(seeds)
+	if err != nil {
+		log.Error(err, "Can't marshal seeds")
+	}
 	w.Write(response)
 }
 
@@ -95,9 +109,19 @@ func main() {
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		log.Error(err, "Unable to get InCluster config")
+		os.Exit(1)
 	}
 
 	clientSet, err = kubernetes.NewForConfig(config)
+
+	authSecret, err := clientSet.CoreV1().Secrets(podNamespace).Get(context.Background(), adminSecretName, v1.GetOptions{})
+	if err != nil {
+		log.Error(err, "unable to get auth secret")
+		os.Exit(1)
+	}
+
+	auth.user = string(authSecret.Data["admin-role"])
+	auth.password = string(authSecret.Data["admin-password"])
 
 	authSecretCh := watchAuthSecret()
 	defer close(authSecretCh)

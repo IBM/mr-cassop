@@ -3,16 +3,17 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/google/go-cmp/cmp"
-	"github.com/ibm/cassandra-operator/prober/jolokia"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/client-go/tools/cache"
 	"net/http"
 	"os"
 	"reflect"
 	"strconv"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/ibm/cassandra-operator/prober/jolokia"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/client-go/tools/cache"
 )
 
 type nodeState struct {
@@ -74,10 +75,6 @@ func updateNodeStates() {
 	}
 }
 
-func getUserAuth() userAuth {
-	return auth
-}
-
 func updateNodesRequest() error {
 	var polledIps []string
 	for ip, _ := range nodeStates {
@@ -85,7 +82,6 @@ func updateNodesRequest() error {
 	}
 
 	// Construct Cassandra request for each polled ip
-	auth := getUserAuth()
 	body := jolokia.ProxyRequests(jolokia.CassandraStates, auth.user, auth.password, jmxPort, polledIps...)
 
 	jmxResponses, err := jolokiaClient.Post(body)
@@ -173,6 +169,14 @@ func watchAuthSecret() chan struct{} {
 		time.Second*1,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: handleAddSecret,
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				oldSecret := oldObj.(*v1.Secret)
+				newSecret := newObj.(*v1.Secret)
+				if oldSecret.ResourceVersion == newSecret.ResourceVersion {
+					return
+				}
+				handleAddSecret(newObj)
+			},
 		})
 	stopCh := make(chan struct{})
 	go controller.Run(stopCh)
@@ -181,8 +185,9 @@ func watchAuthSecret() chan struct{} {
 
 func handleAddSecret(new interface{}) {
 	newSecret := new.(*v1.Secret)
-	log.Info(newSecret.Name + " Secret has been added.")
-	for k, v := range newSecret.Data {
-		auth = userAuth{k, string(v)}
+	log.Info(newSecret.Name + " Secret has been added/updated.")
+	auth = userAuth{
+		user:     string(newSecret.Data["admin-role"]),
+		password: string(newSecret.Data["admin-password"]),
 	}
 }

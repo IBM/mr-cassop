@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+
 	"github.com/ibm/cassandra-operator/controllers/compare"
 	"github.com/ibm/cassandra-operator/controllers/util"
 	"github.com/pkg/errors"
@@ -56,6 +57,35 @@ func (r *CassandraClusterReconciler) reconcileConfigMap(ctx context.Context, des
 			}
 		} else {
 			r.Log.Debugf("No updates for %s", desiredCM.Name)
+		}
+	}
+	return nil
+}
+
+func (r *CassandraClusterReconciler) reconcileSecret(ctx context.Context, desiredSecret *v1.Secret) error {
+	actualSecret := &v1.Secret{}
+	err := r.Get(ctx, types.NamespacedName{Name: desiredSecret.Name, Namespace: desiredSecret.Namespace}, actualSecret)
+	if err != nil && kerrors.IsNotFound(err) {
+		r.Log.Infof("Creating secret %s", desiredSecret.Name)
+		if err = r.Create(ctx, desiredSecret); err != nil {
+			return errors.Wrapf(err, "Unable to create secret %s", desiredSecret.Name)
+		}
+	} else if err != nil {
+		return errors.Wrapf(err, "Could not get secret %s", desiredSecret.Name)
+	} else {
+		desiredSecret.Annotations = util.MergeMap(actualSecret.Annotations, desiredSecret.Annotations)
+		if !compare.EqualSecret(actualSecret, desiredSecret) {
+			r.Log.Infof("Updating %s", desiredSecret.Name)
+			r.Log.Debug(compare.DiffSecret(actualSecret, desiredSecret))
+			actualSecret.Labels = desiredSecret.Labels
+			actualSecret.Data = desiredSecret.Data
+			actualSecret.Annotations = util.MergeMap(actualSecret.Annotations, desiredSecret.Annotations)
+			actualSecret.OwnerReferences = desiredSecret.OwnerReferences
+			if err = r.Update(ctx, actualSecret); err != nil {
+				return errors.Wrapf(err, "Could not update secret %s", desiredSecret.Name)
+			}
+		} else {
+			r.Log.Debugf("No updates for secret %s", desiredSecret.Name)
 		}
 	}
 	return nil

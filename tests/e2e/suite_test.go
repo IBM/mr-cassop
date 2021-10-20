@@ -27,15 +27,17 @@ var (
 	kubeClient          *kubernetes.Clientset
 	cassandraObjectMeta metav1.ObjectMeta
 	cassandraCluster    *v1alpha1.CassandraCluster
+	adminRoleSecret     *v1.Secret
 
-	err                error
-	cassandraNamespace string
-	cassandraRelease   string
-	imagePullSecret    string
-	ingressDomain      string
-	ingressSecret      string
-	tailLines          int64 = 30
-	statusCode         int
+	err                 error
+	cassandraNamespace  string
+	cassandraRelease    string
+	imagePullSecret     string
+	adminRoleSecretName string
+	ingressDomain       string
+	ingressSecret       string
+	tailLines           int64 = 30
+	statusCode          int
 
 	operatorPodLabel          map[string]string
 	cassandraDeploymentLabel  map[string]string
@@ -119,11 +121,14 @@ var _ = BeforeSuite(func() {
 	kubeClient, err = kubernetes.NewForConfig(restClientConfig)
 	Expect(err).ToNot(HaveOccurred())
 
+	adminRoleSecretName = "admin-role"
+
 	cassandraCluster = &v1alpha1.CassandraCluster{
 		ObjectMeta: cassandraObjectMeta,
 		Spec: v1alpha1.CassandraClusterSpec{
 			DCs:                 cassandraDCs,
 			ImagePullSecretName: imagePullSecret,
+			AdminRoleSecretName: adminRoleSecretName,
 			Cassandra: &v1alpha1.Cassandra{
 				ImagePullPolicy: v1.PullAlways,
 				Resources:       cassandraResources,
@@ -144,7 +149,23 @@ var _ = BeforeSuite(func() {
 		},
 	}
 
-}) // Set a timeout for function execution
+	adminRoleSecret = &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      adminRoleSecretName,
+			Namespace: cassandraNamespace,
+		},
+		Data: map[string][]byte{
+			v1alpha1.CassandraOperatorAdminRole:     []byte("cassandra-operator"),
+			v1alpha1.CassandraOperatorAdminPassword: []byte("password"),
+		},
+	}
+	Expect(restClient.Create(context.Background(), adminRoleSecret)).To(Succeed())
+
+})
+
+var _ = AfterSuite(func() {
+	Expect(restClient.Delete(context.Background(), adminRoleSecret)).To(Succeed())
+})
 
 var _ = JustAfterEach(func() {
 	if CurrentGinkgoTestDescription().Failed {

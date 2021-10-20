@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+
 	"github.com/gogo/protobuf/proto"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
+	"github.com/ibm/cassandra-operator/controllers/compare"
 	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/ibm/cassandra-operator/controllers/labels"
 	"github.com/ibm/cassandra-operator/controllers/names"
@@ -14,144 +16,122 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-func (r *CassandraClusterReconciler) reconcileAdminAuth(ctx context.Context, cc *dbv1alpha1.CassandraCluster) (*v1.Secret, error) {
-	desiredActiveAdminSecret, desiredBaseAdminSecret := generateDesiredAdminSecrets(cc)
-
+func (r *CassandraClusterReconciler) reconcileAdminAuth(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
 	actualActiveAdminSecret := &v1.Secret{}
-	actualBaseAdminSecret := &v1.Secret{}
-
-	err := r.Get(ctx, types.NamespacedName{Name: desiredActiveAdminSecret.Name, Namespace: desiredActiveAdminSecret.Namespace}, actualActiveAdminSecret)
+	err := r.Get(ctx, types.NamespacedName{Name: names.ActiveAdminSecret(cc.Name), Namespace: cc.Namespace}, actualActiveAdminSecret)
 	if err != nil && kerrors.IsNotFound(err) {
 		r.Log.Info("The Secret " + names.ActiveAdminSecret(cc.Name) + " doesn't exist. " +
 			"Assuming it's the first cluster deployment.")
 
-		err := r.createFreshClusterAdminSecrets(ctx, cc, desiredBaseAdminSecret, desiredActiveAdminSecret)
+		err := r.createClusterAdminSecrets(ctx, cc)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to create admin secrets for newly created cluster")
+			return errors.Wrap(err, "failed to create admin secrets for newly created cluster")
 		}
-		return desiredActiveAdminSecret, nil
+		return nil
 	} else if err != nil {
-		return nil, errors.Wrap(err, "failed to get active admin secret")
+		return errors.Wrap(err, "failed to get active admin secret")
 	}
 
-	r.Log.Debug("Secret " + names.ActiveAdminSecret(cc.Name) + " already exists.")
-	err = r.Get(ctx, types.NamespacedName{Name: desiredBaseAdminSecret.Name, Namespace: desiredBaseAdminSecret.Namespace}, actualBaseAdminSecret)
-
-	if err != nil && kerrors.IsNotFound(err) {
-		r.Log.Info("Secret " + names.BaseAdminSecret(cc.Name) + " doesn't exist.")
-
-		err = r.reconcilePreviouslyDeletedClusterAdminSecrets(ctx, cc, desiredBaseAdminSecret, actualActiveAdminSecret)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to reconcile secrets for previously created cluster")
-		}
-
-		return actualActiveAdminSecret, nil
-	} else if err != nil {
-		return nil, errors.Wrap(err, "failed to get base admin secret")
+	actualBaseAdminSecret := &v1.Secret{}
+	err = r.Get(ctx, types.NamespacedName{Name: cc.Spec.AdminRoleSecretName, Namespace: cc.Namespace}, actualBaseAdminSecret)
+	if err != nil {
+		return errors.Wrap(err, "failed to get admin role secret")
 	}
 
-	r.Log.Debugf("Comparing passwords in %s and %s secrets", names.BaseAdminSecret(cc.Name), names.ActiveAdminSecret(cc.Name))
+	activeAdminRoleName := string(actualActiveAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole])
+	activeAdminRolePassword := string(actualActiveAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword])
+	baseAdminRoleName := string(actualActiveAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole])
+	baseAdminRolePassword := string(actualActiveAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword])
+	defaultRoleInUse := activeAdminRoleName == dbv1alpha1.CassandraDefaultRole && activeAdminRolePassword == dbv1alpha1.CassandraDefaultPassword
+	defaultRoleIsDesired := baseAdminRoleName == dbv1alpha1.CassandraDefaultRole && baseAdminRolePassword == dbv1alpha1.CassandraDefaultPassword
+
+	if defaultRoleInUse && defaultRoleIsDesired { // don't initialize if the default user is in use, unless that's what is desired
+		return nil
+	}
+
 	// Please note: your changes to Base Admin Secret won't have affect until ALL DCs are ready
-	compareRes := bytes.Compare(actualActiveAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole], actualBaseAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole])
-	if compareRes != 0 {
-		r.Log.Info("Passwords in Secrets don't match")
+	passCompareRes := bytes.Compare(actualActiveAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword], actualBaseAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword])
+	nameCompareRes := bytes.Compare(actualActiveAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole], actualBaseAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole])
+	if passCompareRes != 0 || nameCompareRes != 0 {
+		r.Log.Info("User role changed in the secret")
 
-		actualActiveAdminSecret, err = r.handlePasswordChange(ctx, cc, actualBaseAdminSecret, actualActiveAdminSecret)
+		err = r.handleAdminRoleChange(ctx, cc, actualBaseAdminSecret, actualActiveAdminSecret)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to update operator admin password")
+			return errors.Wrap(err, "failed to update operator admin role")
 		}
 
-		return actualActiveAdminSecret, nil
+		return nil
 	}
 
 	r.Log.Debug("No updates in " + names.BaseAdminSecret(cc.Name))
-	return actualActiveAdminSecret, nil
-}
-
-func (r *CassandraClusterReconciler) reconcilePreviouslyDeletedClusterAdminSecrets(ctx context.Context, cc *dbv1alpha1.CassandraCluster, desiredBaseAdminSecret, actualActiveAdminSecret *v1.Secret) error {
-	r.Log.Info("Creating Secret " + names.BaseAdminSecret(cc.Name))
-	desiredBaseAdminSecret.Data = actualActiveAdminSecret.Data
-
-	if err := controllerutil.SetControllerReference(cc, desiredBaseAdminSecret, r.Scheme); err != nil {
-		return errors.Wrap(err, "Cannot set controller reference")
-	}
-
-	if err := r.Create(ctx, desiredBaseAdminSecret); err != nil {
-		return errors.Wrap(err, "Unable to create "+names.BaseAdminSecret(cc.Name))
-	}
-
-	r.Log.Info("Creating " + names.AdminAuthConfigSecret(cc.Name))
-	cassandraOperatorAdminPassword := string(actualActiveAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole])
-	desiredAdminAuthConfigSecret := genAdminAuthConfigSecret(cc, dbv1alpha1.CassandraOperatorAdminRole, cassandraOperatorAdminPassword)
-
-	if err := controllerutil.SetControllerReference(cc, desiredAdminAuthConfigSecret, r.Scheme); err != nil {
-		return errors.Wrap(err, "Cannot set controller reference")
-	}
-
-	if err := r.Create(ctx, desiredAdminAuthConfigSecret); err != nil {
-		return errors.Wrap(err, "Unable to create "+names.AdminAuthConfigSecret(cc.Name))
-	}
-
 	return nil
 }
 
-func (r *CassandraClusterReconciler) createFreshClusterAdminSecrets(ctx context.Context, cc *dbv1alpha1.CassandraCluster, desiredBaseAdminSecret, desiredActiveAdminSecret *v1.Secret) error {
-	r.Log.Info("Creating " + names.BaseAdminSecret(cc.Name))
-	data := make(map[string][]byte)
-	data[dbv1alpha1.CassandraDefaultRole] = []byte("cassandra") // We need this user/pass until All DCs are ready
-	desiredBaseAdminSecret.Data = data
-
-	if err := controllerutil.SetControllerReference(cc, desiredBaseAdminSecret, r.Scheme); err != nil {
-		return errors.Wrap(err, "Cannot set controller reference")
-	}
-	if err := r.Create(ctx, desiredBaseAdminSecret); err != nil {
-		return errors.Wrap(err, "Unable to create "+names.BaseAdminSecret(cc.Name))
+func (r *CassandraClusterReconciler) createClusterAdminSecrets(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
+	baseAdminSecret := &v1.Secret{}
+	err := r.Get(ctx, types.NamespacedName{Namespace: cc.Namespace, Name: cc.Spec.AdminRoleSecretName}, baseAdminSecret)
+	if err != nil {
+		return errors.Wrap(err, "can't get base admin secret")
 	}
 
-	r.Log.Info("Creating " + names.ActiveAdminSecret(cc.Name))
-	desiredActiveAdminSecret.Data = data
-	// We need to delete Active Admin Secret when the cluster deleted if Persistence is not enabled, otherwise prober will unable to authenticate over JMX
-	if !cc.Spec.Cassandra.Persistence.Enabled {
-		if err := controllerutil.SetControllerReference(cc, desiredActiveAdminSecret, r.Scheme); err != nil {
-			return errors.Wrap(err, "Cannot set controller reference")
+	secretRoleName := string(baseAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole])
+	secretRolePassword := string(baseAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword])
+
+	if len(secretRoleName) == 0 || len(secretRolePassword) == 0 {
+		return errors.New("admin role or password is empty")
+	}
+
+	desiredRoleName := dbv1alpha1.CassandraDefaultRole
+	desiredRolePassword := dbv1alpha1.CassandraDefaultPassword
+
+	if cc.Spec.Cassandra.Persistence.Enabled {
+		pvcs := &v1.PersistentVolumeClaimList{}
+		err = r.List(ctx, pvcs, client.InNamespace(cc.Namespace), client.MatchingLabels(labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra)))
+		if err != nil {
+			return errors.Wrap(err, "can't get pvcs")
+		}
+
+		if len(pvcs.Items) > 0 { // cluster existed before. Use the credentials from the provided secret to recreate the cluster.
+			r.Log.Info("PVCs found. Assuming cluster existed before. Using credentials from secret %s", cc.Spec.AdminRoleSecretName)
+			desiredRoleName = secretRoleName
+			desiredRolePassword = secretRolePassword
 		}
 	}
-	if err := r.Create(ctx, desiredActiveAdminSecret); err != nil {
-		return errors.Wrap(err, "Unable to create "+names.ActiveAdminSecret(cc.Name))
-	}
 
-	r.Log.Info("Creating " + names.AdminAuthConfigSecret(cc.Name))
-	desiredAdminAuthConfigSecret := genAdminAuthConfigSecret(cc, dbv1alpha1.CassandraDefaultRole, dbv1alpha1.CassandraDefaultPassword)
+	desiredSecretData := baseAdminSecret.Data
+	desiredSecretData[dbv1alpha1.CassandraOperatorAdminRole] = []byte(desiredRoleName)
+	desiredSecretData[dbv1alpha1.CassandraOperatorAdminPassword] = []byte(desiredRolePassword)
 
-	if err := controllerutil.SetControllerReference(cc, desiredAdminAuthConfigSecret, r.Scheme); err != nil {
-		return errors.Wrap(err, "Cannot set controller reference")
-	}
-	if err := r.Create(ctx, desiredAdminAuthConfigSecret); err != nil {
-		return errors.Wrap(err, "Unable to create "+names.AdminAuthConfigSecret(cc.Name))
+	err = r.reconcileAdminSecrets(ctx, cc, desiredSecretData)
+	if err != nil {
+		return errors.Wrap(err, "failed to reconcile active admin secrets")
 	}
 
 	return nil
 }
 
-func (r *CassandraClusterReconciler) handlePasswordChange(ctx context.Context, cc *dbv1alpha1.CassandraCluster, actualBaseAdminSecret, actualActiveAdminSecret *v1.Secret) (updatedActiveAdminSecret *v1.Secret, err error) {
-	r.Log.Info("Changing admin role password")
-	cassandraOperatorAdminPassword := string(actualActiveAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole])
-	newCassandraOperatorAdminPassword := string(actualBaseAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole])
+func (r *CassandraClusterReconciler) handleAdminRoleChange(ctx context.Context, cc *dbv1alpha1.CassandraCluster, actualBaseAdminSecret, actualActiveAdminSecret *v1.Secret) error {
+	r.Log.Info("Updating admin role")
+	cassandraOperatorAdminRole := string(actualActiveAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole])
+	cassandraOperatorAdminPassword := string(actualActiveAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword])
+	newCassandraOperatorAdminPassword := string(actualBaseAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword])
+	newCassandraOperatorAdminRole := string(actualBaseAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole])
 
-	err = r.updatePasswordInCassandra(cc, cassandraOperatorAdminPassword, newCassandraOperatorAdminPassword)
+	err := r.updateAdminRoleInCassandra(cc, cassandraOperatorAdminRole, newCassandraOperatorAdminRole, cassandraOperatorAdminPassword, newCassandraOperatorAdminPassword)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to update admin role password in cassandra")
+		return errors.Wrap(err, "failed to update admin role password in cassandra")
 	}
 
-	r.Log.Info("Password changed. Waiting for cluster to propagate the changed password to all nodes ")
-	r.Log.Info("Attempting to login with new password to verify the password change is applied in cassandra")
+	r.Log.Info("Role updated in Cassandra. Waiting for cluster to propagate the changed password to all nodes ")
+	r.Log.Info("Attempting to login with new credentials to verify they applied in cassandra")
 
 	var cqlClientTestCon cql.CqlClient
 	err = r.doWithRetry(func() error {
-		cqlClientTestCon, err = r.CqlClient(newCassandraConfig(cc, dbv1alpha1.CassandraOperatorAdminRole, newCassandraOperatorAdminPassword))
+		cqlClientTestCon, err = r.CqlClient(newCassandraConfig(cc, newCassandraOperatorAdminRole, newCassandraOperatorAdminPassword))
 		if err != nil {
 			return err
 		}
@@ -159,52 +139,104 @@ func (r *CassandraClusterReconciler) handlePasswordChange(ctx context.Context, c
 	})
 
 	if err != nil {
-		return nil, errors.Wrap(err, "Couldn't log in. Either the password failed to change or the the cluster didn't propagate the password change in timely manner.")
+		return errors.Wrap(err, "Couldn't log in. Either the role failed to change or the the cluster didn't propagate the role change in timely manner.")
 	}
 
-	r.Log.Info("Logged in successfully with new password. Updating active admin secret.")
+	r.Log.Info("Logged in successfully with new credentials. Updating active admin secret.")
 
 	defer cqlClientTestCon.CloseSession()
 
-	updatedActiveAdminSecret, err = r.updateActiveAdminSecret(ctx, cc, actualActiveAdminSecret, actualBaseAdminSecret.Data)
+	err = r.reconcileAdminSecrets(ctx, cc, actualBaseAdminSecret.Data)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to update active admin secret")
+		return errors.Wrap(err, "failed to update admin secret")
 	}
 
-	r.Log.Info("Updating " + names.AdminAuthConfigSecret(cc.Name))
-	desiredAdminAuthConfigSecret := genAdminAuthConfigSecret(cc, dbv1alpha1.CassandraOperatorAdminRole, newCassandraOperatorAdminPassword)
-
-	if err = controllerutil.SetControllerReference(cc, desiredAdminAuthConfigSecret, r.Scheme); err != nil {
-		return nil, errors.Wrap(err, "Cannot set controller reference")
-	}
-	if err = r.Update(ctx, desiredAdminAuthConfigSecret); err != nil {
-		return nil, errors.Wrap(err, "Unable to update secret "+names.AdminAuthConfigSecret(cc.Name))
-	}
-
-	return updatedActiveAdminSecret, nil
-}
-
-func (r *CassandraClusterReconciler) updatePasswordInCassandra(cc *dbv1alpha1.CassandraCluster, oldAdminPassword, newAdminPassword string) error {
-	r.Log.Info("Establishing cql session with role " + dbv1alpha1.CassandraOperatorAdminRole)
-
-	cqlClient, err := r.CqlClient(newCassandraConfig(cc, dbv1alpha1.CassandraOperatorAdminRole, oldAdminPassword))
-	if err != nil {
-		return errors.Wrap(err, "Can't create cql session with role "+dbv1alpha1.CassandraOperatorAdminRole)
-	}
-
-	defer cqlClient.CloseSession()
-
-	r.Log.Info("Updating password for " + dbv1alpha1.CassandraOperatorAdminRole)
-
-	if err = cqlClient.UpdateRolePassword(dbv1alpha1.CassandraOperatorAdminRole, newAdminPassword); err != nil {
-		return errors.Wrap(err, "Can't update role"+dbv1alpha1.CassandraOperatorAdminRole)
-	}
-
-	r.Log.Info("Admin password in cassandra cluster is successfully updated")
 	return nil
 }
 
-func genAdminAuthConfigSecret(cc *dbv1alpha1.CassandraCluster, cassandraAdminRole string, cassandraAdminPassword string) *v1.Secret {
+func (r *CassandraClusterReconciler) updateAdminRoleInCassandra(cc *dbv1alpha1.CassandraCluster, oldAdminRoleName, newAdminRoleName, oldAdminPassword, newAdminPassword string) error {
+	cqlClient, err := r.CqlClient(newCassandraConfig(cc, newAdminRoleName, newAdminPassword))
+	if err == nil {
+		r.Log.Info("Admin role has been already updated by a different region")
+		cqlClient.CloseSession()
+		return nil
+	}
+
+	r.Log.Info("Establishing cql session with role " + oldAdminRoleName)
+	cqlClient, err = r.CqlClient(newCassandraConfig(cc, oldAdminRoleName, oldAdminPassword))
+	if err != nil {
+		return errors.Wrap(err, "Could not log in with existing credentials")
+	}
+	defer cqlClient.CloseSession()
+
+	r.Log.Info("Updating admin role")
+
+	if oldAdminRoleName == newAdminRoleName {
+		if err = cqlClient.UpdateRolePassword(oldAdminRoleName, newAdminPassword); err != nil {
+			return errors.Wrap(err, "Can't update role"+oldAdminRoleName)
+		}
+		r.Log.Info("Admin password in cassandra cluster is successfully updated")
+	} else {
+		r.Log.Info("Admin role name changed. Creating a new admin role in cassandra")
+		cassOperatorAdminRole := cql.Role{
+			Role:     newAdminRoleName,
+			Super:    true,
+			Login:    true,
+			Password: newAdminPassword,
+		}
+		if err = cqlClient.CreateRole(cassOperatorAdminRole); err != nil {
+			return errors.Wrap(err, "Can't create admin role "+oldAdminRoleName)
+		}
+		r.Log.Info("New admin role created. Old admin role was NOT removed. Manual removal is required.")
+	}
+
+	return nil
+}
+
+func (r *CassandraClusterReconciler) reconcileActiveAdminSecret(ctx context.Context, cc *dbv1alpha1.CassandraCluster, data map[string][]byte) error {
+	desiredActiveAdminSecret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      names.ActiveAdminSecret(cc.Name),
+			Namespace: cc.Namespace,
+			Labels:    labels.CombinedComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra),
+		},
+		Immutable: proto.Bool(true),
+		Type:      v1.SecretTypeOpaque,
+		Data:      data,
+	}
+
+	if err := controllerutil.SetControllerReference(cc, desiredActiveAdminSecret, r.Scheme); err != nil {
+		return errors.Wrap(err, "Cannot set controller reference")
+	}
+
+	actualSecret := &v1.Secret{}
+	err := r.Get(ctx, types.NamespacedName{Name: desiredActiveAdminSecret.Name, Namespace: desiredActiveAdminSecret.Namespace}, actualSecret)
+	if err != nil && kerrors.IsNotFound(err) {
+		r.Log.Infof("Creating secret %s", desiredActiveAdminSecret.Name)
+		if err = r.Create(ctx, desiredActiveAdminSecret); err != nil {
+			return errors.Wrapf(err, "Unable to create secret %s", desiredActiveAdminSecret.Name)
+		}
+	} else if err != nil {
+		return errors.Wrapf(err, "Could not get secret %s", desiredActiveAdminSecret.Name)
+	} else {
+		if !compare.EqualSecret(actualSecret, desiredActiveAdminSecret) {
+			r.Log.Infof("Deleting secret %s", desiredActiveAdminSecret.Name)
+			if err = r.Delete(ctx, actualSecret); err != nil {
+				return err
+			}
+			r.Log.Infof("Creating secret %s", desiredActiveAdminSecret.Name)
+			if err = r.Create(ctx, desiredActiveAdminSecret); err != nil {
+				return err
+			}
+		} else {
+			r.Log.Debugf("No updates for secret %s", desiredActiveAdminSecret.Name)
+		}
+	}
+
+	return nil
+}
+
+func (r *CassandraClusterReconciler) reconcileAdminAuthConfigSecret(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cassandraAdminRole, cassandraAdminPassword string) error {
 	desiredAdminAuthConfigSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      names.AdminAuthConfigSecret(cc.Name),
@@ -236,33 +268,18 @@ password = %s
 hostname = 127.0.0.1
 port = 9042
 `, cassandraAdminRole, cassandraAdminPassword))
-	data["admin_username"] = []byte(fmt.Sprintln(cassandraAdminRole))
-	data["admin_password"] = []byte(fmt.Sprintln(cassandraAdminPassword))
+	data[dbv1alpha1.CassandraOperatorAdminRole] = []byte(cassandraAdminRole)
+	data[dbv1alpha1.CassandraOperatorAdminPassword] = []byte(cassandraAdminPassword)
 
 	desiredAdminAuthConfigSecret.Data = data
 
-	return desiredAdminAuthConfigSecret
-}
-
-func generateDesiredAdminSecrets(cc *dbv1alpha1.CassandraCluster) (desiredActiveAdminSecret, desiredBaseAdminSecret *v1.Secret) {
-	desiredActiveAdminSecret = &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.ActiveAdminSecret(cc.Name),
-			Namespace: cc.Namespace,
-			Labels:    labels.CombinedComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra),
-		},
-		Immutable: proto.Bool(true),
-		Type:      v1.SecretTypeOpaque,
+	if err := controllerutil.SetControllerReference(cc, desiredAdminAuthConfigSecret, r.Scheme); err != nil {
+		return errors.Wrap(err, "Cannot set controller reference")
 	}
 
-	desiredBaseAdminSecret = &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.BaseAdminSecret(cc.Name),
-			Namespace: cc.Namespace,
-			Labels:    labels.CombinedComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra),
-		},
-		Type: v1.SecretTypeOpaque,
+	if err := r.reconcileSecret(ctx, desiredAdminAuthConfigSecret); err != nil {
+		return errors.Wrap(err, "Unable to create "+names.ActiveAdminSecret(cc.Name))
 	}
 
-	return desiredActiveAdminSecret, desiredBaseAdminSecret
+	return nil
 }

@@ -22,6 +22,7 @@ var _ = Describe("rf settings", func() {
 						},
 					},
 					ImagePullSecretName: "pull-secret-name",
+					AdminRoleSecretName: "admin-role",
 					SystemKeyspaces: v1alpha1.SystemKeyspaces{
 						Names: []v1alpha1.KeyspaceName{"system_auth"},
 						DCs: []v1alpha1.SystemKeyspaceDC{{
@@ -63,6 +64,7 @@ var _ = Describe("rf settings", func() {
 						},
 					},
 					ImagePullSecretName: "pull-secret-name",
+					AdminRoleSecretName: "admin-role",
 					SystemKeyspaces: v1alpha1.SystemKeyspaces{
 						Names: []v1alpha1.KeyspaceName{"system_auth", "system_traces"},
 						DCs: []v1alpha1.SystemKeyspaceDC{{
@@ -133,6 +135,7 @@ var _ = Describe("rf settings", func() {
 						},
 					},
 					ImagePullSecretName: "pull-secret-name",
+					AdminRoleSecretName: "admin-role",
 					SystemKeyspaces: v1alpha1.SystemKeyspaces{
 						Names: []v1alpha1.KeyspaceName{"system_auth", "system_traces", "non_existing"},
 						DCs: []v1alpha1.SystemKeyspaceDC{{
@@ -206,6 +209,7 @@ var _ = Describe("rf settings", func() {
 						},
 					},
 					ImagePullSecretName: "pull-secret-name",
+					AdminRoleSecretName: "admin-role",
 					SystemKeyspaces: v1alpha1.SystemKeyspaces{
 						Names: []v1alpha1.KeyspaceName{"system_auth", "system_traces"},
 						DCs: []v1alpha1.SystemKeyspaceDC{{
@@ -281,6 +285,7 @@ var _ = Describe("rf settings", func() {
 						},
 					},
 					ImagePullSecretName: "pull-secret-name",
+					AdminRoleSecretName: "admin-role",
 				},
 			}
 

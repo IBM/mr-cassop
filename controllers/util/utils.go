@@ -55,7 +55,7 @@ func GenerateAdminPassword() string {
 
 func Sha1(s string) string {
 	h := sha1.New()
-	h.Write([]byte(fmt.Sprintf("%v", s)))
+	h.Write([]byte(s))
 	bs := h.Sum(nil)
 	// Use the %x format verb to convert a hash results to a hex string
 	return fmt.Sprintf("%x", bs)

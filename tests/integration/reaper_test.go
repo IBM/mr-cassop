@@ -30,6 +30,7 @@ var _ = Describe("reaper deployment", func() {
 						},
 					},
 					ImagePullSecretName: "pullSecretName",
+					AdminRoleSecretName: "admin-role",
 				},
 			},
 		},
@@ -48,6 +49,7 @@ var _ = Describe("reaper deployment", func() {
 							Replicas: proto.Int32(3),
 						},
 					},
+					AdminRoleSecretName: "admin-role",
 					Reaper: &v1alpha1.Reaper{
 						DCs: []v1alpha1.DC{
 							{
@@ -94,6 +96,7 @@ var _ = Describe("reaper deployment", func() {
 		for _, tc := range tests {
 			It(tc.name, func() {
 				cc := tc.cc.DeepCopy()
+				createAdminSecret(cc)
 				Expect(k8sClient.Create(ctx, cc)).To(Succeed())
 				markMocksAsReady(cc)
 				waitForDCsToBeCreated(cc)
@@ -170,6 +173,7 @@ var _ = Describe("repair schedules in reaper", func() {
 						},
 					},
 					ImagePullSecretName: "pull-secret-name",
+					AdminRoleSecretName: "admin-role",
 				},
 			}
 

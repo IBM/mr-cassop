@@ -47,7 +47,7 @@ var _ = Describe("Cassandra cluster", func() {
 			cmd := []string{
 				"sh",
 				"-c",
-				fmt.Sprintf("nodetool -u %s -pw \"%s\" info | grep Rack | awk '{ print $3 }'", dbv1alpha1.CassandraOperatorAdminRole, string(activeAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole])),
+				fmt.Sprintf("nodetool -u %s -pw \"%s\" info | grep Rack | awk '{ print $3 }'", activeAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole], string(activeAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword])),
 			}
 
 			for _, p := range podList.Items {

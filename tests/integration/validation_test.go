@@ -79,10 +79,32 @@ var _ = Describe("cassandracluster validation", func() {
 						},
 					},
 					ImagePullSecretName: "pullSecretName",
+					AdminRoleSecretName: "admin-role",
+				},
+			}
+			createAdminSecret(cc)
+			markMocksAsReady(cc)
+			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
+
+		})
+	})
+	Context("with empty admin role secret name", func() {
+		It("should not pass validation", func() {
+
+			cc := &v1alpha1.CassandraCluster{
+				ObjectMeta: cassandraObjectMeta,
+				Spec: v1alpha1.CassandraClusterSpec{
+					DCs: []v1alpha1.DC{
+						{
+							Name:     "dc1",
+							Replicas: proto.Int32(3),
+						},
+					},
+					ImagePullSecretName: "pullSecretName",
 				},
 			}
 			markMocksAsReady(cc)
-			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
+			Expect(k8sClient.Create(ctx, cc)).ToNot(Succeed())
 
 		})
 	})
@@ -675,6 +697,7 @@ var _ = Describe("cassandracluster validation", func() {
 						},
 					},
 					ImagePullSecretName: "pullSecretName",
+					AdminRoleSecretName: "admin-role",
 					Cassandra: &v1alpha1.Cassandra{
 						NumSeeds:                      3,
 						TerminationGracePeriodSeconds: proto.Int64(60),
@@ -701,7 +724,7 @@ var _ = Describe("cassandracluster validation", func() {
 					Reaper: &v1alpha1.Reaper{
 						Image:           "reaper/image",
 						ImagePullPolicy: v1.PullAlways,
-						Keyspace:        "reaper_db",
+						Keyspace:        "reaper",
 						DCs: []v1alpha1.DC{
 							{
 								Name:     "dc1",

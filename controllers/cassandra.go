@@ -42,7 +42,7 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 	var serverTLSSecretChecksum string
 	var err error
 
-	if cc.Spec.Encryption.Server.InternodeEncryption != InternodeEncryptionNone {
+	if cc.Spec.Encryption.Server.InternodeEncryption != internodeEncryptionNone {
 		serverTLSSecretChecksum, err = r.getServerTLSSecretChecksum(ctx, cc)
 		if err != nil {
 			return errors.Wrap(err, "Cannot get TLS Server Secret checksum")
@@ -111,14 +111,15 @@ func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, ser
 						cassandraContainer(cc, dc, serverTLSSecretChecksum),
 					},
 					InitContainers: []v1.Container{
+						privilegedInitContainer(cc),
 						maintenanceContainer(cc),
-						waitContainer(cc),
+						initContainer(cc),
 					},
 					ImagePullSecrets: imagePullSecrets(cc),
 					Volumes: []v1.Volume{
 						scriptsVolume(cc),
 						maintenanceVolume(cc),
-						cassandraDCConfigVolume(cc),
+						cassandraConfigVolume(cc),
 						podsConfigVolume(cc),
 						authVolume(cc),
 					},
@@ -137,7 +138,7 @@ func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, ser
 		desiredSts.Spec.Template.Spec.Volumes = append(desiredSts.Spec.Template.Spec.Volumes, emptyDirDataVolume())
 	}
 
-	if cc.Spec.Encryption.Server.InternodeEncryption != InternodeEncryptionNone {
+	if cc.Spec.Encryption.Server.InternodeEncryption != internodeEncryptionNone {
 		desiredSts.Spec.Template.Spec.Volumes = append(desiredSts.Spec.Template.Spec.Volumes, cassandraServerTLSVolume(cc))
 	}
 
@@ -259,7 +260,7 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, serve
 		container.VolumeMounts = append(container.VolumeMounts, commitLogVolumeMount())
 	}
 
-	if cc.Spec.Encryption.Server.InternodeEncryption != InternodeEncryptionNone {
+	if cc.Spec.Encryption.Server.InternodeEncryption != internodeEncryptionNone {
 		container.VolumeMounts = append(container.VolumeMounts, cassandraServerTLSVolumeMount())
 		container.Env = append(container.Env, v1.EnvVar{
 			Name:  "SERVER_TLS_SHA1",
@@ -428,6 +429,7 @@ func getCassandraRunCommand(cc *dbv1alpha1.CassandraCluster) string {
 		fmt.Sprintf("-Dcom.sun.management.jmxremote.rmi.port=%d", dbv1alpha1.JmxPort),
 		"-Djava.rmi.server.hostname=$CASSANDRA_BROADCAST_ADDRESS",
 		"-Dcom.sun.management.jmxremote.authenticate=true",
+		"-Dcassandra.storagedir=/var/lib/cassandra",
 	}
 
 	if cc.Spec.JMX.Authentication == jmxAuthenticationLocalFiles {
@@ -482,11 +484,15 @@ func commitLogVolumeMount() v1.VolumeMount {
 }
 
 func cassandraVolumeClaimTemplates(cc *dbv1alpha1.CassandraCluster) []v1.PersistentVolumeClaim {
+	pvcLabels := labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra)
+	if cc.Spec.Cassandra.Persistence.Labels != nil {
+		pvcLabels = util.MergeMap(cc.Spec.Cassandra.Persistence.Labels, pvcLabels)
+	}
 	volumeClaims := []v1.PersistentVolumeClaim{
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        "data",
-				Labels:      cc.Spec.Cassandra.Persistence.Labels,
+				Labels:      pvcLabels,
 				Annotations: cc.Spec.Cassandra.Persistence.Annotations,
 			},
 			Spec: cc.Spec.Cassandra.Persistence.DataVolumeClaimSpec,
@@ -497,7 +503,7 @@ func cassandraVolumeClaimTemplates(cc *dbv1alpha1.CassandraCluster) []v1.Persist
 		volumeClaims = append(volumeClaims, v1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        "commitlog",
-				Labels:      cc.Spec.Cassandra.Persistence.Labels,
+				Labels:      pvcLabels,
 				Annotations: cc.Spec.Cassandra.Persistence.Annotations,
 			},
 			Spec: cc.Spec.Cassandra.Persistence.CommitLogVolumeClaimSpec,
@@ -540,7 +546,7 @@ func maintenanceContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 	}
 }
 
-func waitContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
+func initContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 	memory := resource.MustParse("200Mi")
 	cpu := resource.MustParse("0.5")
 
@@ -562,7 +568,7 @@ done
 	}
 
 	return v1.Container{
-		Name:            "pre-flight-checks",
+		Name:            "init",
 		Image:           cc.Spec.Cassandra.Image,
 		ImagePullPolicy: cc.Spec.Cassandra.ImagePullPolicy,
 		Resources: v1.ResourceRequirements{
@@ -591,6 +597,46 @@ done
 					FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.uid"},
 				},
 			},
+		},
+		Command: []string{
+			"bash",
+			"-c",
+		},
+		Args:                     args,
+		TerminationMessagePath:   "/dev/termination-log",
+		TerminationMessagePolicy: v1.TerminationMessageReadFile,
+	}
+}
+
+func privilegedInitContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
+	memory := resource.MustParse("200Mi")
+	cpu := resource.MustParse("0.5")
+
+	args := []string{
+		"chown cassandra:cassandra /var/lib/cassandra",
+	}
+
+	return v1.Container{
+		Name:            "privileged-init",
+		Image:           cc.Spec.Cassandra.Image,
+		ImagePullPolicy: cc.Spec.Cassandra.ImagePullPolicy,
+		SecurityContext: &v1.SecurityContext{
+			Privileged: proto.Bool(true),
+			RunAsUser:  proto.Int64(0),
+			RunAsGroup: proto.Int64(0),
+		},
+		Resources: v1.ResourceRequirements{
+			Requests: v1.ResourceList{
+				v1.ResourceMemory: memory,
+				v1.ResourceCPU:    cpu,
+			},
+			Limits: map[v1.ResourceName]resource.Quantity{
+				v1.ResourceMemory: memory,
+				v1.ResourceCPU:    cpu,
+			},
+		},
+		VolumeMounts: []v1.VolumeMount{
+			cassandraDataVolumeMount(),
 		},
 		Command: []string{
 			"bash",
@@ -705,12 +751,12 @@ func authVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
 						Path: "cqlshrc",
 					},
 					{
-						Key:  "admin_username",
-						Path: "admin_username",
+						Key:  dbv1alpha1.CassandraOperatorAdminRole,
+						Path: dbv1alpha1.CassandraOperatorAdminRole,
 					},
 					{
-						Key:  "admin_password",
-						Path: "admin_password",
+						Key:  dbv1alpha1.CassandraOperatorAdminPassword,
+						Path: dbv1alpha1.CassandraOperatorAdminPassword,
 					},
 				},
 

@@ -2,6 +2,8 @@ package integration
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
@@ -12,7 +14,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
-	"time"
 )
 
 var _ = Describe("operator configmaps", func() {
@@ -48,11 +49,13 @@ var _ = Describe("cassandra statefulset deployment", func() {
 				},
 			},
 			ImagePullSecretName: "pullSecretName",
+			AdminRoleSecretName: "admin-role",
 		},
 	}
 
 	Context("when cassandracluster created with only required values", func() {
 		It("should be created with defaulted values", func() {
+			createAdminSecret(cc)
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
 			markMocksAsReady(cc)
 
@@ -111,6 +114,7 @@ var _ = Describe("cassandra statefulset", func() {
 				},
 			},
 			ImagePullSecretName: "pullSecretName",
+			AdminRoleSecretName: "admin-role",
 			Cassandra: &v1alpha1.Cassandra{
 				Persistence: v1alpha1.Persistence{
 					Enabled:         true,
@@ -138,6 +142,7 @@ var _ = Describe("cassandra statefulset", func() {
 
 	Context("with persistence enabled", func() {
 		It("should be created with volume claim template and without data volume", func() {
+			createAdminSecret(cc)
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
 			markMocksAsReady(cc)
 
@@ -160,12 +165,20 @@ var _ = Describe("cassandra statefulset", func() {
 				Expect(sts.Spec.VolumeClaimTemplates).ToNot(BeEmpty())
 				Expect(sts.Spec.VolumeClaimTemplates).To(HaveLen(2))
 				Expect(sts.Spec.VolumeClaimTemplates[0].Name).To(Equal("data"))
-				Expect(sts.Spec.VolumeClaimTemplates[0].Labels).To(Equal(map[string]string{"region": "us-south"}))
+				Expect(sts.Spec.VolumeClaimTemplates[0].Labels).To(Equal(map[string]string{
+					v1alpha1.CassandraClusterInstance:  cc.Name,
+					v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
+					"region":                           "us-south",
+				}))
 				Expect(sts.Spec.VolumeClaimTemplates[0].Annotations).To(Equal(map[string]string{"storage-type": "Performance"}))
 				Expect(sts.Spec.VolumeClaimTemplates[0].Spec.AccessModes).To(Equal([]v1.PersistentVolumeAccessMode{v1.ReadWriteOnce}))
 				Expect(sts.Spec.VolumeClaimTemplates[0].Spec.Resources.Requests[v1.ResourceStorage]).To(Equal(resource.MustParse("20Gi")))
 				Expect(sts.Spec.VolumeClaimTemplates[1].Name).To(Equal("commitlog"))
-				Expect(sts.Spec.VolumeClaimTemplates[1].Labels).To(Equal(map[string]string{"region": "us-south"}))
+				Expect(sts.Spec.VolumeClaimTemplates[1].Labels).To(Equal(map[string]string{
+					v1alpha1.CassandraClusterInstance:  cc.Name,
+					v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
+					"region":                           "us-south",
+				}))
 				Expect(sts.Spec.VolumeClaimTemplates[1].Annotations).To(Equal(map[string]string{"storage-type": "Performance"}))
 				Expect(sts.Spec.VolumeClaimTemplates[1].Spec.AccessModes).To(Equal([]v1.PersistentVolumeAccessMode{v1.ReadWriteOnce}))
 				Expect(sts.Spec.VolumeClaimTemplates[1].Spec.Resources.Requests[v1.ResourceStorage]).To(Equal(resource.MustParse("20Gi")))
@@ -189,6 +202,7 @@ var _ = Describe("cassandra statefulset", func() {
 				},
 			},
 			ImagePullSecretName: "pullSecretName",
+			AdminRoleSecretName: "admin-role",
 			Cassandra: &v1alpha1.Cassandra{
 				Persistence: v1alpha1.Persistence{
 					Enabled:         true,
@@ -216,6 +230,7 @@ var _ = Describe("cassandra statefulset", func() {
 
 	Context("with persistence enabled but commitlog disabled", func() {
 		It("should be created with volume claim template with only data volume", func() {
+			createAdminSecret(cc)
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
 
 			mockProberClient.err = nil
@@ -250,7 +265,11 @@ var _ = Describe("cassandra statefulset", func() {
 				Expect(found).To(BeFalse())
 				Expect(sts.Spec.VolumeClaimTemplates).To(HaveLen(1))
 				Expect(sts.Spec.VolumeClaimTemplates[0].Name).To(Equal("data"))
-				Expect(sts.Spec.VolumeClaimTemplates[0].Labels).To(Equal(map[string]string{"region": "us-south"}))
+				Expect(sts.Spec.VolumeClaimTemplates[0].Labels).To(Equal(map[string]string{
+					v1alpha1.CassandraClusterInstance:  cc.Name,
+					v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
+					"region":                           "us-south",
+				}))
 				Expect(sts.Spec.VolumeClaimTemplates[0].Annotations).To(Equal(map[string]string{"storage-type": "Performance"}))
 				Expect(sts.Spec.VolumeClaimTemplates[0].Spec.AccessModes).To(Equal([]v1.PersistentVolumeAccessMode{v1.ReadWriteOnce}))
 				Expect(sts.Spec.VolumeClaimTemplates[0].Spec.Resources.Requests[v1.ResourceStorage]).To(Equal(resource.MustParse("20Gi")))

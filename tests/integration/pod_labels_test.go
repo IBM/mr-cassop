@@ -1,7 +1,6 @@
 package integration
 
 import (
-	"fmt"
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/labels"
@@ -27,6 +26,7 @@ var _ = Describe("cassandra cluster seed pods", func() {
 					Replicas: proto.Int32(6),
 				},
 			},
+			AdminRoleSecretName: "admin-role",
 			ImagePullSecretName: "pullSecretName",
 		},
 	}
@@ -86,8 +86,6 @@ func expectSeedPodsLabelsBeSet(cc *v1alpha1.CassandraCluster, seedPods []string)
 		Expect(k8sClient.List(ctx, cassandraPods, client.InNamespace(cc.Namespace), matchPodLabels)).To(Succeed())
 
 		for _, pod := range cassandraPods.Items {
-			fmt.Println(pod.Name)
-			fmt.Println(pod.Labels)
 			if util.Contains(seedPods, pod.Name) {
 				_, labelExists := pod.Labels[v1alpha1.CassandraClusterSeed]
 				if !labelExists {

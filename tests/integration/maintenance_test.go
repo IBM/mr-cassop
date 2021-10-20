@@ -23,6 +23,7 @@ var _ = Describe("maintenance mode request", func() {
 							Replicas: proto.Int32(3),
 						},
 					},
+					AdminRoleSecretName: "admin-role",
 					ImagePullSecretName: "pull-secret-name",
 				},
 			}
@@ -44,6 +45,7 @@ var _ = Describe("maintenance mode request", func() {
 							Replicas: proto.Int32(3),
 						},
 					},
+					AdminRoleSecretName: "admin-role",
 					ImagePullSecretName: "pull-secret-name",
 				},
 			}
@@ -86,6 +88,7 @@ var _ = Describe("maintenance mode request", func() {
 						},
 					},
 					ImagePullSecretName: "pull-secret-name",
+					AdminRoleSecretName: "admin-role",
 				},
 			}
 			createReadyCluster(cc)
@@ -131,6 +134,7 @@ var _ = Describe("maintenance mode request", func() {
 							Replicas: proto.Int32(3),
 						},
 					},
+					AdminRoleSecretName: "admin-role",
 					ImagePullSecretName: "pull-secret-name",
 				},
 			}
@@ -191,6 +195,7 @@ var _ = Describe("maintenance mode request", func() {
 							Replicas: proto.Int32(3),
 						},
 					},
+					AdminRoleSecretName: "admin-role",
 					ImagePullSecretName: "pull-secret-name",
 				},
 			}
@@ -233,6 +238,7 @@ var _ = Describe("maintenance mode request", func() {
 							Replicas: proto.Int32(3),
 						},
 					},
+					AdminRoleSecretName: "admin-role",
 					ImagePullSecretName: "pull-secret-name",
 				},
 			}

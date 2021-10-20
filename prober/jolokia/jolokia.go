@@ -49,10 +49,10 @@ func (j *client) Post(body []byte) ([]byte, error) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		err = errors.New(resp.Status)
+		return nil, errors.New(resp.Status + ": " + string(responseBody))
 	}
 
-	return responseBody, err
+	return responseBody, nil
 }
 
 func ProxyRequests(request jmxRequest, user, password, port string, ips ...string) []byte {

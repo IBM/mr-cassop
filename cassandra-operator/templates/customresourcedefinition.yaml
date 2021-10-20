@@ -34,6 +34,9 @@ spec:
           spec:
             description: CassandraClusterSpec defines the desired state of CassandraCluster
             properties:
+              adminRoleSecretName:
+                minLength: 1
+                type: string
               cassandra:
                 properties:
                   image:
@@ -880,6 +883,7 @@ spec:
                     type: array
                 type: object
             required:
+            - adminRoleSecretName
             - dcs
             - imagePullSecretName
             type: object

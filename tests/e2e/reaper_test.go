@@ -131,8 +131,8 @@ var _ = Describe("Cassandra cluster", func() {
 			cluster.Consistency = gocql.LocalQuorum
 			cluster.ProtoVersion = 4
 			cluster.Authenticator = gocql.PasswordAuthenticator{
-				Username: dbv1alpha1.CassandraOperatorAdminRole,
-				Password: string(activeAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole]),
+				Username: string(activeAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole]),
+				Password: string(activeAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword]),
 			}
 
 			session, err := cluster.CreateSession()
@@ -179,7 +179,7 @@ var _ = Describe("Cassandra cluster", func() {
 			respBody, _, err = doHTTPRequest("GET", "http://localhost:9999/cluster/"+cassandraRelease)
 			Expect(err).ToNot(HaveOccurred())
 			err = json.Unmarshal(respBody, &responseData)
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to parse body %s", string(respBody)))
 			Expect(responseData["name"]).To(Equal(cassandraRelease))
 
 			By("Creating reaper job...")

@@ -29,6 +29,7 @@ var _ = Describe("Cassandra Server TLS encryption", func() {
 					Replicas: proto.Int32(3),
 				},
 			},
+			AdminRoleSecretName: "admin-role",
 			ImagePullSecretName: "pull-secret-name",
 		},
 	}

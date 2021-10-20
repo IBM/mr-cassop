@@ -3,6 +3,8 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/labels"
@@ -13,7 +15,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/yaml"
-	"strings"
 )
 
 func (r *CassandraClusterReconciler) reconcileCassandraConfigMap(ctx context.Context, cc *v1alpha1.CassandraCluster) error {
@@ -45,7 +46,7 @@ func (r *CassandraClusterReconciler) reconcileCassandraConfigMap(ctx context.Con
 	// Server encryption settings
 	encryptionOptions := make(map[string]interface{})
 
-	if cc.Spec.Encryption.Server.InternodeEncryption != InternodeEncryptionNone {
+	if cc.Spec.Encryption.Server.InternodeEncryption != internodeEncryptionNone {
 
 		tlsSecret, err := r.getSecret(ctx, cc.Spec.Encryption.Server.TLSSecret.Name, cc.Namespace)
 		if err != nil {
@@ -83,7 +84,7 @@ func (r *CassandraClusterReconciler) reconcileCassandraConfigMap(ctx context.Con
 	return r.reconcileConfigMap(ctx, desiredCM)
 }
 
-func cassandraDCConfigVolume(cc *v1alpha1.CassandraCluster) v1.Volume {
+func cassandraConfigVolume(cc *v1alpha1.CassandraCluster) v1.Volume {
 	return v1.Volume{
 		Name: "config",
 		VolumeSource: v1.VolumeSource{

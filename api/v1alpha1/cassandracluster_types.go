@@ -33,9 +33,10 @@ const (
 	CassandraClusterComponentReaper    = "reaper"
 	CassandraClusterComponentCassandra = "cassandra"
 
-	CassandraDefaultRole       = "cassandra"
-	CassandraDefaultPassword   = "cassandra"
-	CassandraOperatorAdminRole = "cassandraOperatorAdmin"
+	CassandraDefaultRole           = "cassandra"
+	CassandraDefaultPassword       = "cassandra"
+	CassandraOperatorAdminRole     = "admin-role"
+	CassandraOperatorAdminPassword = "admin-password"
 
 	ProberContainerPort  = 8888
 	ProberServicePort    = 80
@@ -60,15 +61,17 @@ type CassandraClusterSpec struct {
 	// +kubebuilder:validation:Enum=OrderedReady;Parallel
 	PodManagementPolicy appsv1.PodManagementPolicyType `json:"podManagementPolicy,omitempty"`
 	Cassandra           *Cassandra                     `json:"cassandra,omitempty"`
-	Roles               Roles                          `json:"roles,omitempty"`
-	Maintenance         []Maintenance                  `json:"maintenance,omitempty" diff:"maintenance"`
-	SystemKeyspaces     SystemKeyspaces                `json:"systemKeyspaces,omitempty"`
-	Prober              Prober                         `json:"prober,omitempty"`
-	Reaper              *Reaper                        `json:"reaper,omitempty"`
-	HostPort            HostPort                       `json:"hostPort,omitempty"`
-	JVM                 JVM                            `json:"jvm,omitempty"`
-	JMX                 JMX                            `json:"jmx,omitempty"`
-	Encryption          Encryption                     `json:"encryption,omitempty"`
+	// +kubebuilder:validation:MinLength:=1
+	AdminRoleSecretName string          `json:"adminRoleSecretName"`
+	Roles               Roles           `json:"roles,omitempty"`
+	Maintenance         []Maintenance   `json:"maintenance,omitempty" diff:"maintenance"`
+	SystemKeyspaces     SystemKeyspaces `json:"systemKeyspaces,omitempty"`
+	Prober              Prober          `json:"prober,omitempty"`
+	Reaper              *Reaper         `json:"reaper,omitempty"`
+	HostPort            HostPort        `json:"hostPort,omitempty"`
+	JVM                 JVM             `json:"jvm,omitempty"`
+	JMX                 JMX             `json:"jmx,omitempty"`
+	Encryption          Encryption      `json:"encryption,omitempty"`
 	//Monitoring           Monitoring      `json:"monitoring,omitempty"` //TODO part of monitoring implementation
 }
 

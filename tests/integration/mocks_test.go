@@ -234,7 +234,7 @@ func markMocksAsReady(cc *dbv1alpha1.CassandraCluster) {
 	mockReaperClient.isRunning = true
 	mockReaperClient.clusterExists = true
 	mockCQLClient.err = nil
-	mockCQLClient.cassandraRoles = []cql.Role{{Role: "cassandra", Super: true}}
+	mockCQLClient.cassandraRoles = []cql.Role{{Role: "cassandra", Password: "cassandra", Login: true, Super: true}}
 	mockCQLClient.keyspaces = []cql.Keyspace{{
 		Name: "system_auth",
 		Replication: map[string]string{

@@ -25,6 +25,7 @@ var _ = Describe("user roles", func() {
 					Replicas: proto.Int32(3),
 				},
 			},
+			AdminRoleSecretName: "admin-role",
 			ImagePullSecretName: "imagePullSecret",
 			Roles: v1alpha1.Roles{
 				SecretName: rolesSecretName,

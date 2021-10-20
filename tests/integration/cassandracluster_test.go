@@ -3,6 +3,9 @@ package integration
 import (
 	"context"
 	"fmt"
+
+	"k8s.io/apimachinery/pkg/api/errors"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
@@ -30,17 +33,19 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 				},
 			},
 			ImagePullSecretName: "pull-secret-name",
+			AdminRoleSecretName: "admin-role",
 		},
 	}
 
 	Context("when cassandracluster created", func() {
 		It("should be created", func() {
+			createAdminSecret(cc)
 			Expect(k8sClient.Create(ctx, cc)).To(Succeed())
 			sts := &appsv1.StatefulSet{}
 			mockProberClient.err = nil
 			mockNodetoolClient.err = nil
 			mockCQLClient.err = nil
-			mockCQLClient.cassandraRoles = []cql.Role{{Role: "cassandra", Super: true}}
+			mockCQLClient.cassandraRoles = []cql.Role{{Role: "cassandra", Password: "cassandra", Login: true, Super: true}}
 			mockCQLClient.keyspaces = []cql.Keyspace{{
 				Name: "system_auth",
 				Replication: map[string]string{
@@ -90,6 +95,7 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 						"-Dcom.sun.management.jmxremote.rmi.port=7199 " +
 						"-Djava.rmi.server.hostname=$CASSANDRA_BROADCAST_ADDRESS " +
 						"-Dcom.sun.management.jmxremote.authenticate=true " +
+						"-Dcassandra.storagedir=/var/lib/cassandra " +
 						"-Dcassandra.jmx.remote.login.config=CassandraLogin " +
 						"-Djava.security.auth.login.config=$CASSANDRA_HOME/conf/cassandra-jaas.config " +
 						"-Dcassandra.jmx.authorizer=org.apache.cassandra.auth.jmx.AuthorizationProxy"),
@@ -102,16 +108,22 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 			}, shortTimeout, shortRetry).ShouldNot(Succeed())
 
 			By("reaper should be deployed after DCs ready")
-			activeAdminSecret := &v1.Secret{}
-			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.ActiveAdminSecret(cc.Name), Namespace: cc.Namespace}, activeAdminSecret)).To(Succeed())
-
-			adminSecretChecksum := util.Sha1(fmt.Sprintf("%v", activeAdminSecret.Data))
-
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cc.Name, Namespace: cc.Namespace}, cc)).To(Succeed())
 			markAllDCsReady(cc)
 			createCassandraPods(cc)
 			mockReaperClient.isRunning = false
 			mockReaperClient.err = nil
+
+			activeAdminSecret := &v1.Secret{}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: names.ActiveAdminSecret(cc.Name), Namespace: cc.Namespace}, activeAdminSecret)
+				if err != nil && errors.IsNotFound(err) { // try again if the secret was deleted and haven't got created yet
+					return false
+				}
+				Expect(err).ToNot(HaveOccurred())
+				return string(activeAdminSecret.Data[v1alpha1.CassandraOperatorAdminRole]) != v1alpha1.CassandraDefaultRole
+			}, mediumTimeout, mediumRetry).Should(BeTrue(), "the active admin secret should be updated with the non default user")
+			adminSecretChecksum := util.Sha1(fmt.Sprintf("%v", activeAdminSecret.Data))
 
 			for index, dc := range cc.Spec.DCs {
 				// Check if first reaper deployment has been created
@@ -171,7 +183,7 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 					},
 					{
 						Name:  "REAPER_CASS_KEYSPACE",
-						Value: "reaper_db",
+						Value: "reaper",
 					},
 					{
 						Name:  "REAPER_CASS_PORT",
@@ -196,7 +208,7 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 								LocalObjectReference: v1.LocalObjectReference{
 									Name: "test-cassandra-cluster-auth-config-admin",
 								},
-								Key: "admin_username",
+								Key: "admin-role",
 							},
 						},
 					},
@@ -207,7 +219,7 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 								LocalObjectReference: v1.LocalObjectReference{
 									Name: "test-cassandra-cluster-auth-config-admin",
 								},
-								Key: "admin_password",
+								Key: "admin-password",
 							},
 						},
 					},
@@ -218,7 +230,7 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 								LocalObjectReference: v1.LocalObjectReference{
 									Name: "test-cassandra-cluster-auth-config-admin",
 								},
-								Key: "admin_username",
+								Key: "admin-role",
 							},
 						},
 					},
@@ -230,7 +242,7 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 								LocalObjectReference: v1.LocalObjectReference{
 									Name: "test-cassandra-cluster-auth-config-admin",
 								},
-								Key: "admin_password",
+								Key: "admin-password",
 							},
 						},
 					},

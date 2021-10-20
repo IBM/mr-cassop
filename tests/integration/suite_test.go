@@ -27,6 +27,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/go-logr/zapr"
 	"github.com/gocql/gocql"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
@@ -43,7 +45,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -156,7 +158,21 @@ var _ = BeforeSuite(func() {
 			return mockProberClient
 		},
 		CqlClient: func(clusterConfig *gocql.ClusterConfig) (cql.CqlClient, error) {
-			return mockCQLClient, nil
+			authenticator := clusterConfig.Authenticator.(*gocql.PasswordAuthenticator)
+			roles := mockCQLClient.cassandraRoles
+			for _, role := range roles {
+				if role.Role == authenticator.Username {
+					if role.Password != authenticator.Password {
+						return nil, errors.New("password is incorrect")
+					}
+					if !role.Login {
+						return nil, errors.New("user in not allowed to log in")
+					}
+					return mockCQLClient, nil
+				}
+			}
+
+			return nil, errors.New("user not found")
 		},
 		ReaperClient: func(url *url.URL, clusterName string) reaper.ReaperClient {
 			return mockReaperClient
@@ -255,7 +271,7 @@ func CleanUpCreatedResources(ccName, ccNamespace string) {
 	cc := &v1alpha1.CassandraCluster{}
 
 	err := k8sClient.Get(ctx, types.NamespacedName{Name: ccName, Namespace: ccNamespace}, cc)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil && kerrors.IsNotFound(err) {
 		return
 	}
 	Expect(err).ToNot(HaveOccurred())
@@ -288,6 +304,11 @@ func CleanUpCreatedResources(ccName, ccNamespace string) {
 		{name: names.ActiveAdminSecret(cc.Name), objType: &v1.Secret{}},
 		{name: names.AdminAuthConfigSecret(cc.Name), objType: &v1.Secret{}},
 		{name: names.PodsConfigConfigmap(cc.Name), objType: &v1.ConfigMap{}},
+		{name: cc.Spec.AdminRoleSecretName, objType: &v1.Secret{}},
+	}
+
+	if cc.Spec.Roles.SecretName != "" {
+		resourcesToDelete = append(resourcesToDelete, resourceToDelete{name: cc.Spec.Roles.SecretName, objType: &v1.Secret{}})
 	}
 
 	// add DC specific resources
@@ -329,7 +350,7 @@ func expectResourceIsDeleted(name types.NamespacedName, obj client.Object) {
 	Eventually(func() metav1.StatusReason {
 		err := k8sClient.Get(context.Background(), name, obj)
 		if err != nil {
-			if statusErr, ok := err.(*errors.StatusError); ok {
+			if statusErr, ok := err.(*kerrors.StatusError); ok {
 				return statusErr.ErrStatus.Reason
 			}
 			return metav1.StatusReason(err.Error())
@@ -342,7 +363,7 @@ func expectResourceIsDeleted(name types.NamespacedName, obj client.Object) {
 func deleteResource(name types.NamespacedName, obj client.Object) error {
 	err := k8sClient.Get(context.Background(), name, obj)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			return nil
 		}
 		return err
@@ -457,6 +478,7 @@ func waitForResourceToBeCreated(name types.NamespacedName, obj client.Object) {
 }
 
 func createReadyCluster(cc *v1alpha1.CassandraCluster) {
+	createAdminSecret(cc)
 	Expect(k8sClient.Create(ctx, cc)).To(Succeed())
 	markMocksAsReady(cc)
 	waitForDCsToBeCreated(cc)
@@ -467,4 +489,18 @@ func createReadyCluster(cc *v1alpha1.CassandraCluster) {
 		waitForResourceToBeCreated(reaperDeploymentName, &apps.Deployment{})
 		markDeploymentAsReady(reaperDeploymentName)
 	}
+}
+
+func createAdminSecret(cc *v1alpha1.CassandraCluster) {
+	adminSecret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cc.Spec.AdminRoleSecretName,
+			Namespace: cc.Namespace,
+		},
+		Data: map[string][]byte{
+			v1alpha1.CassandraOperatorAdminRole:     []byte("admin-role"),
+			v1alpha1.CassandraOperatorAdminPassword: []byte("admin-password"),
+		},
+	}
+	Expect(k8sClient.Create(context.Background(), adminSecret)).To(Succeed())
 }

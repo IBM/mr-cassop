@@ -57,9 +57,17 @@ NAME                              READY   STATUS              RESTARTS   AGE
 cassandra-operator-56997bfc5c-gz788   1/1     Running             0          40s
 ```
 
+## Create an admin role secret
+
+The operator needs a secret containing the admin role credentials used for Cassandra management.
+
+```bash
+kubectl create secret generic admin-role --from-literal=admin-role=cassandra-operator --from-literal=admin-password=pass
+```
+
 ## Deploy CassandraCluster
 
-Use the image pull secret created before (or create a new one) to deploy the cluster:
+Use the image pull secret and admin role secret created before to deploy the cluster:
 
 ```yaml
 apiVersion: db.ibm.com/v1alpha1
@@ -71,6 +79,7 @@ spec:
   - name: dc1
     replicas: 3
   imagePullSecretName: container-reg-secret
+  adminRoleSecretName: admin-role
 ```
 
 **Note: you must define at least one DC.**

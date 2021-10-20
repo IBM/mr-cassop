@@ -23,12 +23,15 @@ func (r *CassandraClusterReconciler) reconcileReaperKeyspace(cc *v1alpha1.Cassan
 		if err != nil {
 			return errors.Wrap(err, "failed to create reaper keyspace")
 		}
+
+		return nil
 	}
 
 	if cmp.Equal(reaperKeyspace.Replication, replicationOptions) {
 		return nil
 	}
 	r.Log.Infof("Updating %s keyspace", cc.Spec.Reaper.Keyspace)
+	r.Log.Debug(cmp.Diff(reaperKeyspace.Replication, replicationOptions))
 
 	err = cqlClient.Query(fmt.Sprintf("ALTER KEYSPACE %s %s ;", cc.Spec.Reaper.Keyspace, cql.ReplicationQuery(replicationOptions)))
 	if err != nil {

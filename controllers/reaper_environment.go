@@ -50,7 +50,7 @@ func reaperEnvironment(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC, adminSecre
 		ValueFrom: &v1.EnvVarSource{
 			SecretKeyRef: &v1.SecretKeySelector{
 				LocalObjectReference: v1.LocalObjectReference{Name: names.AdminAuthConfigSecret(cc.Name)},
-				Key:                  "admin_username",
+				Key:                  v1alpha1.CassandraOperatorAdminRole,
 			},
 		},
 	})
@@ -60,7 +60,7 @@ func reaperEnvironment(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC, adminSecre
 		ValueFrom: &v1.EnvVarSource{
 			SecretKeyRef: &v1.SecretKeySelector{
 				LocalObjectReference: v1.LocalObjectReference{Name: names.AdminAuthConfigSecret(cc.Name)},
-				Key:                  "admin_password",
+				Key:                  v1alpha1.CassandraOperatorAdminPassword,
 			},
 		},
 	})
@@ -70,7 +70,7 @@ func reaperEnvironment(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC, adminSecre
 		ValueFrom: &v1.EnvVarSource{
 			SecretKeyRef: &v1.SecretKeySelector{
 				LocalObjectReference: v1.LocalObjectReference{Name: names.AdminAuthConfigSecret(cc.Name)},
-				Key:                  "admin_username",
+				Key:                  v1alpha1.CassandraOperatorAdminRole,
 			},
 		},
 	})
@@ -80,7 +80,7 @@ func reaperEnvironment(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC, adminSecre
 		ValueFrom: &v1.EnvVarSource{
 			SecretKeyRef: &v1.SecretKeySelector{
 				LocalObjectReference: v1.LocalObjectReference{Name: names.AdminAuthConfigSecret(cc.Name)},
-				Key:                  "admin_password",
+				Key:                  v1alpha1.CassandraOperatorAdminPassword,
 			},
 		},
 	})

@@ -46,7 +46,7 @@ func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.Cass
 		cc.Spec.JMX.Authentication = jmxAuthenticationInternal
 	}
 
-	if cc.Spec.Encryption.Server.InternodeEncryption != InternodeEncryptionNone {
+	if cc.Spec.Encryption.Server.InternodeEncryption != internodeEncryptionNone {
 		r.defaultServerTLS(cc)
 	}
 }
@@ -57,7 +57,7 @@ func (r *CassandraClusterReconciler) defaultReaper(cc *dbv1alpha1.CassandraClust
 	}
 
 	if cc.Spec.Reaper.Keyspace == "" {
-		cc.Spec.Reaper.Keyspace = "reaper_db"
+		cc.Spec.Reaper.Keyspace = "reaper"
 	}
 
 	if cc.Spec.Reaper.Image == "" {
@@ -182,7 +182,7 @@ func (r *CassandraClusterReconciler) defaultCassandra(cc *dbv1alpha1.CassandraCl
 
 func (r *CassandraClusterReconciler) defaultServerTLS(cc *dbv1alpha1.CassandraCluster) {
 	if cc.Spec.Encryption.Server.InternodeEncryption == "" {
-		cc.Spec.Encryption.Server.InternodeEncryption = InternodeEncryptionNone
+		cc.Spec.Encryption.Server.InternodeEncryption = internodeEncryptionNone
 	}
 
 	if cc.Spec.Encryption.Server.TLSSecret.KeystoreFileKey == "" {

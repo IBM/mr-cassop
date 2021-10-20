@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 	"math"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"strings"
 	"time"
+
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/gogo/protobuf/proto"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
@@ -37,16 +38,15 @@ func (r *CassandraClusterReconciler) reconcileReaperPrerequisites(ctx context.Co
 	}
 
 	if err := r.reconcileReaperKeyspace(cc, cqlClient); err != nil {
-		return errors.Wrap(err, "Error reconciling reaper cql configmap")
+		return errors.Wrap(err, "Error reconciling reaper keyspace")
 	}
 
 	return nil
 }
 
-func (r *CassandraClusterReconciler) reconcileReaper(ctx context.Context, cc *dbv1alpha1.CassandraCluster, adminSecret *v1.Secret) (ctrl.Result, error) {
-	adminSecretChecksum := util.Sha1(fmt.Sprintf("%v", adminSecret.Data))
+func (r *CassandraClusterReconciler) reconcileReaper(ctx context.Context, cc *dbv1alpha1.CassandraCluster) (ctrl.Result, error) {
 	for index, dc := range cc.Spec.DCs {
-		if err := r.reconcileReaperDeployment(ctx, cc, dc, adminSecretChecksum); err != nil {
+		if err := r.reconcileReaperDeployment(ctx, cc, dc); err != nil {
 			return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile reaper deployment")
 		}
 
@@ -71,7 +71,14 @@ func (r *CassandraClusterReconciler) reconcileReaper(ctx context.Context, cc *db
 	return ctrl.Result{}, nil
 }
 
-func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Context, cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, adminSecretChecksum string) error {
+func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Context, cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) error {
+	adminRoleSecret := &v1.Secret{}
+	err := r.Get(ctx, types.NamespacedName{Namespace: cc.Namespace, Name: names.ActiveAdminSecret(cc.Name)}, adminRoleSecret)
+	if err != nil {
+		return errors.Wrap(err, "can't get admin role secret")
+	}
+	adminSecretChecksum := util.Sha1(fmt.Sprintf("%v", adminRoleSecret.Data))
+
 	reaperLabels := labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterComponentReaper)
 	reaperLabels = labels.WithDCLabel(reaperLabels, dc.Name)
 	percent25 := intstr.FromInt(25)
@@ -118,13 +125,13 @@ func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Conte
 
 	r.Log.Debug("Reconciling Reaper Deployment")
 
-	desiredDeployment.Spec.Template.Spec.Volumes = append(desiredDeployment.Spec.Template.Spec.Volumes, createAuthVolumes(cc, dc)...)
-	if err := controllerutil.SetControllerReference(cc, desiredDeployment, r.Scheme); err != nil {
+	desiredDeployment.Spec.Template.Spec.Volumes = append(desiredDeployment.Spec.Template.Spec.Volumes, scriptsVolume(cc), cassandraConfigVolume(cc))
+	if err = controllerutil.SetControllerReference(cc, desiredDeployment, r.Scheme); err != nil {
 		return errors.Wrap(err, "Cannot set controller reference")
 	}
 
 	actualDeployment := &appsv1.Deployment{}
-	err := r.Get(ctx, types.NamespacedName{Name: names.ReaperDeployment(cc.Name, dc.Name), Namespace: cc.Namespace}, actualDeployment)
+	err = r.Get(ctx, types.NamespacedName{Name: names.ReaperDeployment(cc.Name, dc.Name), Namespace: cc.Namespace}, actualDeployment)
 	if err != nil && apierrors.IsNotFound(err) {
 		r.Log.Info("Creating reaper deployment")
 		err = r.Create(ctx, desiredDeployment)
@@ -317,6 +324,12 @@ func (r CassandraClusterReconciler) reaperInitialization(ctx context.Context, cc
 		err := reaperClient.RunRepair(ctx, cc.Spec.Reaper.Keyspace, repairCauseReaperInit)
 		if err != nil {
 			return errors.Wrapf(err, "failed to run repair on %s keyspace", cc.Spec.Reaper.Keyspace)
+		}
+
+		// we had to modify system_auth keyspace before we had reaper in order to bootstrap the cluster. So run the missing repair now.
+		err = reaperClient.RunRepair(ctx, "system_auth", repairCauseReaperInit)
+		if err != nil {
+			return errors.Wrap(err, "failed to run repair on system_auth keyspace")
 		}
 	}
 	return nil

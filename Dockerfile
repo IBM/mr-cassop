@@ -20,7 +20,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on \
     -o bin/cassandra-operator main.go
 
 ARG DOCKER_PROXY_REGISTRY=""
-FROM ${DOCKER_PROXY_REGISTRY}debian:buster-slim
+FROM ${DOCKER_PROXY_REGISTRY}debian:bullseye-slim
 
 WORKDIR /
 

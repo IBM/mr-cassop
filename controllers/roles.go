@@ -3,16 +3,16 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"github.com/ibm/cassandra-operator/controllers/util"
-
-	"sigs.k8s.io/yaml"
 
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
+	"github.com/ibm/cassandra-operator/controllers/util"
+
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/yaml"
 )
 
 type Role struct {

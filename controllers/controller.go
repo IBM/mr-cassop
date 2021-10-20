@@ -15,9 +15,10 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"github.com/ibm/cassandra-operator/controllers/util"
 	"net/url"
 	"time"
+
+	"github.com/ibm/cassandra-operator/controllers/util"
 
 	"github.com/ibm/cassandra-operator/controllers/eventhandler"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -60,12 +61,10 @@ const (
 	repairCauseCQLConfigMap  = "cql-configmap"
 	repairCauseReaperInit    = "reaper-init"
 
-	InternodeEncryptionNone     = "none"
+	internodeEncryptionNone     = "none"
 	jmxAuthenticationInternal   = "internal"
 	jmxAuthenticationLocalFiles = "local_files"
 )
-
-type InternodeEncryption string
 
 // CassandraClusterReconciler reconciles a CassandraCluster object
 type CassandraClusterReconciler struct {
@@ -92,6 +91,7 @@ type CassandraClusterReconciler struct {
 // +kubebuilder:rbac:groups="",resources=services;serviceaccounts,verbs=list;watch;create;update;delete
 // +kubebuilder:rbac:groups="",resources=endpoints,verbs=list;watch
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch
 // +kubebuilder:rbac:groups="batch",resources=jobs,verbs=get;list;watch;create;update;delete;patch
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings;roles;rolebindings,verbs=list;watch;get;create;update;delete
 
@@ -123,7 +123,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 
 	r.defaultCassandraCluster(cc)
 
-	activeAdminSecret, err := r.reconcileAdminAuth(ctx, cc)
+	err = r.reconcileAdminAuth(ctx, cc)
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling Admin Auth Secrets")
 	}
@@ -164,7 +164,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	// although the pods don't exist yet on the first run, we still need to create the configmap (even empty)
 	// so that the pods won't fail trying to mount an empty configmap
 	if err := r.reconcileCassandraPodsConfigMap(ctx, cc, proberClient); err != nil {
-		if errors.Cause(err) == ErrPodNotScheduled || err == errors.Cause(ErrRegionNotReady) {
+		if errors.Cause(err) == ErrPodNotScheduled || errors.Cause(err) == errors.Cause(ErrRegionNotReady) {
 			r.Log.Warnf("%s. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
 			return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 		}
@@ -193,16 +193,14 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 	}
 
-	cqlClient, err := r.reconcileAdminRole(ctx, cc, activeAdminSecret)
+	cqlClient, err := r.reconcileAdminRole(ctx, cc)
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile Admin Role")
 	}
 	defer cqlClient.CloseSession()
 
-	// Get the up-to-date version of the secret as it could have changed during admin role reconcile
-	err = r.Get(ctx, types.NamespacedName{Name: names.ActiveAdminSecret(cc.Name), Namespace: cc.Namespace}, activeAdminSecret)
-	if err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Can't get secret "+names.ActiveAdminSecret(cc.Name))
+	if err = r.reconcileSystemAuthKeyspace(cc, cqlClient); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	err = r.reconcileRoles(ctx, cc, cqlClient)
@@ -214,7 +212,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling reaper")
 	}
 
-	if res, err := r.reconcileReaper(ctx, cc, activeAdminSecret); needsRequeue(res, err) {
+	if res, err := r.reconcileReaper(ctx, cc); needsRequeue(res, err) {
 		return res, err
 	}
 
@@ -250,6 +248,10 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile CQL config maps")
 	}
 
+	if err := r.removeDefaultUserIfExists(ctx, cc, cqlClient); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -283,7 +285,7 @@ func (r *CassandraClusterReconciler) clusterReady(ctx context.Context, cc *v1alp
 	}
 
 	if cc.Spec.HostPort.Enabled && len(unreadyRegions) != 0 {
-		r.Log.Warnf("Not all regions are ready: %q.", unreadyDCs)
+		r.Log.Warnf("Not all regions are ready: %q.", unreadyRegions)
 		return false, nil
 	}
 
@@ -298,7 +300,7 @@ func (r *CassandraClusterReconciler) unreadyDCs(ctx context.Context, cc *v1alpha
 			return nil, errors.Wrap(err, "failed to get statefulset: "+sts.Name)
 		}
 
-		if *dc.Replicas != sts.Status.ReadyReplicas {
+		if *dc.Replicas != sts.Status.ReadyReplicas || (sts.Status.ReadyReplicas == 0 && *dc.Replicas != 0) {
 			unreadyDCs = append(unreadyDCs, dc.Name)
 		}
 	}
@@ -343,8 +345,9 @@ func newCassandraConfig(cc *v1alpha1.CassandraCluster, adminRole string, adminPw
 }
 
 func (r *CassandraClusterReconciler) doWithRetry(retryFunc func() error) error {
+	var err error
 	for currentAttempt := 1; currentAttempt <= retryAttempts; currentAttempt++ {
-		err := retryFunc()
+		err = retryFunc()
 		if err != nil {
 			delay := initialRetryDelaySeconds * time.Second * time.Duration(currentAttempt)
 			r.Log.Warnf("Attempt %d of %d failed. Error: %s. Trying again in %s.", currentAttempt, retryAttempts, err.Error(), delay.String())
@@ -352,6 +355,49 @@ func (r *CassandraClusterReconciler) doWithRetry(retryFunc func() error) error {
 			continue
 		}
 		break
+	}
+
+	return err
+}
+
+func (r *CassandraClusterReconciler) removeDefaultUserIfExists(ctx context.Context, cc *v1alpha1.CassandraCluster, cqlClient cql.CqlClient) error {
+	existingRoles, err := cqlClient.GetRoles()
+	if err != nil {
+		return err
+	}
+
+	defaultRoleExists := false
+	for _, existingRole := range existingRoles {
+		if existingRole.Role == v1alpha1.CassandraDefaultRole {
+			defaultRoleExists = true
+		}
+	}
+
+	if !defaultRoleExists {
+		return nil
+	}
+
+	defaultUserSession, err := r.CqlClient(newCassandraConfig(cc, v1alpha1.CassandraDefaultRole, v1alpha1.CassandraDefaultPassword))
+	if err != nil { // can't connect so the default user exists but with changed password which is fine
+		return nil
+	}
+	defaultUserSession.CloseSession()
+
+	adminSecret := &v1.Secret{}
+	err = r.Get(ctx, types.NamespacedName{Name: cc.Spec.AdminRoleSecretName, Namespace: cc.Namespace}, adminSecret)
+	if err != nil {
+		return errors.Wrap(err, "can't get admin secret")
+	}
+
+	if string(adminSecret.Data[v1alpha1.CassandraOperatorAdminRole]) == v1alpha1.CassandraDefaultRole &&
+		string(adminSecret.Data[v1alpha1.CassandraOperatorAdminPassword]) == v1alpha1.CassandraDefaultPassword {
+		return nil // user wants to use the default role, do not drop it
+	}
+
+	r.Log.Info("Dropping role " + v1alpha1.CassandraDefaultRole)
+	err = cqlClient.DropRole(cql.Role{Role: v1alpha1.CassandraDefaultRole})
+	if err != nil {
+		return errors.Wrap(err, "Can't drop role "+v1alpha1.CassandraDefaultRole)
 	}
 
 	return nil

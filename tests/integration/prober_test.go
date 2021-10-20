@@ -21,6 +21,7 @@ var _ = Describe("prober deployment", func() {
 					Replicas: proto.Int32(3),
 				},
 			},
+			AdminRoleSecretName: "admin-role",
 			ImagePullSecretName: "imagePullSecret",
 		},
 	}
@@ -49,6 +50,15 @@ var _ = Describe("prober deployment", func() {
 			proberContainer, found := getContainerByName(deployment.Spec.Template.Spec, "prober")
 			Expect(found).To(BeTrue())
 			Expect(proberContainer.Image).To(Equal(operatorConfig.DefaultProberImage), "default values")
+			Expect(proberContainer.Env).To(Equal([]v1.EnvVar{
+				{Name: "POD_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}},
+				{Name: "DEBUG", Value: "false"},
+				{Name: "JOLOKIA_PORT", Value: "8080"},
+				{Name: "SERVER_PORT", Value: "8888"},
+				{Name: "JMX_POLL_PERIOD_SECONDS", Value: "10"},
+				{Name: "JMX_PORT", Value: "7199"},
+				{Name: "ADMIN_SECRET_NAME", Value: "test-cassandra-cluster-auth-active-admin"},
+			}))
 			Expect(proberContainer.ImagePullPolicy).To(Equal(v1.PullIfNotPresent), "default values")
 			jolokiaContainer, found := getContainerByName(deployment.Spec.Template.Spec, "jolokia")
 			Expect(found).To(BeTrue())
