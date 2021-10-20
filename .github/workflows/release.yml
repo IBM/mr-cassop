@@ -31,10 +31,10 @@ jobs:
         with:
           images: |
             us.icr.io/${{ env.ICR_NAMESPACE }}/cassandra-operator
-#            uk.icr.io/${{ env.ICR_NAMESPACE }}/cassandra-operator
-#            de.icr.io/${{ env.ICR_NAMESPACE }}/cassandra-operator
-#            au.icr.io/${{ env.ICR_NAMESPACE }}/cassandra-operator
-#            jp.icr.io/${{ env.ICR_NAMESPACE }}/cassandra-operator
+            uk.icr.io/${{ env.ICR_NAMESPACE }}/cassandra-operator
+            de.icr.io/${{ env.ICR_NAMESPACE }}/cassandra-operator
+            au.icr.io/${{ env.ICR_NAMESPACE }}/cassandra-operator
+            jp.icr.io/${{ env.ICR_NAMESPACE }}/cassandra-operator
           tags: type=ref,event=tag
 
       - name: Setup Buildx
@@ -101,10 +101,10 @@ jobs:
       with:
         images: |
           us.icr.io/${{ env.ICR_NAMESPACE }}/cassandra
-#          uk.icr.io/${{ env.ICR_NAMESPACE }}/cassandra
-#          de.icr.io/${{ env.ICR_NAMESPACE }}/cassandra
-#          au.icr.io/${{ env.ICR_NAMESPACE }}/cassandra
-#          jp.icr.io/${{ env.ICR_NAMESPACE }}/cassandra
+          uk.icr.io/${{ env.ICR_NAMESPACE }}/cassandra
+          de.icr.io/${{ env.ICR_NAMESPACE }}/cassandra
+          au.icr.io/${{ env.ICR_NAMESPACE }}/cassandra
+          jp.icr.io/${{ env.ICR_NAMESPACE }}/cassandra
         tags: type=ref,prefix=${{ env.CASSANDRA_VERSION }}-,event=tag
 
     - name: Setup Buildx
@@ -172,10 +172,10 @@ jobs:
         with:
           images: |
             us.icr.io/${{ env.ICR_NAMESPACE }}/prober
-#            uk.icr.io/${{ env.ICR_NAMESPACE }}/prober
-#            de.icr.io/${{ env.ICR_NAMESPACE }}/prober
-#            au.icr.io/${{ env.ICR_NAMESPACE }}/prober
-#            jp.icr.io/${{ env.ICR_NAMESPACE }}/prober
+            uk.icr.io/${{ env.ICR_NAMESPACE }}/prober
+            de.icr.io/${{ env.ICR_NAMESPACE }}/prober
+            au.icr.io/${{ env.ICR_NAMESPACE }}/prober
+            jp.icr.io/${{ env.ICR_NAMESPACE }}/prober
           tags: type=ref,event=tag
 
       - name: Setup Buildx
@@ -242,10 +242,10 @@ jobs:
         with:
           images: |
             us.icr.io/${{ env.ICR_NAMESPACE }}/jolokia
-#            uk.icr.io/${{ env.ICR_NAMESPACE }}/jolokia
-#            de.icr.io/${{ env.ICR_NAMESPACE }}/jolokia
-#            au.icr.io/${{ env.ICR_NAMESPACE }}/jolokia
-#            jp.icr.io/${{ env.ICR_NAMESPACE }}/jolokia
+            uk.icr.io/${{ env.ICR_NAMESPACE }}/jolokia
+            de.icr.io/${{ env.ICR_NAMESPACE }}/jolokia
+            au.icr.io/${{ env.ICR_NAMESPACE }}/jolokia
+            jp.icr.io/${{ env.ICR_NAMESPACE }}/jolokia
           tags: type=ref,event=tag
 
       - name: Setup Buildx
