@@ -410,6 +410,10 @@ jobs:
         if: ${{ always() }}
         run: |
           helm uninstall cassandra-operator
+      - name: Remove CassandraCluster CRD
+        if: ${{ always() }}
+        run: |
+          kubectl delete -f cassandra-operator/crds/cassandracluster.yaml
       # We have below logic bc when multiple tags exist for the same image digest within a repository, the ibmcloud cr image-rm command removes the underlying image and all its tags. See details: https://cloud.ibm.com/docs/container-registry-cli-plugin?topic=container-registry-cli-plugin-containerregcli#bx_cr_image_rm
       # We can also add a check if commit message contains `no_image_del` then skip the image deletion step
       - name: Cleanup Images

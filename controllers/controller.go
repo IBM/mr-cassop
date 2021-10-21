@@ -199,10 +199,6 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	}
 	defer cqlClient.CloseSession()
 
-	if err = r.reconcileSystemAuthKeyspace(cc, cqlClient); err != nil {
-		return ctrl.Result{}, err
-	}
-
 	err = r.reconcileRoles(ctx, cc, cqlClient)
 	if err != nil {
 		return ctrl.Result{}, err

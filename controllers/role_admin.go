@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/pkg/errors"
@@ -28,6 +27,10 @@ func (r *CassandraClusterReconciler) reconcileAdminRole(ctx context.Context, cc 
 	r.Log.Debug("Establishing cql session with role " + cassandraOperatorAdminRole)
 	cqlClient, err := r.CqlClient(newCassandraConfig(cc, cassandraOperatorAdminRole, cassandraOperatorAdminPassword))
 	if err == nil { // operator admin role exists
+		if err = r.reconcileSystemAuthKeyspace(cc, cqlClient); err != nil {
+			return nil, err
+		}
+
 		err = r.reconcileAdminSecrets(ctx, cc, adminRoleSecret.Data) //make sure the secrets have the correct credentials
 		if err != nil {
 			return nil, err
@@ -36,11 +39,11 @@ func (r *CassandraClusterReconciler) reconcileAdminRole(ctx context.Context, cc 
 		return cqlClient, nil
 	}
 
-	cqlClient, err = r.CqlClient(newCassandraConfig(cc, dbv1alpha1.CassandraDefaultRole, dbv1alpha1.CassandraDefaultPassword))
+	defaultUserCQLClient, err := r.CqlClient(newCassandraConfig(cc, dbv1alpha1.CassandraDefaultRole, dbv1alpha1.CassandraDefaultPassword))
 	if err != nil {
 		return nil, errors.Wrap(err, "can't establish cql connection both with default and desired admin roles")
 	}
-	cqlClient.CloseSession()
+	defaultUserCQLClient.CloseSession()
 
 	r.Log.Info("The default admin role is in use. Going to create the secure role and delete the default...")
 	err = r.createAdminRoleInCassandra(cc, cassandraOperatorAdminRole, cassandraOperatorAdminPassword)
@@ -76,6 +79,10 @@ func (r *CassandraClusterReconciler) createAdminRoleInCassandra(cc *dbv1alpha1.C
 
 	r.Log.Info("Session established with role " + dbv1alpha1.CassandraDefaultRole + ". " +
 		"Assuming it's the first cluster deployment.")
+
+	if err = r.reconcileSystemAuthKeyspace(cc, cqlClient); err != nil {
+		return err
+	}
 
 	cassOperatorAdminRole := cql.Role{
 		Role:     roleName,
