@@ -9,7 +9,7 @@ module.exports = {
     {
       type: 'category',
       label: 'Reaper',
-      collapsed: false,
+      collapsed: true,
       items: [
         'reaper',
         'reaper-repairs-configuration',
@@ -18,7 +18,7 @@ module.exports = {
     {
       type: 'category',
       label: 'TLS Encryption',
-      collapsed: false,
+      collapsed: true,
       items: [
         'server-tls-encryption-configuration',
       ],
