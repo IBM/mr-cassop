@@ -93,6 +93,7 @@ type Reaper struct {
 	Resources                              v1.ResourceRequirements `json:"resources,omitempty"`
 	RepairSchedules                        RepairSchedules         `json:"repairSchedules,omitempty"`
 	AutoScheduling                         AutoScheduling          `json:"autoScheduling,omitempty"`
+	RepairRunThreads                       int32                   `json:"repairRunThreads,omitempty"`
 }
 
 type HostPort struct {

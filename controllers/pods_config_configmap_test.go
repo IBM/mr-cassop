@@ -117,16 +117,19 @@ func TestPodsConfigMapData(t *testing.T) {
 				"test-cluster-cassandra-dc1-0_uid1.sh": `export CASSANDRA_BROADCAST_ADDRESS=10.1.1.3
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.3
 export CASSANDRA_SEEDS=test-cluster-cassandra-dc1-0.test-cluster-cassandra-dc1.default.svc.cluster.local,test-cluster-cassandra-dc1-1.test-cluster-cassandra-dc1.default.svc.cluster.local
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
 				"test-cluster-cassandra-dc1-1_uid2.sh": `export CASSANDRA_BROADCAST_ADDRESS=10.1.1.4
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.4
 export CASSANDRA_SEEDS=test-cluster-cassandra-dc1-0.test-cluster-cassandra-dc1.default.svc.cluster.local,test-cluster-cassandra-dc1-1.test-cluster-cassandra-dc1.default.svc.cluster.local
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
 				"test-cluster-cassandra-dc1-2_uid3.sh": `export CASSANDRA_BROADCAST_ADDRESS=10.1.1.5
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.5
 export CASSANDRA_SEEDS=test-cluster-cassandra-dc1-0.test-cluster-cassandra-dc1.default.svc.cluster.local,test-cluster-cassandra-dc1-1.test-cluster-cassandra-dc1.default.svc.cluster.local
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
 			},
@@ -268,16 +271,19 @@ export PAUSE_INIT=false
 				`test-cluster-cassandra-dc1-0_uid1.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.143
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.3
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
 				`test-cluster-cassandra-dc1-1_uid2.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.153
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.4
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
 				`test-cluster-cassandra-dc1-2_uid3.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.142
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.5
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
 			},
@@ -420,16 +426,19 @@ export PAUSE_INIT=false
 				`test-cluster-cassandra-dc1-0_uid1.sh`: `export CASSANDRA_BROADCAST_ADDRESS=54.32.141.231
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.3
 export CASSANDRA_SEEDS=54.32.141.231,54.32.141.232
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
 				`test-cluster-cassandra-dc1-1_uid2.sh`: `export CASSANDRA_BROADCAST_ADDRESS=54.32.141.232
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.4
 export CASSANDRA_SEEDS=54.32.141.231,54.32.141.232
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
 				`test-cluster-cassandra-dc1-2_uid3.sh`: `export CASSANDRA_BROADCAST_ADDRESS=54.32.141.233
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.5
 export CASSANDRA_SEEDS=54.32.141.231,54.32.141.232
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
 			},
@@ -870,16 +879,19 @@ export PAUSE_INIT=false
 				`test-cluster-cassandra-dc1-0_uid1.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.143
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.3
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
 				`test-cluster-cassandra-dc1-1_uid2.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.153
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.4
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
 				`test-cluster-cassandra-dc1-2_uid3.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.142
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.5
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
 			},
@@ -1124,31 +1136,37 @@ export PAUSE_INIT=false
 				`test-cluster-cassandra-dc1-2_uid3.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.142
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.5
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
 				`test-cluster-cassandra-dc3-0_uid1.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.143
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.2.3
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=true
 `,
 				`test-cluster-cassandra-dc3-1_uid2.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.153
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.2.4
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=true
 `,
 				`test-cluster-cassandra-dc3-2_uid3.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.142
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.2.5
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=true
 `,
 				`test-cluster-cassandra-dc1-0_uid1.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.143
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.3
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
 				`test-cluster-cassandra-dc1-1_uid2.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.153
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.4
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
 			},
@@ -1393,31 +1411,37 @@ export PAUSE_INIT=false
 				`test-cluster-cassandra-dc1-2_uid3.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.142
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.5
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
 				`test-cluster-cassandra-dc3-0_uid1.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.143
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.2.3
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
 				`test-cluster-cassandra-dc3-1_uid2.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.153
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.2.4
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
 				`test-cluster-cassandra-dc3-2_uid3.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.142
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.2.5
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
 				`test-cluster-cassandra-dc1-0_uid1.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.143
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.3
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
 				`test-cluster-cassandra-dc1-1_uid2.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.153
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.4
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
 			},
@@ -1662,31 +1686,37 @@ export PAUSE_INIT=false
 				`test-cluster-cassandra-dc1-2_uid3.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.142
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.5
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=true
 `,
 				`test-cluster-cassandra-dc3-0_uid1.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.143
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.2.3
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=true
 `,
 				`test-cluster-cassandra-dc3-1_uid2.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.153
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.2.4
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=true
 `,
 				`test-cluster-cassandra-dc3-2_uid3.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.142
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.2.5
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=true
 `,
 				`test-cluster-cassandra-dc1-0_uid1.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.143
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.3
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=true
 `,
 				`test-cluster-cassandra-dc1-1_uid2.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.153
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.4
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=true
 `,
 			},
@@ -2047,6 +2077,7 @@ export CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch
 export CASSANDRA_BROADCAST_ADDRESS=12.43.22.143
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.3
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
 				`test-cluster-cassandra-dc1-1_uid2.sh`: `export CASSANDRA_RACK=zone1
@@ -2054,6 +2085,7 @@ export CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch
 export CASSANDRA_BROADCAST_ADDRESS=12.43.22.153
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.4
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
 				`test-cluster-cassandra-dc1-2_uid3.sh`: `export CASSANDRA_RACK=zone2
@@ -2061,6 +2093,7 @@ export CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch
 export CASSANDRA_BROADCAST_ADDRESS=12.43.22.142
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.5
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153
+export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
 			},
@@ -2089,7 +2122,8 @@ export PAUSE_INIT=false
 			ProberClient: func(url *url.URL) prober.ProberClient {
 				return proberClient
 			},
-			Log: logger.NewLogger("json", zapcore.DebugLevel),
+			Scheme: baseScheme,
+			Log:    logger.NewLogger("json", zapcore.DebugLevel),
 		}
 
 		reconciler.defaultCassandraCluster(c.cc)

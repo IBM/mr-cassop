@@ -13,7 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-type client struct {
+type Client struct {
 	url string
 	*http.Client
 }
@@ -26,8 +26,8 @@ type Response struct {
 
 type jmxRequest struct{ Type, Mbean, Attribute string }
 
-func NewClient(host, port string, timeout time.Duration) client {
-	return client{
+func NewClient(host, port string, timeout time.Duration) Client {
+	return Client{
 		url:    fmt.Sprintf("http://%s:%s/jolokia", host, port),
 		Client: &http.Client{Timeout: timeout},
 	}
@@ -37,12 +37,14 @@ func jmxUrl(ip, port string) string {
 	return fmt.Sprintf("service:jmx:rmi:///jndi/rmi:/%s:%s/jmxrmi", ip, port)
 }
 
-func (j *client) Post(body []byte) ([]byte, error) {
+func (j *Client) Post(body []byte) ([]byte, error) {
 	resp, err := j.Client.Post(j.url, runtime.ContentTypeJSON, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 	responseBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err

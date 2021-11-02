@@ -46,11 +46,12 @@ func (r *reaperClient) CreateRepairSchedule(ctx context.Context, repair dbv1alph
 		return err
 	}
 	defer resp.Body.Close()
+	b, _ := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode >= 300 {
 		if resp.StatusCode == http.StatusNotFound {
 			return ClusterNotFound
 		}
-		return &requestFailedWithStatus{resp.StatusCode}
+		return &requestFailedWithStatus{code: resp.StatusCode, message: string(b)}
 	}
 
 	return nil
@@ -79,7 +80,7 @@ func (r *reaperClient) RepairSchedules(ctx context.Context) ([]RepairSchedule, e
 	}
 
 	if resp.StatusCode >= 300 {
-		return nil, &requestFailedWithStatus{resp.StatusCode}
+		return nil, &requestFailedWithStatus{code: resp.StatusCode, message: string(b)}
 	}
 
 	repairSchedules := make([]RepairSchedule, 0)
@@ -108,8 +109,9 @@ func (r *reaperClient) DeleteRepairSchedule(ctx context.Context, repairScheduleI
 	}
 	defer resp.Body.Close()
 
+	b, _ := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode >= 300 {
-		return &requestFailedWithStatus{resp.StatusCode}
+		return &requestFailedWithStatus{code: resp.StatusCode, message: string(b)}
 	}
 
 	return nil
@@ -138,8 +140,9 @@ func (r *reaperClient) SetRepairScheduleState(ctx context.Context, repairSchedul
 	}
 	defer resp.Body.Close()
 
+	b, _ := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode >= 300 {
-		return &requestFailedWithStatus{resp.StatusCode}
+		return &requestFailedWithStatus{code: resp.StatusCode, message: string(b)}
 	}
 
 	return nil

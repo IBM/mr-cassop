@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 )
@@ -49,13 +50,13 @@ func (r *reaperClient) createRepairRun(ctx context.Context, keyspace, cause stri
 		return RepairRun{}, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode >= 300 {
-		return RepairRun{}, &requestFailedWithStatus{resp.StatusCode}
-	}
-
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return RepairRun{}, err
+	}
+
+	if resp.StatusCode >= 300 {
+		return RepairRun{}, &requestFailedWithStatus{code: resp.StatusCode, message: string(body)}
 	}
 
 	createdRepair := RepairRun{}
@@ -80,8 +81,9 @@ func (r *reaperClient) setRepairState(ctx context.Context, runID, state string) 
 		return err
 	}
 	defer resp.Body.Close()
+	b, _ := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode >= 300 {
-		return &requestFailedWithStatus{resp.StatusCode}
+		return &requestFailedWithStatus{code: resp.StatusCode, message: string(b)}
 	}
 
 	return nil

@@ -75,26 +75,44 @@ func updateNodeStates() {
 	}
 }
 
+func getUserAuth() userAuth {
+	return auth
+}
+
+type cassandraResponse struct {
+	jolokia.Response
+	Value jolokia.CassResponse
+}
+
 func updateNodesRequest() error {
 	var polledIps []string
-	for ip, _ := range nodeStates {
+	for ip := range nodeStates {
 		polledIps = append(polledIps, ip)
 	}
 
-	// Construct Cassandra request for each polled ip
-	body := jolokia.ProxyRequests(jolokia.CassandraStates, auth.user, auth.password, jmxPort, polledIps...)
+	auth := getUserAuth()
+	var responses []cassandraResponse
+	for _, polledIp := range polledIps {
+		body := jolokia.ProxyRequests(jolokia.CassandraStates, auth.user, auth.password, jmxPort, polledIp)
+		jmxResponses, err := jolokiaClient.Post(body)
+		if err != nil {
+			response := []cassandraResponse{
+				{
+					Response: jolokia.Response{
+						Status: http.StatusInternalServerError,
+						Error:  err.Error(),
+					},
+				},
+			}
+			responses = append(responses, response...)
+			continue
+		}
 
-	jmxResponses, err := jolokiaClient.Post(body)
-	if err != nil {
-		return err
-	}
-
-	var responses []struct {
-		jolokia.Response
-		Value jolokia.CassResponse
-	}
-	if err := json.Unmarshal(jmxResponses, &responses); err != nil {
-		return err
+		response := make([]cassandraResponse, 0)
+		if err := json.Unmarshal(jmxResponses, &response); err != nil {
+			return err
+		}
+		responses = append(responses, response...)
 	}
 
 	newNodeStates := make(map[string]nodeState)
@@ -163,20 +181,12 @@ func watchAuthSecret() chan struct{} {
 		fields.OneTermEqualSelector("metadata.name", cassandraAdminSecret),
 	)
 
-	store, controller = cache.NewInformer(
+	_, controller = cache.NewInformer(
 		watchList,
 		&v1.Secret{},
 		time.Second*1,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: handleAddSecret,
-			UpdateFunc: func(oldObj, newObj interface{}) {
-				oldSecret := oldObj.(*v1.Secret)
-				newSecret := newObj.(*v1.Secret)
-				if oldSecret.ResourceVersion == newSecret.ResourceVersion {
-					return
-				}
-				handleAddSecret(newObj)
-			},
 		})
 	stopCh := make(chan struct{})
 	go controller.Run(stopCh)

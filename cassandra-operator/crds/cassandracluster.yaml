@@ -726,6 +726,9 @@ spec:
                   repairManagerSchedulingIntervalSeconds:
                     format: int32
                     type: integer
+                  repairRunThreads:
+                    format: int32
+                    type: integer
                   repairSchedules:
                     properties:
                       enabled:

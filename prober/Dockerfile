@@ -24,11 +24,10 @@ RUN apt-get update && apt-get install -y curl net-tools jq && \
 
 WORKDIR /
 
-COPY --from=builder /build/prober .
-
-RUN addgroup --gid 901 prober && adduser --uid 901 --gid 901 prober && \
-    chown prober:prober /prober && chmod u+x /prober
+RUN addgroup --gid 901 prober && adduser --uid 901 --gid 901 prober
 
 USER prober
+
+COPY --from=builder /build/prober .
 
 CMD ["./prober"]

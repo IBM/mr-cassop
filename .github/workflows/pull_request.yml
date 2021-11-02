@@ -388,6 +388,7 @@ jobs:
               --set "cassandraImage=us.icr.io/${{ env.ICR_NAMESPACE }}/cassandra:$GITHUB_REF_SLUG" \
               --set "jolokiaImage=us.icr.io/${{ env.ICR_NAMESPACE }}/jolokia:$GITHUB_REF_SLUG" \
               --set "logFormat=console" \
+              --set "logLevel=debug" \
               --set "container.imagePullSecret=$IMAGE_PULL_SECRET"
             kubectl rollout status deployment cassandra-operator
       - name: C* operator deployment has failed, showing debug...

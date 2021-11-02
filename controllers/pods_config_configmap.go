@@ -70,6 +70,11 @@ func (r *CassandraClusterReconciler) podsConfigMapData(ctx context.Context, cc *
 		return nil, errors.Wrap(err, "failed to get init order info")
 	}
 
+	originalPodIPs, err := r.reconcilePodIPsConfigMap(ctx, cc, podList.Items, broadcastAddresses)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't get the list of pod IPs")
+	}
+
 	cmData := make(map[string]string)
 	for _, pod := range podList.Items {
 		entryName := pod.Name + "_" + string(pod.UID) + ".sh"
@@ -95,9 +100,11 @@ func (r *CassandraClusterReconciler) podsConfigMapData(ctx context.Context, cc *
 		if len(broadcastAddress) == 0 {
 			return nil, errors.Wrap(err, "Cannot get node broadcast address: "+pod.Name)
 		}
+
 		cmData[entryName] += fmt.Sprintln("export CASSANDRA_BROADCAST_ADDRESS=" + broadcastAddress)
 		cmData[entryName] += fmt.Sprintln("export CASSANDRA_BROADCAST_RPC_ADDRESS=" + pod.Status.PodIP)
 		cmData[entryName] += fmt.Sprintln("export CASSANDRA_SEEDS=" + strings.Join(seedsList, ","))
+		cmData[entryName] += fmt.Sprintln("export CASSANDRA_NODE_PREVIOUS_IP=" + originalPodIPs[pod.Name])
 
 		pausePodInit := false
 		if currentRegionPaused { // should pause all pods if the region is on pause

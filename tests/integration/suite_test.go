@@ -443,6 +443,12 @@ func createCassandraPods(cc *v1alpha1.CassandraCluster) {
 			logr.Debug(fmt.Sprintf("created pod %s", pod.Name))
 
 			pod.Status.PodIP = fmt.Sprintf("10.0.%d.%d", dcID, replicaID)
+			pod.Status.ContainerStatuses = []v1.ContainerStatus{
+				{
+					Name:  "cassandra",
+					Ready: true,
+				},
+			}
 			err = k8sClient.Status().Update(ctx, pod)
 			Expect(err).ShouldNot(HaveOccurred())
 		}

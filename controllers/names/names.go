@@ -98,6 +98,10 @@ func AdminAuthConfigSecret(clusterName string) string {
 	return clusterName + "-auth-config-admin"
 }
 
+func PodIPsConfigMap(clusterName string) string {
+	return clusterName + "-pod-ips"
+}
+
 func OperatorScriptsCM() string {
 	return cassandraOperator + "-scripts-configmap"
 }

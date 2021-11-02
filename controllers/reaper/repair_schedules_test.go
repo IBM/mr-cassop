@@ -64,7 +64,7 @@ func TestRepairSchedules(t *testing.T) {
 			name:         "returns error if repair object is invalid",
 			context:      context.Background(),
 			handler:      handleResponseError(testError, http.StatusBadRequest),
-			errorMatcher: BeEquivalentTo(&requestFailedWithStatus{http.StatusBadRequest}),
+			errorMatcher: BeEquivalentTo(&requestFailedWithStatus{code: http.StatusBadRequest, message: "test error message\n"}),
 			params: map[string]interface{}{
 				"clusterName": "no",
 				"repair":      badRepair,
@@ -74,7 +74,7 @@ func TestRepairSchedules(t *testing.T) {
 			name:         "returns error if response status code >= 300",
 			context:      context.Background(),
 			handler:      handleResponseError(testError, http.StatusForbidden),
-			errorMatcher: BeEquivalentTo(&requestFailedWithStatus{http.StatusForbidden}),
+			errorMatcher: BeEquivalentTo(&requestFailedWithStatus{code: http.StatusForbidden, message: "test error message\n"}),
 			params: map[string]interface{}{
 				"clusterName": clusterName,
 				"repair":      repair,

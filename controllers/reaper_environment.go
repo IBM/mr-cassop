@@ -20,6 +20,7 @@ func reaperEnvironment(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC, adminSecre
 		{Name: "REAPER_DATACENTER_AVAILABILITY", Value: cc.Spec.Reaper.DatacenterAvailability},
 		{Name: "REAPER_REPAIR_INTENSITY", Value: fmt.Sprint(cc.Spec.Reaper.RepairIntensity)},
 		{Name: "REAPER_REPAIR_MANAGER_SCHEDULING_INTERVAL_SECONDS", Value: fmt.Sprint(cc.Spec.Reaper.RepairManagerSchedulingIntervalSeconds)},
+		{Name: "REAPER_REPAIR_RUN_THREADS", Value: fmt.Sprint(cc.Spec.Reaper.RepairRunThreads)},
 		{Name: "REAPER_BLACKLIST_TWCS", Value: strconv.FormatBool(cc.Spec.Reaper.BlacklistTWCS)},
 		{Name: "REAPER_CASS_CONTACT_POINTS", Value: fmt.Sprintf("[ %s ]", names.DC(cc.Name, dc.Name))},
 		{Name: "REAPER_CASS_CLUSTER_NAME", Value: "cassandra"},

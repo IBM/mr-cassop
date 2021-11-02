@@ -30,7 +30,6 @@ var (
 	Version         = "undefined"
 	clientSet       *kubernetes.Clientset
 	controller      cache.Controller
-	store           cache.Store
 )
 
 func setupRoutes(router *httprouter.Router) {

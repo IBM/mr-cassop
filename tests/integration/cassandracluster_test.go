@@ -90,12 +90,18 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 					fmt.Sprintf("cp /etc/cassandra-configmaps/* $CASSANDRA_CONF/\n" +
 						"cp /etc/cassandra-configmaps/jvm.options $CASSANDRA_HOME/\n" +
 						"source /etc/pods-config/${POD_NAME}_${POD_UID}.sh\n" +
+						"replace_address=\"\"\n" +
+						"old_ip=$CASSANDRA_NODE_PREVIOUS_IP\n" +
+						"if ([[ \"${old_ip}\" != \"\" ]]) && ([ ! -d \"/var/lib/cassandra/data\" ] || [ -z \"$(ls -A /var/lib/cassandra/data)\" ]); then\n  " +
+						"replace_address=\"-Dcassandra.replace_address_first_boot=${old_ip}\"\n" +
+						"fi\n" +
 						"/docker-entrypoint.sh -f -R " +
 						"-Dcassandra.jmx.remote.port=7199 " +
 						"-Dcom.sun.management.jmxremote.rmi.port=7199 " +
 						"-Djava.rmi.server.hostname=$CASSANDRA_BROADCAST_ADDRESS " +
 						"-Dcom.sun.management.jmxremote.authenticate=true " +
 						"-Dcassandra.storagedir=/var/lib/cassandra " +
+						"${replace_address} " +
 						"-Dcassandra.jmx.remote.login.config=CassandraLogin " +
 						"-Djava.security.auth.login.config=$CASSANDRA_HOME/conf/cassandra-jaas.config " +
 						"-Dcassandra.jmx.authorizer=org.apache.cassandra.auth.jmx.AuthorizationProxy"),
@@ -164,6 +170,11 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 					{
 						Name:  "REAPER_REPAIR_MANAGER_SCHEDULING_INTERVAL_SECONDS",
 						Value: "0",
+					},
+					{
+						Name:      "REAPER_REPAIR_RUN_THREADS",
+						Value:     "1",
+						ValueFrom: nil,
 					},
 					{
 						Name:  "REAPER_BLACKLIST_TWCS",

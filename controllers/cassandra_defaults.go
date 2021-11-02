@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+
 	"github.com/gogo/protobuf/proto"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/names"
@@ -74,6 +75,10 @@ func (r *CassandraClusterReconciler) defaultReaper(cc *dbv1alpha1.CassandraClust
 
 	if cc.Spec.Reaper.RepairIntensity == "" {
 		cc.Spec.Reaper.RepairIntensity = "1.0"
+	}
+
+	if cc.Spec.Reaper.RepairRunThreads == 0 {
+		cc.Spec.Reaper.RepairRunThreads = 1
 	}
 
 	if cc.Spec.Reaper.DatacenterAvailability == "" {

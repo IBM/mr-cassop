@@ -68,7 +68,7 @@ func (r *CassandraClusterReconciler) reconcileAdminRole(ctx context.Context, cc 
 	return cqlClient, nil
 }
 
-func (r *CassandraClusterReconciler) createAdminRoleInCassandra(cc *dbv1alpha1.CassandraCluster, roleName, newGeneratedPassword string) error {
+func (r *CassandraClusterReconciler) createAdminRoleInCassandra(cc *dbv1alpha1.CassandraCluster, roleName, password string) error {
 	r.Log.Info("Establishing cql session with role " + dbv1alpha1.CassandraDefaultRole)
 	cqlClient, err := r.CqlClient(newCassandraConfig(cc, dbv1alpha1.CassandraDefaultRole, dbv1alpha1.CassandraDefaultPassword))
 	if err != nil {
@@ -88,7 +88,7 @@ func (r *CassandraClusterReconciler) createAdminRoleInCassandra(cc *dbv1alpha1.C
 		Role:     roleName,
 		Super:    true,
 		Login:    true,
-		Password: newGeneratedPassword,
+		Password: password,
 	}
 
 	r.Log.Info("Creating role " + roleName)

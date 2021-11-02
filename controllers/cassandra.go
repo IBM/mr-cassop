@@ -421,6 +421,11 @@ func getCassandraRunCommand(cc *dbv1alpha1.CassandraCluster) string {
 		"cp /etc/cassandra-configmaps/* $CASSANDRA_CONF/",
 		"cp /etc/cassandra-configmaps/jvm.options $CASSANDRA_HOME/",
 		"source /etc/pods-config/${POD_NAME}_${POD_UID}.sh",
+		`replace_address=""
+old_ip=$CASSANDRA_NODE_PREVIOUS_IP
+if ([[ "${old_ip}" != "" ]]) && ([ ! -d "/var/lib/cassandra/data" ] || [ -z "$(ls -A /var/lib/cassandra/data)" ]); then
+  replace_address="-Dcassandra.replace_address_first_boot=${old_ip}"
+fi`,
 	)
 
 	cassandraRunCommand := []string{
@@ -430,6 +435,7 @@ func getCassandraRunCommand(cc *dbv1alpha1.CassandraCluster) string {
 		"-Djava.rmi.server.hostname=$CASSANDRA_BROADCAST_ADDRESS",
 		"-Dcom.sun.management.jmxremote.authenticate=true",
 		"-Dcassandra.storagedir=/var/lib/cassandra",
+		"${replace_address}",
 	}
 
 	if cc.Spec.JMX.Authentication == jmxAuthenticationLocalFiles {
@@ -557,7 +563,10 @@ until stat $config_path; do
   echo Could not access mount $config_path. Attempt $(( COUNT++ ))...
   sleep 10
 done
+
+source $config_path
 echo PAUSE_INIT=$PAUSE_INIT
+
 until [[ "$PAUSE_INIT" == "false" ]]; do
   echo PAUSE_INIT=$PAUSE_INIT
   echo -n "."

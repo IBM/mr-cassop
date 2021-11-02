@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/types"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
+
+	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/types"
 )
 
 var (
@@ -32,9 +33,9 @@ type test struct {
 func TestRequestFailedWithStatusError(t *testing.T) {
 	asserts := NewWithT(t)
 	t.Run("returns error message", func(t *testing.T) {
-		err := &requestFailedWithStatus{http.StatusInternalServerError}
+		err := &requestFailedWithStatus{code: http.StatusInternalServerError}
 		asserts.Expect(err).To(Not(BeNil()))
-		asserts.Expect(err.Error()).To(Equal(fmt.Sprintf("Request failed with status code %d", err.code)))
+		asserts.Expect(err.Error()).To(Equal(fmt.Sprintf("Request failed with status code %d. Response body: %s", err.code, err.message)))
 	})
 }
 
@@ -137,7 +138,7 @@ func TestClusterExists(t *testing.T) {
 			context:        context.Background(),
 			handler:        handleResponseError(testError, http.StatusForbidden),
 			expectedResult: false,
-			errorMatcher:   BeEquivalentTo(&requestFailedWithStatus{http.StatusForbidden}),
+			errorMatcher:   BeEquivalentTo(&requestFailedWithStatus{code: http.StatusForbidden, message: "test error message\n"}),
 		},
 		{
 			name:           "returns error if context is nil",
@@ -201,7 +202,7 @@ func TestAddCluster(t *testing.T) {
 			name:         "returns error if response status code >= 300",
 			context:      context.Background(),
 			handler:      handleResponseError(testError, http.StatusForbidden),
-			errorMatcher: BeEquivalentTo(&requestFailedWithStatus{http.StatusForbidden}),
+			errorMatcher: BeEquivalentTo(&requestFailedWithStatus{code: http.StatusForbidden, message: "test error message\n"}),
 		},
 		{
 			name:         "returns error if context is nil",

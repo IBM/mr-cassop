@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 
@@ -38,11 +39,12 @@ var (
 )
 
 type requestFailedWithStatus struct {
-	code int
+	code    int
+	message string
 }
 
 func (e *requestFailedWithStatus) Error() string {
-	return fmt.Sprintf("Request failed with status code %d", e.code)
+	return fmt.Sprintf("Request failed with status code %d. Response body: %s", e.code, e.message)
 }
 
 func NewReaperClient(url *url.URL, clusterName string, client *http.Client) ReaperClient {
@@ -85,11 +87,12 @@ func (r *reaperClient) ClusterExists(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	defer resp.Body.Close()
+	b, _ := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode >= 300 {
 		if resp.StatusCode == http.StatusNotFound {
 			return false, nil
 		}
-		return false, &requestFailedWithStatus{code: resp.StatusCode}
+		return false, &requestFailedWithStatus{code: resp.StatusCode, message: string(b)}
 	}
 	return true, nil
 }
@@ -109,12 +112,13 @@ func (r *reaperClient) AddCluster(ctx context.Context, seed string) error {
 	if err != nil {
 		return err
 	}
+	b, _ := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if resp.StatusCode >= 300 {
 		if resp.StatusCode == http.StatusNotFound {
 			return ClusterNotFound
 		}
-		return &requestFailedWithStatus{resp.StatusCode}
+		return &requestFailedWithStatus{code: resp.StatusCode, message: string(b)}
 	}
 	return nil
 }
