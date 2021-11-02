@@ -3,6 +3,8 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/labels"
 	"github.com/ibm/cassandra-operator/controllers/names"
@@ -12,7 +14,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"strings"
 )
 
 var _ = Describe("Cassandra cluster", func() {
@@ -26,7 +27,7 @@ var _ = Describe("Cassandra cluster", func() {
 
 			By("Checking reaper pods readiness...")
 			for _, dc := range newCassandraCluster.Spec.DCs {
-				waitForPodsReadiness(cassandraNamespace, labels.WithDCLabel(reaperPodLabels, dc.Name))
+				waitForPodsReadiness(cassandraNamespace, labels.WithDCLabel(reaperPodLabels, dc.Name), 1)
 			}
 
 			By("Obtaining auth credentials from Secret")

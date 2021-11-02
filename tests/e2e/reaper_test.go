@@ -109,7 +109,7 @@ var _ = Describe("Cassandra cluster", func() {
 
 			By("Checking reaper pods readiness...")
 			for _, dc := range newCassandraCluster.Spec.DCs {
-				waitForPodsReadiness(cassandraNamespace, labels.WithDCLabel(reaperPodLabels, dc.Name))
+				waitForPodsReadiness(cassandraNamespace, labels.WithDCLabel(reaperPodLabels, dc.Name), 1)
 			}
 
 			By("Port forwarding cql and jmx ports of cassandra pod...")

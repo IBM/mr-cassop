@@ -38,13 +38,13 @@ type ExecResult struct {
 	stderr string
 }
 
-func waitForPodsReadiness(namespace string, labels map[string]string) {
+func waitForPodsReadiness(namespace string, labels map[string]string, expectedNumberOfPods int32) {
 	Eventually(func() bool {
 		podList := &v1.PodList{}
 		err = restClient.List(context.Background(), podList, client.InNamespace(namespace), client.MatchingLabels(labels))
 		Expect(err).To(Succeed())
 
-		if len(podList.Items) == 0 {
+		if len(podList.Items) == 0 || (expectedNumberOfPods != 0 && int32(len(podList.Items)) != expectedNumberOfPods) {
 			return false
 		}
 
@@ -225,11 +225,11 @@ func deployCassandraCluster(cassandraCluster *v1alpha1.CassandraCluster) {
 	Expect(restClient.Create(context.Background(), cassandraCluster)).To(Succeed())
 
 	By("Checking prober pods readiness...")
-	waitForPodsReadiness(cassandraCluster.Namespace, proberPodLabels)
+	waitForPodsReadiness(cassandraCluster.Namespace, proberPodLabels, 1)
 
 	By("Checking cassandra cluster pods readiness...")
 	for _, dc := range cassandraCluster.Spec.DCs {
-		waitForPodsReadiness(cassandraCluster.Namespace, labels.WithDCLabel(cassandraClusterPodLabels, dc.Name))
+		waitForPodsReadiness(cassandraCluster.Namespace, labels.WithDCLabel(cassandraClusterPodLabels, dc.Name), *dc.Replicas)
 	}
 }
 
