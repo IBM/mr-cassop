@@ -2,6 +2,7 @@ package integration
 
 import (
 	"fmt"
+
 	"github.com/ibm/cassandra-operator/controllers/util"
 
 	"github.com/gogo/protobuf/proto"
@@ -93,6 +94,23 @@ var _ = Describe("user roles", func() {
 					Login:    false,
 					Password: "newpassword",
 				},
+				cql.Role{
+					Role:     "bob",
+					Super:    false,
+					Login:    true,
+					Password: "bar",
+				},
+			))
+
+			By("role marked for removal should be deleted")
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: rolesSecret.Name, Namespace: rolesSecret.Namespace}, updatedSecret)).To(Succeed())
+			updatedSecret.Data["alice"] = []byte(`{"password": "newpassword", "login": false, "super": false, "delete": true}`)
+			Expect(k8sClient.Update(ctx, updatedSecret)).To(Succeed())
+			Eventually(func() []cql.Role {
+				roles, err := mockCQLClient.GetRoles()
+				Expect(err).ToNot(HaveOccurred())
+				return roles
+			}, mediumTimeout, mediumRetry).Should(ContainElements(
 				cql.Role{
 					Role:     "bob",
 					Super:    false,

@@ -20,6 +20,7 @@ type Role struct {
 	Password string `json:"password"`
 	Super    *bool  `json:"super,omitempty"`
 	Login    *bool  `json:"login,omitempty"`
+	Delete   bool   `json:"delete,omitempty"`
 }
 
 func (r *CassandraClusterReconciler) reconcileRoles(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cqlClient cql.CqlClient) error {
@@ -98,15 +99,20 @@ func reconcileRolesInCassandra(desiredRoles []Role, cqlClient cql.CqlClient) err
 
 	for _, desiredRole := range desiredRoles {
 		role := getRoleByName(cassandraRoles, desiredRole.Name)
-		if role == nil { // not found
-			err := cqlClient.CreateRole(toCassandraRole(desiredRole))
-			if err != nil {
-				return errors.Wrap(err, "Can't create role")
+
+		if role != nil {
+			if desiredRole.Delete {
+				if err = cqlClient.DropRole(*role); err != nil {
+					return errors.Wrap(err, "can't drop role")
+				}
+			} else {
+				if err := cqlClient.UpdateRole(toCassandraRole(desiredRole)); err != nil {
+					return errors.Wrap(err, "Can't update role")
+				}
 			}
-		} else {
-			err := cqlClient.UpdateRole(toCassandraRole(desiredRole))
-			if err != nil {
-				return errors.Wrap(err, "Can't update role")
+		} else if !desiredRole.Delete {
+			if err := cqlClient.CreateRole(toCassandraRole(desiredRole)); err != nil {
+				return errors.Wrap(err, "Can't create role")
 			}
 		}
 	}

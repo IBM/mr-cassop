@@ -9,11 +9,12 @@ In the secret, a user is represented by a single entry, where the key is the use
 
 Available user parameters:
 
-| Field      | Description                       | Is Required  | Default                          |
-|------------|----------------------------------|---------------|----------------------------------|
-| `password` | Role password                    |     `Y`       |                                  |
-| `super   ` | Is the role has super privileges |     `N`       | false                            |
-| `login   ` | If the user has ability to login |     `N`       | true                             |
+| Field      | Description                                                  | Is Required   | Default                          |
+|------------|--------------------------------------------------------------|---------------|----------------------------------|
+| `password` | Role password                                                |     `Y`       |                                  |
+| `super   ` | Is the role has super privileges                             |     `N`       | false                            |
+| `login   ` | If the user has ability to login                             |     `N`       | true                             |
+| `delete  ` | Flag indicating if the role has to be removed from Cassandra |     `N`       | false                            |
 
 Secret example:
 
@@ -52,4 +53,4 @@ Changes in the secret are watched by the operator and applied to the cluster onc
 
 The changes in the secret are tracked by an annotation which is set by the operator. This means manual changes in the cluster are not monitored and will be overwritten when the secret has been changed.
 
-The operator does not delete roles. If a role needs to be deleted, first the corresponding entry should be removed from the secret and then the role should be removed from the cluster itself. Deleting the cluster won't remove any users either.
+To delete a role, first set the `delete` field to `true` and update the secret. The operator will remove the role from Cassandra. After that the corresponding entry in the secret can be removed.

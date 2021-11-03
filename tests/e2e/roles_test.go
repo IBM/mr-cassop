@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/types"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -56,6 +57,21 @@ var _ = Describe("user provided roles", func() {
 				return err
 			}, 30*time.Second, 5*time.Second).Should(Succeed())
 			Expect(stdout).To(ContainSubstring(fmt.Sprintf("Connected to %s at 127.0.0.1:9042.", cassandraRelease)))
+
+			Expect(restClient.Get(context.Background(), types.NamespacedName{
+				Name: rolesSecret.Name, Namespace: rolesSecret.Namespace,
+			}, rolesSecret)).To(Succeed())
+
+			rolesSecret.Data = map[string][]byte{
+				testUserName: []byte(fmt.Sprintf(`{"password": "%s", "login": true, "super": true, "delete": true}`, testUserPassword)),
+			}
+
+			Expect(restClient.Update(context.Background(), rolesSecret)).To(Succeed())
+
+			Eventually(func() error {
+				_, err := execPod(pod.Name, pod.Namespace, cmd)
+				return err
+			}, 30*time.Second, 5*time.Second).ShouldNot(Succeed())
 		})
 	})
 })

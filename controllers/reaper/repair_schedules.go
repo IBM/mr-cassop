@@ -48,9 +48,6 @@ func (r *reaperClient) CreateRepairSchedule(ctx context.Context, repair dbv1alph
 	defer resp.Body.Close()
 	b, _ := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode >= 300 {
-		if resp.StatusCode == http.StatusNotFound {
-			return ClusterNotFound
-		}
 		return &requestFailedWithStatus{code: resp.StatusCode, message: string(b)}
 	}
 
