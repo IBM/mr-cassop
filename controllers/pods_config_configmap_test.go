@@ -5,15 +5,15 @@ import (
 	"net/url"
 	"testing"
 
+	"go.uber.org/zap"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/mock/gomock"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
-	"github.com/ibm/cassandra-operator/controllers/logger"
 	"github.com/ibm/cassandra-operator/controllers/mocks"
 	"github.com/ibm/cassandra-operator/controllers/prober"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
-	"go.uber.org/zap/zapcore"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -2123,7 +2123,7 @@ export PAUSE_INIT=false
 				return proberClient
 			},
 			Scheme: baseScheme,
-			Log:    logger.NewLogger("json", zapcore.DebugLevel),
+			Log:    zap.NewNop().Sugar(),
 		}
 
 		reconciler.defaultCassandraCluster(c.cc)

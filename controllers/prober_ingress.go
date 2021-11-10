@@ -27,7 +27,7 @@ func (r *CassandraClusterReconciler) reconcileProberIngress(ctx context.Context,
 			Annotations: cc.Spec.Prober.Ingress.Annotations,
 		},
 		Spec: nwv1.IngressSpec{
-			IngressClassName: nil,
+			IngressClassName: cc.Spec.Prober.Ingress.IngressClassName,
 			DefaultBackend:   nil,
 			TLS: []nwv1.IngressTLS{
 				{

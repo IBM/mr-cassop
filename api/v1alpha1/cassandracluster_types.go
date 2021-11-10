@@ -322,9 +322,10 @@ type CassandraClusterList struct {
 }
 
 type Ingress struct {
-	Domain      string            `json:"domain,omitempty"`
-	Secret      string            `json:"secret,omitempty"`
-	Annotations map[string]string `json:"annotations,omitempty"`
+	Domain           string            `json:"domain,omitempty"`
+	Secret           string            `json:"secret,omitempty"`
+	Annotations      map[string]string `json:"annotations,omitempty"`
+	IngressClassName *string           `json:"ingressClassName,omitempty"`
 }
 
 func init() {
