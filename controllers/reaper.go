@@ -32,12 +32,12 @@ const (
 	reaperAdminPort = 8081
 )
 
-func (r *CassandraClusterReconciler) reconcileReaperPrerequisites(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cqlClient cql.CqlClient) error {
+func (r *CassandraClusterReconciler) reconcileReaperPrerequisites(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cqlClient cql.CqlClient, allDCs []dbv1alpha1.DC) error {
 	if err := r.reconcileShiroConfigMap(ctx, cc); err != nil {
 		return errors.Wrap(err, "Error reconciling shiro configmap")
 	}
 
-	if err := r.reconcileReaperKeyspace(cc, cqlClient); err != nil {
+	if err := r.reconcileReaperKeyspace(cc, cqlClient, allDCs); err != nil {
 		return errors.Wrap(err, "Error reconciling reaper keyspace")
 	}
 

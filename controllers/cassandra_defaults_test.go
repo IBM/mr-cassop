@@ -97,8 +97,8 @@ func TestDefaultingFunction(t *testing.T) {
 		},
 	}
 	reconciler.defaultCassandraCluster(cc)
-	g.Expect(cc.Spec.Reaper.DCs).To(Equal(cc.Spec.DCs))
-	g.Expect(cc.Spec.SystemKeyspaces.DCs).To(Equal([]v1alpha1.SystemKeyspaceDC{{Name: "dc1", RF: 3}}))
+	g.Expect(cc.Spec.Reaper.DCs).To(BeNil())
+	g.Expect(cc.Spec.SystemKeyspaces.DCs).To(BeNil())
 	g.Expect(cc.Spec.Reaper.RepairSchedules.Repairs[0].Keyspace).To(Equal("system_auth"))
 	g.Expect(cc.Spec.Reaper.RepairSchedules.Repairs[0].RepairParallelism).To(Equal("DATACENTER_AWARE"))
 	g.Expect(cc.Spec.Reaper.RepairSchedules.Repairs[0].ScheduleDaysBetween).To(Equal(int32(7)))

@@ -19,12 +19,6 @@ func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.Cass
 		cc.Spec.PodManagementPolicy = appsv1.ParallelPodManagement
 	}
 
-	if len(cc.Spec.SystemKeyspaces.DCs) == 0 {
-		for _, dc := range cc.Spec.DCs {
-			cc.Spec.SystemKeyspaces.DCs = append(cc.Spec.SystemKeyspaces.DCs, dbv1alpha1.SystemKeyspaceDC{Name: dc.Name, RF: 3})
-		}
-	}
-
 	r.defaultCassandra(cc)
 	r.defaultProber(cc)
 	r.defaultReaper(cc)
@@ -67,10 +61,6 @@ func (r *CassandraClusterReconciler) defaultReaper(cc *dbv1alpha1.CassandraClust
 
 	if cc.Spec.Reaper.ImagePullPolicy == "" {
 		cc.Spec.Reaper.ImagePullPolicy = v1.PullIfNotPresent
-	}
-
-	if len(cc.Spec.Reaper.DCs) == 0 {
-		cc.Spec.Reaper.DCs = cc.Spec.DCs
 	}
 
 	if cc.Spec.Reaper.RepairIntensity == "" {

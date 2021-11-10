@@ -54,7 +54,7 @@ func TestRepairSchedules(t *testing.T) {
 			name:         "returns error if cluster is not found",
 			context:      context.Background(),
 			handler:      handleResponseError(testError, http.StatusNotFound),
-			errorMatcher: BeEquivalentTo(&requestFailedWithStatus{code: http.StatusBadRequest, message: "test error message\n"}),
+			errorMatcher: BeEquivalentTo(&requestFailedWithStatus{code: http.StatusNotFound, message: "test error message\n"}),
 			params: map[string]interface{}{
 				"clusterName": "no",
 				"repair":      repair,

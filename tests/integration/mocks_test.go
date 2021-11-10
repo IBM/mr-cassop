@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"strconv"
 
+	"github.com/gogo/protobuf/proto"
+
 	"github.com/ibm/cassandra-operator/controllers/reaper"
 
 	"github.com/gocql/gocql"
@@ -15,8 +17,9 @@ import (
 
 type proberMock struct {
 	ready         bool
-	seeds         []string
-	ReadyClusters map[string]bool
+	seeds         map[string][]string
+	dcs           map[string][]dbv1alpha1.DC
+	readyClusters map[string]bool
 	err           error
 }
 
@@ -42,10 +45,18 @@ func (r proberMock) Ready(ctx context.Context) (bool, error) {
 }
 
 func (r proberMock) GetSeeds(ctx context.Context, host string) ([]string, error) {
-	return r.seeds, r.err
+	return r.seeds[host], r.err
 }
 
 func (r proberMock) UpdateSeeds(ctx context.Context, seeds []string) error {
+	return r.err
+}
+
+func (r proberMock) GetDCs(ctx context.Context, host string) ([]dbv1alpha1.DC, error) {
+	return r.dcs[host], r.err
+}
+
+func (r proberMock) UpdateDCs(ctx context.Context, dcs []dbv1alpha1.DC) error {
 	return r.err
 }
 
@@ -54,7 +65,7 @@ func (r proberMock) UpdateDCStatus(ctx context.Context, ready bool) error {
 }
 
 func (r proberMock) DCsReady(ctx context.Context, host string) (bool, error) {
-	dcsReady, found := r.ReadyClusters[host]
+	dcsReady, found := r.readyClusters[host]
 	if !found {
 		return false, errors.Errorf("Host %q not found", host)
 	}
@@ -224,8 +235,15 @@ func (r *reaperMock) RunRepair(ctx context.Context, keyspace, cause string) erro
 }
 
 func markMocksAsReady(cc *dbv1alpha1.CassandraCluster) {
-	for _, domain := range cc.Spec.Prober.ExternalDCsIngressDomains {
-		mockProberClient.ReadyClusters[domain] = true
+	for i, domain := range cc.Spec.Prober.ExternalDCsIngressDomains {
+		mockProberClient.readyClusters[domain] = true
+		mockProberClient.seeds[domain] = []string{"13.43.13" + strconv.Itoa(i) + ".3", "13.43.13" + strconv.Itoa(i) + ".4"}
+		mockProberClient.dcs[domain] = []dbv1alpha1.DC{
+			{
+				Name:     "ext-dc-" + "-" + strconv.Itoa(i),
+				Replicas: proto.Int32(3),
+			},
+		}
 	}
 	mockProberClient.err = nil
 	mockProberClient.ready = true
@@ -238,7 +256,7 @@ func markMocksAsReady(cc *dbv1alpha1.CassandraCluster) {
 	mockCQLClient.keyspaces = []cql.Keyspace{{
 		Name: "system_auth",
 		Replication: map[string]string{
-			"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
+			"class": cql.ReplicationClassSimpleTopologyStrategy,
 		},
 	}}
 }

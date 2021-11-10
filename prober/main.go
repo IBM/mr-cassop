@@ -27,10 +27,16 @@ var (
 	adminSecretName = os.Getenv("ADMIN_SECRET_NAME")
 	seeds           []string
 	readyLocalDCs   bool
+	dcs             []dc
 	Version         = "undefined"
 	clientSet       *kubernetes.Clientset
 	controller      cache.Controller
 )
+
+type dc struct {
+	Name     string `json:"name"`
+	Replicas int    `json:"replicas"`
+}
 
 func setupRoutes(router *httprouter.Router) {
 	router.GET("/healthz/:broadcastip", healthCheck)
@@ -39,6 +45,8 @@ func setupRoutes(router *httprouter.Router) {
 	router.PUT("/readylocaldcs", putReadyLocalDCs)
 	router.GET("/localseeds", getSeeds)
 	router.PUT("/localseeds", putSeeds)
+	router.GET("/dcs", getDCs)
+	router.PUT("/dcs", putDCs)
 }
 
 func healthCheck(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
@@ -97,6 +105,26 @@ func putSeeds(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		w.WriteHeader(http.StatusBadRequest)
 	} else {
 		seeds = s
+	}
+}
+
+func getDCs(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
+	response, err := json.Marshal(dcs)
+	if err != nil {
+		log.Error(err, "Can't marshal dcs")
+	}
+	w.Write(response)
+}
+
+func putDCs(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	var s []dc
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	} else if json.Unmarshal(body, &s) != nil {
+		w.WriteHeader(http.StatusBadRequest)
+	} else {
+		dcs = s
 	}
 }
 

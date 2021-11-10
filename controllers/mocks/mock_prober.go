@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	v1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 )
 
 // MockProberClient is a mock of ProberClient interface.
@@ -47,6 +48,21 @@ func (m *MockProberClient) DCsReady(ctx context.Context, host string) (bool, err
 func (mr *MockProberClientMockRecorder) DCsReady(ctx, host interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DCsReady", reflect.TypeOf((*MockProberClient)(nil).DCsReady), ctx, host)
+}
+
+// GetDCs mocks base method.
+func (m *MockProberClient) GetDCs(ctx context.Context, host string) ([]v1alpha1.DC, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDCs", ctx, host)
+	ret0, _ := ret[0].([]v1alpha1.DC)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetDCs indicates an expected call of GetDCs.
+func (mr *MockProberClientMockRecorder) GetDCs(ctx, host interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDCs", reflect.TypeOf((*MockProberClient)(nil).GetDCs), ctx, host)
 }
 
 // GetSeeds mocks base method.
@@ -91,6 +107,20 @@ func (m *MockProberClient) UpdateDCStatus(ctx context.Context, ready bool) error
 func (mr *MockProberClientMockRecorder) UpdateDCStatus(ctx, ready interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateDCStatus", reflect.TypeOf((*MockProberClient)(nil).UpdateDCStatus), ctx, ready)
+}
+
+// UpdateDCs mocks base method.
+func (m *MockProberClient) UpdateDCs(ctx context.Context, dcs []v1alpha1.DC) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateDCs", ctx, dcs)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateDCs indicates an expected call of UpdateDCs.
+func (mr *MockProberClientMockRecorder) UpdateDCs(ctx, dcs interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateDCs", reflect.TypeOf((*MockProberClient)(nil).UpdateDCs), ctx, dcs)
 }
 
 // UpdateSeeds mocks base method.

@@ -244,7 +244,7 @@ var _ = Describe("cassandra statefulset", func() {
 			mockCQLClient.keyspaces = []cql.Keyspace{{
 				Name: "system_auth",
 				Replication: map[string]string{
-					"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
+					"class": cql.ReplicationClassSimpleTopologyStrategy,
 				},
 			}}
 

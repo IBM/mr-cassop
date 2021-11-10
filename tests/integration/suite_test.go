@@ -334,6 +334,14 @@ func CleanUpCreatedResources(ccName, ccNamespace string) {
 	for _, resource := range resourcesToDelete {
 		expectResourceIsDeleted(types.NamespacedName{Name: resource.name, Namespace: ccNamespace}, resource.objType)
 	}
+
+	nodesList := &v1.NodeList{}
+	Expect(k8sClient.List(ctx, nodesList)).To(Succeed())
+	if len(nodesList.Items) != 0 {
+		for _, node := range nodesList.Items {
+			Expect(k8sClient.Delete(ctx, &node)).To(Succeed())
+		}
+	}
 }
 
 func getContainerByName(pod v1.PodSpec, containerName string) (v1.Container, bool) {
@@ -369,7 +377,7 @@ func deleteResource(name types.NamespacedName, obj client.Object) error {
 		return err
 	}
 
-	return k8sClient.Delete(context.Background(), obj)
+	return k8sClient.Delete(context.Background(), obj, client.GracePeriodSeconds(0))
 }
 
 func getVolumeMountByName(volumeMounts []v1.VolumeMount, volumeMountName string) (v1.VolumeMount, bool) {
@@ -418,6 +426,16 @@ func validateNumberOfDeployments(namespace string, labels map[string]string, num
 }
 
 func createCassandraPods(cc *v1alpha1.CassandraCluster) {
+	nodeIPs := []string{
+		"10.3.23.41",
+		"10.3.23.42",
+		"10.3.23.43",
+		"10.3.23.44",
+		"10.3.23.45",
+		"10.3.23.46",
+		"10.3.23.47",
+	}
+	createNodes(nodeIPs)
 	for dcID, dc := range cc.Spec.DCs {
 		sts := &apps.StatefulSet{}
 		err := k8sClient.Get(ctx, types.NamespacedName{Name: names.DC(cc.Name, dc.Name), Namespace: cc.Namespace}, sts)
@@ -436,6 +454,7 @@ func createCassandraPods(cc *v1alpha1.CassandraCluster) {
 							Image: "cassandra:latest",
 						},
 					},
+					NodeName: nodeIPs[replicaID],
 				},
 			}
 			err := k8sClient.Create(ctx, pod)
@@ -451,6 +470,34 @@ func createCassandraPods(cc *v1alpha1.CassandraCluster) {
 			}
 			err = k8sClient.Status().Update(ctx, pod)
 			Expect(err).ShouldNot(HaveOccurred())
+		}
+	}
+}
+
+func createNodes(nodeIPs []string) {
+	for _, nodeIP := range nodeIPs {
+		node := &v1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: nodeIP,
+			},
+			Status: v1.NodeStatus{
+				Addresses: []v1.NodeAddress{
+					{
+						Type:    v1.NodeExternalIP,
+						Address: nodeIP,
+					},
+					{
+						Type:    v1.NodeInternalIP,
+						Address: nodeIP,
+					},
+				},
+			},
+		}
+
+		existingNode := &v1.Node{}
+		err := k8sClient.Get(ctx, types.NamespacedName{Name: nodeIP}, existingNode)
+		if kerrors.IsNotFound(err) {
+			Expect(k8sClient.Create(ctx, node)).To(Succeed())
 		}
 	}
 }

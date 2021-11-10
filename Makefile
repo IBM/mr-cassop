@@ -30,7 +30,7 @@ all: manager
 
 # Run unit tests
 unit-tests:
-	go test ./controllers/ -coverprofile=unit.out -v -coverpkg=./...
+	go test ./controllers/... -coverprofile=unit.out -v -coverpkg=./...
 
 # Run integration tests
 integration-tests:

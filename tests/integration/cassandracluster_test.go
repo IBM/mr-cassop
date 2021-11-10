@@ -49,7 +49,7 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 			mockCQLClient.keyspaces = []cql.Keyspace{{
 				Name: "system_auth",
 				Replication: map[string]string{
-					"class": "org.apache.cassandra.locator.NetworkTopologyStrategy",
+					"class": cql.ReplicationClassNetworkTopologyStrategy,
 					"dc1":   "3",
 				},
 			}}

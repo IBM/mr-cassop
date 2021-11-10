@@ -157,6 +157,11 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 	}
 
+	err = proberClient.UpdateDCs(ctx, cc.Spec.DCs)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	if err := r.reconcileCassandraConfigMap(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling cassandra config configmaps")
 	}
@@ -193,7 +198,12 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 	}
 
-	cqlClient, err := r.reconcileAdminRole(ctx, cc)
+	allDCs, err := r.getAllDCs(ctx, cc, proberClient)
+	if err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "can't get all dcs across regions")
+	}
+
+	cqlClient, err := r.reconcileAdminRole(ctx, cc, allDCs)
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile Admin Role")
 	}
@@ -204,7 +214,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, err
 	}
 
-	if err = r.reconcileReaperPrerequisites(ctx, cc, cqlClient); err != nil {
+	if err = r.reconcileReaperPrerequisites(ctx, cc, cqlClient, allDCs); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling reaper")
 	}
 
@@ -235,7 +245,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile repair schedules")
 	}
 
-	err = r.reconcileKeyspaces(ctx, cc, cqlClient, reaperClient)
+	err = r.reconcileKeyspaces(ctx, cc, cqlClient, reaperClient, allDCs)
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile keyspaces")
 	}
@@ -432,4 +442,24 @@ func (r *CassandraClusterReconciler) reconcileAnnotations(ctx context.Context, o
 	}
 
 	return nil
+}
+
+func (r *CassandraClusterReconciler) getAllDCs(ctx context.Context, cc *v1alpha1.CassandraCluster, proberClient prober.ProberClient) ([]v1alpha1.DC, error) {
+	allDCs := make([]v1alpha1.DC, 0)
+	allDCs = append(allDCs, cc.Spec.DCs...)
+
+	if len(cc.Spec.Prober.ExternalDCsIngressDomains) == 0 {
+		return allDCs, nil
+	}
+
+	for _, externalDCDomain := range cc.Spec.Prober.ExternalDCsIngressDomains {
+		externalDCs, err := proberClient.GetDCs(ctx, names.ProberIngressDomain(cc.Name, externalDCDomain, cc.Namespace))
+		if err != nil {
+			return nil, errors.Wrapf(err, "can't get dcs list from dc %q", externalDCDomain)
+		}
+
+		allDCs = append(allDCs, externalDCs...)
+	}
+
+	return allDCs, nil
 }

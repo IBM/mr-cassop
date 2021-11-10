@@ -42,6 +42,7 @@ func TestReconcileRFSettings(t *testing.T) {
 			},
 		},
 	}
+	allDCs := cc.Spec.DCs
 
 	adminSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -76,7 +77,8 @@ func TestReconcileRFSettings(t *testing.T) {
 		mocks.cql.EXPECT().GetKeyspacesInfo().Times(1).Return([]cql.Keyspace{{Name: "system_auth", Replication: map[string]string{"class": "smth"}}}, nil)
 		mocks.cql.EXPECT().UpdateRF("system_auth", map[string]string{"class": cql.ReplicationClassNetworkTopologyStrategy, "dc1": "3"}).Times(1).Return(nil)
 		mocks.reaper.EXPECT().RunRepair(gomock.Any(), "system_auth", "keyspaces-init").Times(1).Return(nil)
-		err := reconciler.reconcileKeyspaces(context.Background(), ccWithEmptySystemKeyspaces, mocks.cql, mocks.reaper)
+		reconciler.defaultCassandraCluster(ccWithEmptySystemKeyspaces)
+		err := reconciler.reconcileKeyspaces(context.Background(), ccWithEmptySystemKeyspaces, mocks.cql, mocks.reaper, allDCs)
 
 		asserts.Expect(err).To(BeNil())
 		mCtrl.Finish()
@@ -84,44 +86,47 @@ func TestReconcileRFSettings(t *testing.T) {
 
 	t.Run("return error if can't get keyspace info", func(t *testing.T) {
 		reconciler, mCtrl, mocks := createMockedReconciler(t)
+		reconciler.defaultCassandraCluster(cc)
 		mocks.cql.EXPECT().GetKeyspacesInfo().Times(1).Return([]cql.Keyspace{}, errors.New("query error"))
-		err := reconciler.reconcileKeyspaces(context.Background(), cc, mocks.cql, mocks.reaper)
+		err := reconciler.reconcileKeyspaces(context.Background(), cc, mocks.cql, mocks.reaper, allDCs)
 		asserts.Expect(err).ToNot(BeNil())
 		mCtrl.Finish()
 	})
 
 	t.Run("happy path", func(t *testing.T) {
 		reconciler, mCtrl, mocks := createMockedReconciler(t)
+		reconciler.defaultCassandraCluster(cc)
 		mocks.cql.EXPECT().GetKeyspacesInfo().Times(1).Return([]cql.Keyspace{{
 			Name: "system_auth",
 			Replication: map[string]string{
-				"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
+				"class": cql.ReplicationClassSimpleTopologyStrategy,
 			},
 		}}, nil)
 
 		mocks.cql.EXPECT().UpdateRF("system_auth", map[string]string{
-			"class": "org.apache.cassandra.locator.NetworkTopologyStrategy",
+			"class": cql.ReplicationClassNetworkTopologyStrategy,
 			"dc1":   "3",
 		}).Times(1).Return(nil)
 		mocks.reaper.EXPECT().RunRepair(gomock.Any(), "system_auth", "keyspaces-init").Times(1).Return(nil)
-		err := reconciler.reconcileKeyspaces(context.Background(), cc, mocks.cql, mocks.reaper)
+		err := reconciler.reconcileKeyspaces(context.Background(), cc, mocks.cql, mocks.reaper, allDCs)
 		asserts.Expect(err).To(BeNil())
 		mCtrl.Finish()
 	})
 
 	t.Run("fail if update rf query fails", func(t *testing.T) {
 		reconciler, mCtrl, mocks := createMockedReconciler(t)
+		reconciler.defaultCassandraCluster(cc)
 		mocks.cql.EXPECT().GetKeyspacesInfo().Times(1).Return([]cql.Keyspace{{
 			Name: "system_auth",
 			Replication: map[string]string{
-				"class": "org.apache.cassandra.locator.NetworkTopologyStrategy",
+				"class": cql.ReplicationClassNetworkTopologyStrategy,
 				"dc1":   "2",
 			},
 		}}, nil)
 		mocks.cql.EXPECT().UpdateRF("system_auth", gomock.Any()).Times(1).Return(nil)
 		mocks.reaper.EXPECT().RunRepair(gomock.Any(), "system_auth", "keyspaces-init").Times(1).Return(errors.New("err while repair"))
 
-		err := reconciler.reconcileKeyspaces(context.Background(), cc, mocks.cql, mocks.reaper)
+		err := reconciler.reconcileKeyspaces(context.Background(), cc, mocks.cql, mocks.reaper, allDCs)
 		asserts.Expect(err).ToNot(BeNil())
 		mCtrl.Finish()
 	})

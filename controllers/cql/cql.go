@@ -9,6 +9,7 @@ import (
 
 const (
 	ReplicationClassNetworkTopologyStrategy = "org.apache.cassandra.locator.NetworkTopologyStrategy"
+	ReplicationClassSimpleTopologyStrategy  = "org.apache.cassandra.locator.SimpleTopologyStrategy"
 )
 
 type CqlClient interface {

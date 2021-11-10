@@ -37,14 +37,14 @@ var _ = Describe("rf settings", func() {
 			mockCQLClient.keyspaces = []cql.Keyspace{{
 				Name: "system_auth",
 				Replication: map[string]string{
-					"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
+					"class": cql.ReplicationClassSimpleTopologyStrategy,
 				},
 			}}
 
 			Eventually(mockCQLClient.GetKeyspacesInfo, time.Second*5, time.Millisecond*100).Should(Equal([]cql.Keyspace{{
 				Name: "system_auth",
 				Replication: map[string]string{
-					"class": "org.apache.cassandra.locator.NetworkTopologyStrategy",
+					"class": cql.ReplicationClassNetworkTopologyStrategy,
 					"dc1":   "3",
 				},
 			}},
@@ -80,19 +80,19 @@ var _ = Describe("rf settings", func() {
 				{
 					Name: "system_auth",
 					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
+						"class": cql.ReplicationClassSimpleTopologyStrategy,
 					},
 				},
 				{
 					Name: "system",
 					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
+						"class": cql.ReplicationClassSimpleTopologyStrategy,
 					},
 				},
 				{
 					Name: "system_traces",
 					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
+						"class": cql.ReplicationClassSimpleTopologyStrategy,
 					},
 				},
 			}
@@ -101,21 +101,21 @@ var _ = Describe("rf settings", func() {
 				{
 					Name: "system_auth",
 					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.NetworkTopologyStrategy",
+						"class": cql.ReplicationClassNetworkTopologyStrategy,
 						"dc1":   "3",
 					},
 				},
 				{
 					Name: "system_traces",
 					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.NetworkTopologyStrategy",
+						"class": cql.ReplicationClassNetworkTopologyStrategy,
 						"dc1":   "3",
 					},
 				},
 				{
 					Name: "system",
 					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
+						"class": cql.ReplicationClassSimpleTopologyStrategy,
 					},
 				},
 			},
@@ -151,19 +151,19 @@ var _ = Describe("rf settings", func() {
 				{
 					Name: "system_auth",
 					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
+						"class": cql.ReplicationClassSimpleTopologyStrategy,
 					},
 				},
 				{
 					Name: "system",
 					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
+						"class": cql.ReplicationClassSimpleTopologyStrategy,
 					},
 				},
 				{
 					Name: "system_traces",
 					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
+						"class": cql.ReplicationClassSimpleTopologyStrategy,
 					},
 				},
 			}
@@ -175,21 +175,21 @@ var _ = Describe("rf settings", func() {
 				{
 					Name: "system_auth",
 					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.NetworkTopologyStrategy",
+						"class": cql.ReplicationClassNetworkTopologyStrategy,
 						"dc1":   "3",
 					},
 				},
 				{
 					Name: "system_traces",
 					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.NetworkTopologyStrategy",
+						"class": cql.ReplicationClassNetworkTopologyStrategy,
 						"dc1":   "3",
 					},
 				},
 				{
 					Name: "system",
 					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
+						"class": cql.ReplicationClassSimpleTopologyStrategy,
 					},
 				},
 			},
@@ -225,20 +225,20 @@ var _ = Describe("rf settings", func() {
 				{
 					Name: "system_auth",
 					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.NetworkTopologyStrategy",
+						"class": cql.ReplicationClassNetworkTopologyStrategy,
 						"dc1":   "3",
 					},
 				},
 				{
 					Name: "system",
 					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
+						"class": cql.ReplicationClassSimpleTopologyStrategy,
 					},
 				},
 				{
 					Name: "system_traces",
 					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.NetworkTopologyStrategy",
+						"class": cql.ReplicationClassNetworkTopologyStrategy,
 						"dc1":   "3",
 					},
 				},
@@ -251,21 +251,21 @@ var _ = Describe("rf settings", func() {
 				{
 					Name: "system_auth",
 					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.NetworkTopologyStrategy",
+						"class": cql.ReplicationClassNetworkTopologyStrategy,
 						"dc1":   "3",
 					},
 				},
 				{
 					Name: "system_traces",
 					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.NetworkTopologyStrategy",
+						"class": cql.ReplicationClassNetworkTopologyStrategy,
 						"dc1":   "3",
 					},
 				},
 				{
 					Name: "system",
 					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
+						"class": cql.ReplicationClassSimpleTopologyStrategy,
 					},
 				},
 			},
@@ -294,19 +294,19 @@ var _ = Describe("rf settings", func() {
 				{
 					Name: "system_auth",
 					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
+						"class": cql.ReplicationClassSimpleTopologyStrategy,
 					},
 				},
 				{
 					Name: "system",
 					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
+						"class": cql.ReplicationClassSimpleTopologyStrategy,
 					},
 				},
 				{
 					Name: "system_traces",
 					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
+						"class": cql.ReplicationClassSimpleTopologyStrategy,
 					},
 				},
 			}
@@ -315,20 +315,20 @@ var _ = Describe("rf settings", func() {
 				{
 					Name: "system_auth",
 					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.NetworkTopologyStrategy",
+						"class": cql.ReplicationClassNetworkTopologyStrategy,
 						"dc1":   "3",
 					},
 				},
 				{
 					Name: "system_traces",
 					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
+						"class": cql.ReplicationClassSimpleTopologyStrategy,
 					},
 				},
 				{
 					Name: "system",
 					Replication: map[string]string{
-						"class": "org.apache.cassandra.locator.SimpleTopologyStrategy",
+						"class": cql.ReplicationClassSimpleTopologyStrategy,
 					},
 				},
 			},

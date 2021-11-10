@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
@@ -9,13 +10,13 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (r *CassandraClusterReconciler) reconcileReaperKeyspace(cc *v1alpha1.CassandraCluster, cqlClient cql.CqlClient) error {
+func (r *CassandraClusterReconciler) reconcileReaperKeyspace(cc *v1alpha1.CassandraCluster, cqlClient cql.CqlClient, allDCs []v1alpha1.DC) error {
 	keyspaces, err := cqlClient.GetKeyspacesInfo()
 	if err != nil {
 		return errors.Wrap(err, "failed to get keyspaces info")
 	}
 
-	replicationOptions := desiredReaperReplicationOptions(cc)
+	replicationOptions := desiredReaperReplicationOptions(cc, allDCs)
 	reaperKeyspace, found := getKeyspaceByName(keyspaces, cc.Spec.Reaper.Keyspace)
 	if !found {
 		query := fmt.Sprintf("CREATE KEYSPACE %s %s", cc.Spec.Reaper.Keyspace, cql.ReplicationQuery(replicationOptions))
@@ -41,10 +42,21 @@ func (r *CassandraClusterReconciler) reconcileReaperKeyspace(cc *v1alpha1.Cassan
 	return nil
 }
 
-func desiredReaperReplicationOptions(cc *v1alpha1.CassandraCluster) map[string]string {
+func desiredReaperReplicationOptions(cc *v1alpha1.CassandraCluster, allDCs []v1alpha1.DC) map[string]string {
 	options := make(map[string]string, len(cc.Spec.Reaper.DCs))
-	for _, dc := range cc.Spec.Reaper.DCs {
-		options[dc.Name] = fmt.Sprint(*dc.Replicas)
+
+	if cc.Spec.Reaper != nil && len(cc.Spec.Reaper.DCs) > 0 {
+		for _, dc := range cc.Spec.Reaper.DCs {
+			options[dc.Name] = fmt.Sprint(*dc.Replicas)
+		}
+	} else {
+		for _, dc := range allDCs {
+			rf := strconv.Itoa(defaultRF)
+			if dc.Replicas != nil && *dc.Replicas < defaultRF {
+				rf = strconv.Itoa(int(*dc.Replicas))
+			}
+			options[dc.Name] = rf
+		}
 	}
 	options["class"] = cql.ReplicationClassNetworkTopologyStrategy
 
