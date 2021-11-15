@@ -557,6 +557,20 @@ spec:
                   - dc
                   type: object
                 type: array
+              monitoring:
+                properties:
+                  agent:
+                    type: string
+                  enabled:
+                    type: boolean
+                  port:
+                    format: int32
+                    type: integer
+                required:
+                - agent
+                - enabled
+                - port
+                type: object
               podManagementPolicy:
                 description: PodManagementPolicyType defines the policy for creating
                   pods under a stateful set.

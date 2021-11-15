@@ -244,6 +244,7 @@ func createOperatorConfigMaps() {
 			Namespace: operatorConfig.Namespace,
 		},
 	}
+
 	cassConfigCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      names.OperatorCassandraConfigCM(),
@@ -253,6 +254,7 @@ func createOperatorConfigMaps() {
 			"cassandra.yaml": "",
 		},
 	}
+
 	shiroConfigCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      names.OperatorShiroCM(),
@@ -260,9 +262,17 @@ func createOperatorConfigMaps() {
 		},
 	}
 
+	prometheusCM := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      names.OperatorPrometheusConfigCM(),
+			Namespace: operatorConfig.Namespace,
+		},
+	}
+
 	Expect(k8sClient.Create(ctx, scriptsCM)).To(Succeed())
 	Expect(k8sClient.Create(ctx, cassConfigCM)).To(Succeed())
 	Expect(k8sClient.Create(ctx, shiroConfigCM)).To(Succeed())
+	Expect(k8sClient.Create(ctx, prometheusCM)).To(Succeed())
 }
 
 // As the test control plane doesn't support garbage collection, this function is used to clean up resources
@@ -296,6 +306,7 @@ func CleanUpCreatedResources(ccName, ccNamespace string) {
 		{name: names.ReaperService(cc.Name), objType: &v1.Service{}},
 		{name: names.ReaperCqlConfigMap(cc.Name), objType: &v1.ConfigMap{}},
 		{name: names.ShiroConfigMap(cc.Name), objType: &v1.ConfigMap{}},
+		{name: names.PrometheusConfigMap(cc.Name), objType: &v1.ConfigMap{}},
 		{name: names.ScriptsConfigMap(cc.Name), objType: &v1.ConfigMap{}},
 		{name: names.MaintenanceConfigMap(cc.Name), objType: &v1.ConfigMap{}},
 		{name: names.RepairsConfigMap(cc.Name), objType: &v1.ConfigMap{}},

@@ -128,15 +128,19 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling Admin Auth Secrets")
 	}
 
-	if err := r.reconcileScriptsConfigMap(ctx, cc); err != nil {
+	if err = r.reconcileScriptsConfigMap(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling scripts configmap")
 	}
 
-	if err := r.reconcileMaintenanceConfigMap(ctx, cc); err != nil {
+	if err = r.reconcilePrometheusConfigMap(ctx, cc); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error reconciling prometheus configmap")
+	}
+
+	if err = r.reconcileMaintenanceConfigMap(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling maintenance configmap")
 	}
 
-	if err := r.reconcileProber(ctx, cc); err != nil {
+	if err = r.reconcileProber(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling prober")
 	}
 
@@ -162,13 +166,13 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, err
 	}
 
-	if err := r.reconcileCassandraConfigMap(ctx, cc); err != nil {
+	if err = r.reconcileCassandraConfigMap(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling cassandra config configmaps")
 	}
 
 	// although the pods don't exist yet on the first run, we still need to create the configmap (even empty)
 	// so that the pods won't fail trying to mount an empty configmap
-	if err := r.reconcileCassandraPodsConfigMap(ctx, cc, proberClient); err != nil {
+	if err = r.reconcileCassandraPodsConfigMap(ctx, cc, proberClient); err != nil {
 		if errors.Cause(err) == ErrPodNotScheduled || errors.Cause(err) == errors.Cause(ErrRegionNotReady) {
 			r.Log.Warnf("%s. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
 			return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
@@ -176,15 +180,15 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling Cassandra pods configmap")
 	}
 
-	if err := r.reconcileCassandra(ctx, cc); err != nil {
+	if err = r.reconcileCassandra(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling statefulsets")
 	}
 
-	if err := r.reconcileCassandraPodLabels(ctx, cc); err != nil {
+	if err = r.reconcileCassandraPodLabels(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile cassandra pods labels")
 	}
 
-	if err := r.reconcileMaintenance(ctx, cc); err != nil {
+	if err = r.reconcileMaintenance(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile maintenance")
 	}
 
@@ -272,8 +276,7 @@ func (r *CassandraClusterReconciler) clusterReady(ctx context.Context, cc *v1alp
 	}
 
 	if len(unreadyDCs) > 0 {
-		err := proberClient.UpdateDCStatus(ctx, false)
-		if err != nil {
+		if err = proberClient.UpdateDCStatus(ctx, false); err != nil {
 			return false, errors.Wrap(err, "Failed to set DC status to not ready for prober")
 		}
 		r.Log.Warnf("Not all DCs are ready: %q.", unreadyDCs)

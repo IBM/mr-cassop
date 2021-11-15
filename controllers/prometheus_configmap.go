@@ -13,14 +13,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-func (r *CassandraClusterReconciler) reconcileScriptsConfigMap(ctx context.Context, cc *v1alpha1.CassandraCluster) error {
-	operatorCM, err := r.getConfigMap(ctx, names.OperatorScriptsCM(), r.Cfg.Namespace)
+func (r *CassandraClusterReconciler) reconcilePrometheusConfigMap(ctx context.Context, cc *v1alpha1.CassandraCluster) error {
+	operatorCM, err := r.getConfigMap(ctx, names.OperatorPrometheusConfigCM(), r.Cfg.Namespace)
 	if err != nil {
 		return err
 	}
 	desiredCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.ScriptsConfigMap(cc.Name),
+			Name:      names.PrometheusConfigMap(cc.Name),
 			Namespace: cc.Namespace,
 			Labels:    labels.CombinedComponentLabels(cc, v1alpha1.CassandraClusterComponentCassandra),
 		},
@@ -35,23 +35,24 @@ func (r *CassandraClusterReconciler) reconcileScriptsConfigMap(ctx context.Conte
 	return nil
 }
 
-func scriptsVolume(cc *v1alpha1.CassandraCluster) v1.Volume {
+func prometheusVolume(cc *v1alpha1.CassandraCluster) v1.Volume {
 	return v1.Volume{
-		Name: "scripts-config",
+		Name: "prometheus-config",
 		VolumeSource: v1.VolumeSource{
 			ConfigMap: &v1.ConfigMapVolumeSource{
 				LocalObjectReference: v1.LocalObjectReference{
-					Name: names.ScriptsConfigMap(cc.Name),
+					Name: names.PrometheusConfigMap(cc.Name),
 				},
-				DefaultMode: proto.Int32(0755),
+				DefaultMode: proto.Int32(v1.ConfigMapVolumeSourceDefaultMode),
 			},
 		},
 	}
 }
 
-func scriptsVolumeMount() v1.VolumeMount {
+func prometheusVolumeMount() v1.VolumeMount {
 	return v1.VolumeMount{
-		Name:      "scripts-config",
-		MountPath: "/scripts",
+		Name:      "prometheus-config",
+		MountPath: "/prometheus/prometheus.yaml",
+		SubPath: "prometheus.yaml",
 	}
 }

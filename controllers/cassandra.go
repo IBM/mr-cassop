@@ -118,6 +118,7 @@ func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, ser
 					ImagePullSecrets: imagePullSecrets(cc),
 					Volumes: []v1.Volume{
 						scriptsVolume(cc),
+						prometheusVolume(cc),
 						maintenanceVolume(cc),
 						cassandraConfigVolume(cc),
 						podsConfigVolume(cc),
@@ -246,6 +247,7 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, serve
 		},
 		VolumeMounts: []v1.VolumeMount{
 			scriptsVolumeMount(),
+			prometheusVolumeMount(),
 			cassandraDCConfigVolumeMount(),
 			cassandraDataVolumeMount(),
 			podsConfigVolumeMount(),
@@ -288,15 +290,15 @@ func (r *CassandraClusterReconciler) reconcileDCService(ctx context.Context, cc 
 				{
 					Name:       "intra",
 					Protocol:   v1.ProtocolTCP,
-					Port:       7000,
-					TargetPort: intstr.FromInt(7000),
+					Port:       dbv1alpha1.IntraPort,
+					TargetPort: intstr.FromInt(dbv1alpha1.IntraPort),
 					NodePort:   0,
 				},
 				{
 					Name:       "tls",
 					Protocol:   v1.ProtocolTCP,
-					Port:       7001,
-					TargetPort: intstr.FromInt(7001),
+					Port:       dbv1alpha1.TlsPort,
+					TargetPort: intstr.FromInt(dbv1alpha1.TlsPort),
 					NodePort:   0,
 				},
 				{
@@ -453,9 +455,26 @@ fi`,
 		)
 	}
 
+	if cc.Spec.Monitoring.Enabled {
+		cassandraRunCommand = append(cassandraRunCommand, getJavaAgent(cc.Spec.Monitoring.Agent))
+	}
+
 	args = append(args, strings.Join(cassandraRunCommand, " "))
 
 	return strings.Join(args, "\n")
+}
+
+func getJavaAgent(agent string) string {
+	javaAgent := ""
+	switch agent {
+	case "instaclustr":
+		javaAgent = "-javaagent:/prometheus/cassandra-exporter-agent.jar"
+	case "datastax":
+		javaAgent = "-javaagent:/prometheus/datastax-mcac-agent/lib/datastax-mcac-agent.jar"
+	case "tlp":
+		javaAgent = "-javaagent:/prometheus/jmx_prometheus_javaagent.jar=8090:/prometheus/prometheus.yaml"
+	}
+	return javaAgent
 }
 
 func imagePullSecrets(cc *dbv1alpha1.CassandraCluster) []v1.LocalObjectReference {
@@ -686,7 +705,7 @@ func podsConfigVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
 				LocalObjectReference: v1.LocalObjectReference{
 					Name: names.PodsConfigConfigmap(cc.Name),
 				},
-				DefaultMode: proto.Int32(v1.SecretVolumeSourceDefaultMode),
+				DefaultMode: proto.Int32(v1.ConfigMapVolumeSourceDefaultMode),
 			},
 		},
 	}
@@ -703,13 +722,13 @@ func cassandraContainerPorts(cc *dbv1alpha1.CassandraCluster) []v1.ContainerPort
 	containerPorts := []v1.ContainerPort{
 		{
 			Name:          "intra",
-			ContainerPort: 7000,
+			ContainerPort: dbv1alpha1.IntraPort,
 			Protocol:      v1.ProtocolTCP,
 			HostPort:      0,
 		},
 		{
 			Name:          "tls",
-			ContainerPort: 7001,
+			ContainerPort: dbv1alpha1.TlsPort,
 			Protocol:      v1.ProtocolTCP,
 			HostPort:      0,
 		},

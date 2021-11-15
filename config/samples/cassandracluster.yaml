@@ -101,3 +101,7 @@ spec:
     - thrift
   jvm:
     maxHeapSize: 1024M
+  monitoring:
+    enabled: false
+    port: 8090
+    agent: "tlp"

@@ -58,6 +58,10 @@ func ShiroConfigMap(clusterName string) string {
 	return clusterName + "-shiro-configmap"
 }
 
+func PrometheusConfigMap(clusterName string) string {
+	return clusterName + "-prometheus-configmap"
+}
+
 func MaintenanceConfigMap(clusterName string) string {
 	return clusterName + "-maintenance-configmap"
 }
@@ -108,6 +112,10 @@ func OperatorScriptsCM() string {
 
 func OperatorCassandraConfigCM() string {
 	return cassandraOperator + "-cassandra-init-config"
+}
+
+func OperatorPrometheusConfigCM() string {
+	return cassandraOperator + "-prometheus-configmap"
 }
 
 func OperatorShiroCM() string {

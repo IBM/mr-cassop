@@ -3,21 +3,24 @@ module github.com/ibm/cassandra-operator
 go 1.16
 
 require (
+	cloud.google.com/go v0.81.0 // indirect
 	github.com/caarlos0/env/v6 v6.2.1
 	github.com/go-logr/zapr v0.4.0
 	github.com/gocql/gocql v0.0.0-20201215165327-e49edf966d90
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/mock v1.5.0
-	github.com/google/go-cmp v0.5.5
+	github.com/google/go-cmp v0.5.6
 	github.com/google/go-querystring v1.0.0
 	github.com/onsi/ginkgo v1.16.4
-	github.com/onsi/gomega v1.13.0
+	github.com/onsi/gomega v1.14.0
 	github.com/pkg/errors v0.9.1
 	go.uber.org/zap v1.17.0
-	k8s.io/api v0.22.0
-	k8s.io/apiextensions-apiserver v0.22.0
-	k8s.io/apimachinery v0.22.0
-	k8s.io/client-go v0.22.0
+	golang.org/x/oauth2 v0.0.0-20210402161424-2e8d93401602 // indirect
+	golang.org/x/tools v0.1.5 // indirect
+	k8s.io/api v0.22.2
+	k8s.io/apiextensions-apiserver v0.22.2
+	k8s.io/apimachinery v0.22.2
+	k8s.io/client-go v0.22.2
 	sigs.k8s.io/controller-runtime v0.9.2
 	sigs.k8s.io/yaml v1.2.0
 )

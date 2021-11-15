@@ -38,12 +38,15 @@ const (
 	CassandraOperatorAdminRole     = "admin-role"
 	CassandraOperatorAdminPassword = "admin-password"
 
-	ProberContainerPort  = 8888
 	ProberServicePort    = 80
 	JolokiaContainerPort = 8080
-	CqlPort              = 9042
-	JmxPort              = 7199
-	ThriftPort           = 9160
+	ProberContainerPort  = 8888
+
+	IntraPort  = 7000
+	TlsPort    = 7001
+	JmxPort    = 7199
+	CqlPort    = 9042
+	ThriftPort = 9160
 
 	ReaperReplicasNumber = 1
 )
@@ -72,7 +75,7 @@ type CassandraClusterSpec struct {
 	JVM                 JVM             `json:"jvm,omitempty"`
 	JMX                 JMX             `json:"jmx,omitempty"`
 	Encryption          Encryption      `json:"encryption,omitempty"`
-	//Monitoring           Monitoring      `json:"monitoring,omitempty"` //TODO part of monitoring implementation
+	Monitoring          Monitoring      `json:"monitoring,omitempty"`
 }
 
 type Reaper struct {
@@ -102,10 +105,11 @@ type HostPort struct {
 	Ports             []string `json:"ports,omitempty"`
 }
 
-//type Monitoring struct { // TODO part of monitoring implementation
-//	Enabled bool  `json:"enabled"`
-//	Port    int32 `json:"port"`
-//}
+type Monitoring struct {
+	Enabled bool   `json:"enabled"`
+	Port    int32  `json:"port"`
+	Agent   string `json:"agent"`
+}
 
 type JVM struct {
 	MaxHeapSize string `json:"maxHeapSize,omitempty"`
