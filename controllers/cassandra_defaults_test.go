@@ -1,12 +1,13 @@
 package controllers
 
 import (
+	"testing"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/config"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
-	"testing"
 )
 
 func TestDefaultingFunction(t *testing.T) {
@@ -97,7 +98,8 @@ func TestDefaultingFunction(t *testing.T) {
 		},
 	}
 	reconciler.defaultCassandraCluster(cc)
-	g.Expect(cc.Spec.Reaper.DCs).To(BeNil())
+	g.Expect(cc.Spec.DCs[0].Tolerations).To(BeNil())
+	g.Expect(cc.Spec.DCs[0].Affinity).To(BeNil())
 	g.Expect(cc.Spec.SystemKeyspaces.DCs).To(BeNil())
 	g.Expect(cc.Spec.Reaper.RepairSchedules.Repairs[0].Keyspace).To(Equal("system_auth"))
 	g.Expect(cc.Spec.Reaper.RepairSchedules.Repairs[0].RepairParallelism).To(Equal("DATACENTER_AWARE"))

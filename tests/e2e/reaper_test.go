@@ -92,7 +92,6 @@ var _ = Describe("Cassandra cluster", func() {
 			newCassandraCluster.Spec.Reaper = &v1alpha1.Reaper{
 				ImagePullPolicy:                        "IfNotPresent",
 				Keyspace:                               testRepairReaperKeyspace,
-				DCs:                                    cassandraDCs,
 				DatacenterAvailability:                 "each",
 				IncrementalRepair:                      false,
 				RepairIntensity:                        "1.0",

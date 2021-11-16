@@ -124,6 +124,8 @@ func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, ser
 						podsConfigVolume(cc),
 						authVolume(cc),
 					},
+					Affinity:                      dc.Affinity,
+					Tolerations:                   dc.Tolerations,
 					RestartPolicy:                 v1.RestartPolicyAlways,
 					TerminationGracePeriodSeconds: cc.Spec.Cassandra.TerminationGracePeriodSeconds,
 					DNSPolicy:                     v1.DNSClusterFirst,

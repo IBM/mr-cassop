@@ -329,7 +329,7 @@ func (r CassandraClusterReconciler) reaperInitialization(ctx context.Context, cc
 
 		// we had to modify system_auth keyspace before we had reaper in order to bootstrap the cluster. So run the missing repair now.
 		r.Log.Info("starting a repair for system_auth keyspace")
-		err = reaperClient.RunRepair(ctx, "system_auth", repairCauseReaperInit)
+		err = reaperClient.RunRepair(ctx, keyspaceSystemAuth, repairCauseReaperInit)
 		if err != nil {
 			return errors.Wrap(err, "failed to run repair on system_auth keyspace")
 		}

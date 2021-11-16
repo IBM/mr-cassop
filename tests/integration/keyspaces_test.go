@@ -1,15 +1,16 @@
 package integration
 
 import (
+	"time"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"time"
 )
 
-var _ = Describe("rf settings", func() {
+var _ = Describe("system keyspaces settings", func() {
 	Context("if doesn't match the spec", func() {
 		It("should be updated", func() {
 			cc := &v1alpha1.CassandraCluster{
@@ -123,7 +124,7 @@ var _ = Describe("rf settings", func() {
 		})
 	})
 
-	Context("with non existing keyspace scpecified", func() {
+	Context("with non existing keyspace specified", func() {
 		It("should be skipped and still update existing", func() {
 			cc := &v1alpha1.CassandraCluster{
 				ObjectMeta: cassandraObjectMeta,
@@ -274,7 +275,7 @@ var _ = Describe("rf settings", func() {
 	})
 
 	Context("with no keyspaces specified", func() {
-		It("should still update `system_auth` keyspace", func() {
+		It("should still update `system_auth`, `system_traces` and `system_distributed` keyspaces", func() {
 			cc := &v1alpha1.CassandraCluster{
 				ObjectMeta: cassandraObjectMeta,
 				Spec: v1alpha1.CassandraClusterSpec{
@@ -309,6 +310,12 @@ var _ = Describe("rf settings", func() {
 						"class": cql.ReplicationClassSimpleTopologyStrategy,
 					},
 				},
+				{
+					Name: "system_distributed",
+					Replication: map[string]string{
+						"class": cql.ReplicationClassSimpleTopologyStrategy,
+					},
+				},
 			}
 
 			Eventually(mockCQLClient.GetKeyspacesInfo, time.Second*5, time.Millisecond*100).Should(ContainElements([]cql.Keyspace{
@@ -322,7 +329,108 @@ var _ = Describe("rf settings", func() {
 				{
 					Name: "system_traces",
 					Replication: map[string]string{
+						"class": cql.ReplicationClassNetworkTopologyStrategy,
+						"dc1":   "3",
+					},
+				},
+				{
+					Name: "system_distributed",
+					Replication: map[string]string{
+						"class": cql.ReplicationClassNetworkTopologyStrategy,
+						"dc1":   "3",
+					},
+				},
+				{
+					Name: "system",
+					Replication: map[string]string{
 						"class": cql.ReplicationClassSimpleTopologyStrategy,
+					},
+				},
+			},
+			))
+		})
+	})
+
+	Context("with only `system_trace` keyspace specified", func() {
+		It("should default `system_auth` + `system_distributed`, and override `system_traces`", func() {
+			cc := &v1alpha1.CassandraCluster{
+				ObjectMeta: cassandraObjectMeta,
+				Spec: v1alpha1.CassandraClusterSpec{
+					DCs: []v1alpha1.DC{
+						{
+							Name:     "dc1",
+							Replicas: proto.Int32(4),
+						},
+					},
+					SystemKeyspaces: v1alpha1.SystemKeyspaces{
+						Names: []v1alpha1.KeyspaceName{
+							"system_traces",
+						},
+						DCs: []v1alpha1.SystemKeyspaceDC{
+							{
+								Name: "dc1",
+								RF:   3,
+							},
+							{
+								Name: "dc2",
+								RF:   3,
+							},
+						},
+					},
+					ImagePullSecretName: "pull-secret-name",
+					AdminRoleSecretName: "admin-role",
+				},
+			}
+
+			createReadyCluster(cc)
+			mockCQLClient.keyspaces = []cql.Keyspace{
+				{
+					Name: "system_auth",
+					Replication: map[string]string{
+						"class": cql.ReplicationClassSimpleTopologyStrategy,
+					},
+				},
+				{
+					Name: "system",
+					Replication: map[string]string{
+						"class": cql.ReplicationClassSimpleTopologyStrategy,
+					},
+				},
+				{
+					Name: "system_traces",
+					Replication: map[string]string{
+						"class": cql.ReplicationClassSimpleTopologyStrategy,
+					},
+				},
+				{
+					Name: "system_distributed",
+					Replication: map[string]string{
+						"class": cql.ReplicationClassSimpleTopologyStrategy,
+					},
+				},
+			}
+
+			Eventually(mockCQLClient.GetKeyspacesInfo, time.Second*5, time.Millisecond*100).Should(ContainElements([]cql.Keyspace{
+				{
+					Name: "system_auth",
+					Replication: map[string]string{
+						"class": cql.ReplicationClassNetworkTopologyStrategy,
+						"dc1":   "3",
+					},
+				},
+				{
+					Name: "system_traces",
+					Replication: map[string]string{
+						"class": cql.ReplicationClassNetworkTopologyStrategy,
+						"dc1":   "3",
+						"dc2":   "3",
+					},
+				},
+				{
+					Name: "system_distributed",
+					Replication: map[string]string{
+						"class": cql.ReplicationClassNetworkTopologyStrategy,
+						"dc1":   "3",
 					},
 				},
 				{

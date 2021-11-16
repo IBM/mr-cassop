@@ -12,22 +12,15 @@ import (
 	"github.com/pkg/errors"
 )
 
-const defaultRF = 3
+const (
+	defaultRF                 = 3
+	keyspaceSystemAuth        = "system_auth"
+	keyspaceSystemDistributed = "system_distributed"
+	keyspaceSystemTraces      = "system_traces"
+)
 
 func (r *CassandraClusterReconciler) reconcileKeyspaces(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cqlClient cql.CqlClient, reaperClient reaper.ReaperClient, allDCs []dbv1alpha1.DC) error {
-	keyspacesToReconcile := cc.Spec.SystemKeyspaces.Names
-
-	if len(keyspacesToReconcile) == 0 {
-		keyspacesToReconcile = append(keyspacesToReconcile, "system_auth", dbv1alpha1.KeyspaceName(cc.Spec.Reaper.Keyspace))
-	}
-
-	if !keyspaceExists(keyspacesToReconcile, "system_auth") {
-		keyspacesToReconcile = append(keyspacesToReconcile, "system_auth")
-	}
-
-	if !keyspaceExists(keyspacesToReconcile, cc.Spec.Reaper.Keyspace) {
-		keyspacesToReconcile = append(keyspacesToReconcile, dbv1alpha1.KeyspaceName(cc.Spec.Reaper.Keyspace))
-	}
+	keyspacesToReconcile := desiredKeyspacesToReconcile(cc)
 
 	currentKeyspaces, err := cqlClient.GetKeyspacesInfo()
 	if err != nil {
@@ -41,7 +34,7 @@ func (r *CassandraClusterReconciler) reconcileKeyspaces(ctx context.Context, cc 
 			continue
 		}
 
-		desiredOptions := desiredReplicationOptions(cc, allDCs)
+		desiredOptions := desiredReplicationOptions(cc, string(systemKeyspace), allDCs)
 		if !cmp.Equal(keyspaceInfo.Replication, desiredOptions) {
 			r.Log.Infof("Updating keyspace %q with replication options %v", systemKeyspace, desiredOptions)
 			err = cqlClient.UpdateRF(string(systemKeyspace), desiredOptions)
@@ -73,10 +66,10 @@ func getKeyspaceByName(existingKeyspaces []cql.Keyspace, keyspaceName string) (c
 	return cql.Keyspace{}, false
 }
 
-func desiredReplicationOptions(cc *dbv1alpha1.CassandraCluster, allDCs []dbv1alpha1.DC) map[string]string {
+func desiredReplicationOptions(cc *dbv1alpha1.CassandraCluster, keyspace string, allDCs []dbv1alpha1.DC) map[string]string {
 	options := make(map[string]string, len(cc.Spec.SystemKeyspaces.DCs))
 
-	if len(cc.Spec.SystemKeyspaces.DCs) > 0 {
+	if len(cc.Spec.SystemKeyspaces.DCs) > 0 && keyspaceExists(cc.Spec.SystemKeyspaces.Names, keyspace) {
 		for _, dc := range cc.Spec.SystemKeyspaces.DCs {
 			options[dc.Name] = fmt.Sprint(dc.RF)
 		}
@@ -92,6 +85,27 @@ func desiredReplicationOptions(cc *dbv1alpha1.CassandraCluster, allDCs []dbv1alp
 	options["class"] = cql.ReplicationClassNetworkTopologyStrategy
 
 	return options
+}
+
+func desiredKeyspacesToReconcile(cc *dbv1alpha1.CassandraCluster) []dbv1alpha1.KeyspaceName {
+	keyspacesToReconcile := []dbv1alpha1.KeyspaceName{
+		keyspaceSystemAuth,
+		keyspaceSystemDistributed,
+		keyspaceSystemTraces,
+		dbv1alpha1.KeyspaceName(cc.Spec.Reaper.Keyspace),
+	}
+
+	if len(cc.Spec.SystemKeyspaces.Names) == 0 {
+		return keyspacesToReconcile
+	}
+
+	for _, desiredKeyspace := range cc.Spec.SystemKeyspaces.Names {
+		if !keyspaceExists(keyspacesToReconcile, string(desiredKeyspace)) {
+			keyspacesToReconcile = append(keyspacesToReconcile, desiredKeyspace)
+		}
+	}
+
+	return keyspacesToReconcile
 }
 
 func keyspaceExists(keyspaces []dbv1alpha1.KeyspaceName, keyspaceName string) bool {
@@ -112,17 +126,17 @@ func (r *CassandraClusterReconciler) reconcileSystemAuthKeyspace(cc *dbv1alpha1.
 		return errors.Wrap(err, "can't get keyspace info")
 	}
 
-	keyspaceInfo, found := getKeyspaceByName(currentKeyspaces, "system_auth")
+	keyspaceInfo, found := getKeyspaceByName(currentKeyspaces, keyspaceSystemAuth)
 	if !found {
-		return errors.New("Keyspace system_auth doesn't exists")
+		return errors.Errorf("keyspace %s doesn't exist", keyspaceSystemAuth)
 	}
 
-	desiredOptions := desiredReplicationOptions(cc, allDCs)
+	desiredOptions := desiredReplicationOptions(cc, keyspaceSystemAuth, allDCs)
 	if !cmp.Equal(keyspaceInfo.Replication, desiredOptions) {
-		r.Log.Infof("Updating keyspace system_auth with replication options %v", desiredOptions)
-		err = cqlClient.UpdateRF("system_auth", desiredOptions)
+		r.Log.Infof("Updating keyspace %s with replication options %v", keyspaceSystemAuth, desiredOptions)
+		err = cqlClient.UpdateRF(keyspaceSystemAuth, desiredOptions)
 		if err != nil {
-			return errors.Wrap(err, "failed to alter system_auth keyspace")
+			return errors.Wrapf(err, "failed to alter %s keyspace", keyspaceSystemAuth)
 		}
 	}
 

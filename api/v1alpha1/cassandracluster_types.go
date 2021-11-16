@@ -84,7 +84,6 @@ type Reaper struct {
 	ImagePullPolicy v1.PullPolicy `json:"imagePullPolicy,omitempty"`
 	// +kubebuilder:validation:MinLength=1
 	Keyspace string `json:"keyspace,omitempty"`
-	DCs      []DC   `json:"dcs,omitempty"`
 	// +kubebuilder:validation:Enum=each
 	DatacenterAvailability                 string                  `json:"datacenterAvailability,omitempty"`
 	Tolerations                            []v1.Toleration         `json:"tolerations,omitempty"`
@@ -204,7 +203,9 @@ type DC struct {
 	// +kubebuilder:validation:Pattern:=^[a-z0-9][a-z0-9\-]*$
 	Name string `json:"name"`
 	// +kubebuilder:validation:Minimum:=0
-	Replicas *int32 `json:"replicas"`
+	Replicas    *int32          `json:"replicas"`
+	Affinity    *v1.Affinity    `json:"affinity,omitempty"`
+	Tolerations []v1.Toleration `json:"tolerations,omitempty"`
 }
 
 type Cassandra struct {

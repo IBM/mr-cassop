@@ -722,19 +722,9 @@ var _ = Describe("cassandracluster validation", func() {
 						},
 					},
 					Reaper: &v1alpha1.Reaper{
-						Image:           "reaper/image",
-						ImagePullPolicy: v1.PullAlways,
-						Keyspace:        "reaper",
-						DCs: []v1alpha1.DC{
-							{
-								Name:     "dc1",
-								Replicas: proto.Int32(1),
-							},
-							{
-								Name:     "dc2",
-								Replicas: proto.Int32(2),
-							},
-						},
+						Image:                                  "reaper/image",
+						ImagePullPolicy:                        v1.PullAlways,
+						Keyspace:                               "reaper",
 						DatacenterAvailability:                 "each",
 						Tolerations:                            nil,
 						NodeSelector:                           nil,

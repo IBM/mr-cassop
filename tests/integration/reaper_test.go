@@ -51,16 +51,6 @@ var _ = Describe("reaper deployment", func() {
 					},
 					AdminRoleSecretName: "admin-role",
 					Reaper: &v1alpha1.Reaper{
-						DCs: []v1alpha1.DC{
-							{
-								Name:     "dc1",
-								Replicas: proto.Int32(1),
-							},
-							{
-								Name:     "dc2",
-								Replicas: proto.Int32(1),
-							},
-						},
 						RepairSchedules: v1alpha1.RepairSchedules{
 							Enabled: true,
 							Repairs: []v1alpha1.RepairSchedule{

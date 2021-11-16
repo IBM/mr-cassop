@@ -471,15 +471,19 @@ func createCassandraPods(cc *v1alpha1.CassandraCluster) {
 			err := k8sClient.Create(ctx, pod)
 			Expect(err).ShouldNot(HaveOccurred())
 			logr.Debug(fmt.Sprintf("created pod %s", pod.Name))
+			Eventually(func() error {
+				actualPod := &v1.Pod{}
+				Expect(k8sClient.Get(ctx, types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, actualPod)).To(Succeed())
+				actualPod.Status.PodIP = fmt.Sprintf("10.0.%d.%d", dcID, replicaID)
+				actualPod.Status.ContainerStatuses = []v1.ContainerStatus{
+					{
+						Name:  "cassandra",
+						Ready: true,
+					},
+				}
+				return k8sClient.Status().Update(ctx, actualPod)
+			}, mediumTimeout, mediumRetry).Should(Succeed())
 
-			pod.Status.PodIP = fmt.Sprintf("10.0.%d.%d", dcID, replicaID)
-			pod.Status.ContainerStatuses = []v1.ContainerStatus{
-				{
-					Name:  "cassandra",
-					Ready: true,
-				},
-			}
-			err = k8sClient.Status().Update(ctx, pod)
 			Expect(err).ShouldNot(HaveOccurred())
 		}
 	}

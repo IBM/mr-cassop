@@ -22,6 +22,19 @@ type RepairRun struct {
 
 // RunRepair Creates and starts a repair run
 func (r *reaperClient) RunRepair(ctx context.Context, keyspace, cause string) error {
+	existingRepairRuns, err := r.getRepairRuns(ctx, keyspace)
+	if err != nil {
+		return err
+	}
+
+	if len(existingRepairRuns) > 0 {
+		for _, run := range existingRepairRuns {
+			if run.State == "RUNNING" || run.State == "NOT_STARTED" {
+				return nil // don't start a repair if there's one running or scheduled
+			}
+		}
+	}
+
 	repairRun, err := r.createRepairRun(ctx, keyspace, cause)
 	if err != nil {
 		return err
@@ -66,6 +79,41 @@ func (r *reaperClient) createRepairRun(ctx context.Context, keyspace, cause stri
 	}
 
 	return createdRepair, nil
+}
+
+func (r *reaperClient) getRepairRuns(ctx context.Context, keyspace string) ([]RepairRun, error) {
+	route := r.url("/repair_run")
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, route, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/json")
+	urlParams := url.Values{}
+	urlParams.Add("clusterName", r.clusterName)
+	urlParams.Add("keyspace", keyspace)
+
+	req.URL.RawQuery = urlParams.Encode()
+	resp, err := r.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode >= 300 {
+		return nil, &requestFailedWithStatus{code: resp.StatusCode, message: string(body)}
+	}
+
+	repairRuns := []RepairRun{}
+	err = json.Unmarshal(body, &repairRuns)
+	if err != nil {
+		return nil, err
+	}
+
+	return repairRuns, nil
 }
 
 func (r *reaperClient) setRepairState(ctx context.Context, runID, state string) error {
