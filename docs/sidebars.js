@@ -4,6 +4,7 @@ module.exports = {
     'quickstart',
     'operator-configuration',
     'cassandracluster-configuration',
+    'admin-auth',
     'roles-management',
     'keyspace-management',
     {
@@ -21,9 +22,12 @@ module.exports = {
       collapsed: true,
       items: [
         'server-tls-encryption-configuration',
+        'client-tls-encryption-configuration',
+        'create-tls-secret',
       ],
     },
     'multi-cluster-configurations',
     'maintenance-mode',
+    'development',
   ],
 };

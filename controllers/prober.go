@@ -3,9 +3,11 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"strconv"
-
 	"github.com/gogo/protobuf/proto"
+	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
+	"github.com/ibm/cassandra-operator/controllers/compare"
+	"github.com/ibm/cassandra-operator/controllers/labels"
+	"github.com/ibm/cassandra-operator/controllers/names"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -14,11 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-
-	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
-	"github.com/ibm/cassandra-operator/controllers/compare"
-	"github.com/ibm/cassandra-operator/controllers/labels"
-	"github.com/ibm/cassandra-operator/controllers/names"
+	"strconv"
 )
 
 func (r *CassandraClusterReconciler) reconcileProber(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
@@ -52,6 +50,17 @@ func (r *CassandraClusterReconciler) reconcileProber(ctx context.Context, cc *db
 }
 
 func (r *CassandraClusterReconciler) reconcileProberDeployment(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
+	var err error
+
+	clientTLSSecret := &v1.Secret{}
+
+	if cc.Spec.Encryption.Client.Enabled {
+		clientTLSSecret, err = r.getSecret(ctx, cc.Spec.Encryption.Client.TLSSecret.Name, cc.Namespace)
+		if err != nil {
+			return err
+		}
+	}
+
 	proberLabels := labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterComponentProber)
 	percent25 := intstr.FromInt(25)
 	desiredDeployment := &appsv1.Deployment{
@@ -79,19 +88,44 @@ func (r *CassandraClusterReconciler) reconcileProberDeployment(ctx context.Conte
 					Labels: proberLabels,
 				},
 				Spec: v1.PodSpec{
-					ImagePullSecrets:              imagePullSecrets(cc),
+					Containers: []v1.Container{
+						proberContainer(cc),
+						jolokiaContainer(cc, clientTLSSecret),
+					},
 					RestartPolicy:                 v1.RestartPolicyAlways,
 					TerminationGracePeriodSeconds: proto.Int64(30),
 					DNSPolicy:                     v1.DNSClusterFirst,
-					SecurityContext:               &v1.PodSecurityContext{},
 					ServiceAccountName:            names.ProberServiceAccount(cc.Name),
-					Containers: []v1.Container{
-						proberContainer(cc),
-						jolokiaContainer(cc),
-					},
+					SecurityContext:               &v1.PodSecurityContext{},
+					ImagePullSecrets:              imagePullSecrets(cc),
 				},
 			},
 		},
+	}
+
+	if cc.Spec.Encryption.Client.Enabled {
+		desiredDeployment.Spec.Template.Spec.Volumes = []v1.Volume{
+			{
+				Name: cassandraClientTLSVolumeName,
+				VolumeSource: v1.VolumeSource{
+					Secret: &v1.SecretVolumeSource{
+						SecretName: cc.Spec.Encryption.Client.TLSSecret.Name,
+						Items: []v1.KeyToPath{
+							{
+								Key:  cc.Spec.Encryption.Client.TLSSecret.KeystoreFileKey,
+								Path: cc.Spec.Encryption.Client.TLSSecret.KeystoreFileKey,
+							},
+							{
+								Key:  cc.Spec.Encryption.Client.TLSSecret.TruststoreFileKey,
+								Path: cc.Spec.Encryption.Client.TLSSecret.TruststoreFileKey,
+							},
+						},
+
+						DefaultMode: proto.Int32(v1.SecretVolumeSourceDefaultMode),
+					},
+				},
+			},
+		}
 	}
 
 	if err := controllerutil.SetControllerReference(cc, desiredDeployment, r.Scheme); err != nil {
@@ -99,7 +133,7 @@ func (r *CassandraClusterReconciler) reconcileProberDeployment(ctx context.Conte
 	}
 
 	actualDeployment := &appsv1.Deployment{}
-	err := r.Get(ctx, types.NamespacedName{Name: names.ProberDeployment(cc.Name), Namespace: cc.Namespace}, actualDeployment)
+	err = r.Get(ctx, types.NamespacedName{Name: names.ProberDeployment(cc.Name), Namespace: cc.Namespace}, actualDeployment)
 	if err != nil && apierrors.IsNotFound(err) {
 		r.Log.Info("Creating prober deployment")
 		err = r.Create(ctx, desiredDeployment)
@@ -225,12 +259,10 @@ func proberContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 	}
 }
 
-func jolokiaContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
-	return v1.Container{
-		Name:            "jolokia",
-		Image:           cc.Spec.Prober.Jolokia.Image,
-		ImagePullPolicy: cc.Spec.Prober.Jolokia.ImagePullPolicy,
-		Resources:       cc.Spec.Prober.Jolokia.Resources,
+func jolokiaContainer(cc *dbv1alpha1.CassandraCluster, clientTLSSecret *v1.Secret) v1.Container {
+	container := v1.Container{
+		Name:  "jolokia",
+		Image: cc.Spec.Prober.Jolokia.Image,
 		Ports: []v1.ContainerPort{
 			{
 				Name:          "jolokia",
@@ -238,6 +270,7 @@ func jolokiaContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 				Protocol:      v1.ProtocolTCP,
 			},
 		},
+		Resources: cc.Spec.Prober.Jolokia.Resources,
 		ReadinessProbe: &v1.Probe{
 			Handler: v1.Handler{
 				HTTPGet: &v1.HTTPGetAction{
@@ -253,5 +286,25 @@ func jolokiaContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 		},
 		TerminationMessagePath:   "/dev/termination-log",
 		TerminationMessagePolicy: v1.TerminationMessageReadFile,
+		ImagePullPolicy:          cc.Spec.Prober.Jolokia.ImagePullPolicy,
 	}
+
+	if cc.Spec.Encryption.Client.Enabled {
+		container.Env = []v1.EnvVar{
+			{
+				Name:  "CATALINA_OPTS",
+				Value: tlsJVMArgs(cc, clientTLSSecret),
+			},
+		}
+
+		container.VolumeMounts = []v1.VolumeMount{
+			{
+				Name:      cassandraClientTLSVolumeName,
+				MountPath: cassandraClientTLSDir,
+			},
+		}
+
+	}
+
+	return container
 }

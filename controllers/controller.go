@@ -51,11 +51,11 @@ const (
 	cassandraCommitLogDir        = "/var/lib/cassandra-commitlog"
 	cassandraServerTLSDir        = "/etc/cassandra-server-tls"
 	cassandraServerTLSVolumeName = "server-keystore"
-	//cassandraClientTLSDir        = "/etc/cassandra-client-tls"
-	//cassandraClientTLSVolumeName = "client-keystore"
-	defaultCQLConfigMapLabelKey = "cql-scripts"
-	retryAttempts               = 3
-	initialRetryDelaySeconds    = 5
+	cassandraClientTLSDir        = "/etc/cassandra-client-tls"
+	cassandraClientTLSVolumeName = "client-keystore"
+	defaultCQLConfigMapLabelKey  = "cql-scripts"
+	retryAttempts                = 3
+	initialRetryDelaySeconds     = 5
 
 	repairCauseKeyspacesInit = "keyspaces-init"
 	repairCauseCQLConfigMap  = "cql-configmap"
@@ -64,6 +64,9 @@ const (
 	internodeEncryptionNone     = "none"
 	jmxAuthenticationInternal   = "internal"
 	jmxAuthenticationLocalFiles = "local_files"
+
+	tlsRsaAes128 = "TLS_RSA_WITH_AES_128_CBC_SHA"
+	tlsRsaAes256 = "TLS_RSA_WITH_AES_256_CBC_SHA"
 )
 
 // CassandraClusterReconciler reconciles a CassandraCluster object
@@ -262,6 +265,12 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, err
 	}
 
+	err = cleanupClientTLSDir(cc)
+	if err != nil {
+		r.Log.Errorf("%+v", err)
+
+	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -351,6 +360,18 @@ func newCassandraConfig(cc *v1alpha1.CassandraCluster, adminRole string, adminPw
 	cassCfg.ReconnectionPolicy = &gocql.ConstantReconnectionPolicy{
 		MaxRetries: 3,
 		Interval:   time.Second * 1,
+	}
+
+	if cc.Spec.Encryption.Client.Enabled {
+		cassCfg.SslOpts = &gocql.SslOptions{
+			CertPath: fmt.Sprintf("%s/%s", names.OperatorClientTLSDir(cc),
+				cc.Spec.Encryption.Client.TLSSecret.TLSCrtFileKey),
+			KeyPath: fmt.Sprintf("%s/%s", names.OperatorClientTLSDir(cc),
+				cc.Spec.Encryption.Client.TLSSecret.TLSFileKey),
+			CaPath: fmt.Sprintf("%s/%s", names.OperatorClientTLSDir(cc),
+				cc.Spec.Encryption.Client.TLSSecret.CAFileKey),
+			EnableHostVerification: false,
+		}
 	}
 
 	return cassCfg

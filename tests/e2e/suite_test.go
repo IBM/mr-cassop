@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"k8s.io/apimachinery/pkg/types"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
@@ -149,17 +150,22 @@ var _ = BeforeSuite(func() {
 		},
 	}
 
-	adminRoleSecret = &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      adminRoleSecretName,
-			Namespace: cassandraNamespace,
-		},
-		Data: map[string][]byte{
-			v1alpha1.CassandraOperatorAdminRole:     []byte("cassandra-operator"),
-			v1alpha1.CassandraOperatorAdminPassword: []byte("password"),
-		},
+	err = restClient.Get(context.Background(), types.NamespacedName{Namespace: cassandraCluster.Namespace, Name: adminRoleSecretName}, adminRoleSecret)
+
+	if err != nil {
+		adminRoleSecret = &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      adminRoleSecretName,
+				Namespace: cassandraNamespace,
+			},
+			Data: map[string][]byte{
+				v1alpha1.CassandraOperatorAdminRole:     []byte("cassandra-operator"),
+				v1alpha1.CassandraOperatorAdminPassword: []byte("password"),
+			},
+		}
+
+		Expect(restClient.Create(context.Background(), adminRoleSecret)).To(Succeed())
 	}
-	Expect(restClient.Create(context.Background(), adminRoleSecret)).To(Succeed())
 
 })
 

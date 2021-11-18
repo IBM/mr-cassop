@@ -43,17 +43,7 @@ func TestDefaultingFunction(t *testing.T) {
 	g.Expect(cc.Spec.Maintenance).To(BeNil())
 	g.Expect(cc.Status.MaintenanceState).To(BeNil())
 	g.Expect(cc.Spec.Encryption.Server.InternodeEncryption).To(Equal(internodeEncryptionNone))
-	g.Expect(cc.Spec.Encryption.Server.TLSSecret.Name).To(Equal(""))
-	g.Expect(cc.Spec.Encryption.Server.TLSSecret.KeystoreFileKey).To(Equal("keystore.jks"))
-	g.Expect(cc.Spec.Encryption.Server.TLSSecret.KeystorePasswordKey).To(Equal("keystore.password"))
-	g.Expect(cc.Spec.Encryption.Server.TLSSecret.TruststoreFileKey).To(Equal("truststore.jks"))
-	g.Expect(cc.Spec.Encryption.Server.TLSSecret.TruststorePasswordKey).To(BeEquivalentTo("truststore.password"))
-	g.Expect(cc.Spec.Encryption.Server.Protocol).To(BeEquivalentTo("TLS"))
-	g.Expect(cc.Spec.Encryption.Server.Algorithm).To(BeEquivalentTo("SunX509"))
-	g.Expect(cc.Spec.Encryption.Server.StoreType).To(BeEquivalentTo("JKS"))
-	g.Expect(cc.Spec.Encryption.Server.CipherSuites).To(BeEquivalentTo([]string{"TLS_RSA_WITH_AES_128_CBC_SHA", "TLS_RSA_WITH_AES_256_CBC_SHA"}))
-	g.Expect(cc.Spec.Encryption.Server.RequireClientAuth).To(BeEquivalentTo(proto.Bool(true)))
-	g.Expect(cc.Spec.Encryption.Server.RequireEndpointVerification).To(BeFalse())
+	g.Expect(cc.Spec.Encryption.Client.Enabled).To(BeFalse())
 
 	cc = &v1alpha1.CassandraCluster{
 		Spec: v1alpha1.CassandraClusterSpec{
@@ -78,7 +68,7 @@ func TestDefaultingFunction(t *testing.T) {
 				},
 			},
 			Encryption: v1alpha1.Encryption{
-				Server: v1alpha1.Server{
+				Server: v1alpha1.ServerEncryption{
 					InternodeEncryption: "dc",
 					TLSSecret: v1alpha1.TLSSecret{
 						Name:                  "server-tls-secret",
@@ -87,12 +77,33 @@ func TestDefaultingFunction(t *testing.T) {
 						TruststoreFileKey:     "test.jks",
 						TruststorePasswordKey: "test.txt",
 					},
+					RequireClientAuth:           proto.Bool(false),
+					RequireEndpointVerification: true,
 					Protocol:                    "TLS",
 					Algorithm:                   "SunX509",
 					StoreType:                   "PKCS12",
-					CipherSuites:                []string{"TLS_RSA_WITH_AES_256_CBC_SHA"},
-					RequireClientAuth:           proto.Bool(false),
-					RequireEndpointVerification: true,
+					CipherSuites:                []string{tlsRsaAes256},
+				},
+				Client: v1alpha1.ClientEncryption{
+					Enabled:  true,
+					Optional: true,
+					TLSSecret: v1alpha1.ClientTLSSecret{
+						TLSSecret: v1alpha1.TLSSecret{
+							Name:                  "client-tls-secret",
+							KeystoreFileKey:       "test.jks",
+							KeystorePasswordKey:   "test.txt",
+							TruststoreFileKey:     "test.jks",
+							TruststorePasswordKey: "test.txt",
+						},
+						CAFileKey:     "ca.crt",
+						TLSFileKey:    "tls.key",
+						TLSCrtFileKey: "tls.crt",
+					},
+					RequireClientAuth: proto.Bool(false),
+					Protocol:          "TLS",
+					Algorithm:         "SunX509",
+					StoreType:         "PKCS12",
+					CipherSuites:      []string{tlsRsaAes256},
 				},
 			},
 		},
@@ -117,7 +128,19 @@ func TestDefaultingFunction(t *testing.T) {
 	g.Expect(cc.Spec.Encryption.Server.Protocol).To(BeEquivalentTo("TLS"))
 	g.Expect(cc.Spec.Encryption.Server.Algorithm).To(BeEquivalentTo("SunX509"))
 	g.Expect(cc.Spec.Encryption.Server.StoreType).To(BeEquivalentTo("PKCS12"))
-	g.Expect(cc.Spec.Encryption.Server.CipherSuites).To(BeEquivalentTo([]string{"TLS_RSA_WITH_AES_256_CBC_SHA"}))
+	g.Expect(cc.Spec.Encryption.Server.CipherSuites).To(BeEquivalentTo([]string{tlsRsaAes256}))
 	g.Expect(cc.Spec.Encryption.Server.RequireClientAuth).To(BeEquivalentTo(proto.Bool(false)))
 	g.Expect(cc.Spec.Encryption.Server.RequireEndpointVerification).To(BeTrue())
+
+	g.Expect(cc.Spec.Encryption.Client.Enabled).To(BeTrue())
+	g.Expect(cc.Spec.Encryption.Client.TLSSecret.Name).To(Equal("client-tls-secret"))
+	g.Expect(cc.Spec.Encryption.Client.TLSSecret.KeystoreFileKey).To(Equal("test.jks"))
+	g.Expect(cc.Spec.Encryption.Client.TLSSecret.KeystorePasswordKey).To(Equal("test.txt"))
+	g.Expect(cc.Spec.Encryption.Client.TLSSecret.TruststoreFileKey).To(Equal("test.jks"))
+	g.Expect(cc.Spec.Encryption.Client.TLSSecret.TruststorePasswordKey).To(BeEquivalentTo("test.txt"))
+	g.Expect(cc.Spec.Encryption.Client.Protocol).To(BeEquivalentTo("TLS"))
+	g.Expect(cc.Spec.Encryption.Client.Algorithm).To(BeEquivalentTo("SunX509"))
+	g.Expect(cc.Spec.Encryption.Client.StoreType).To(BeEquivalentTo("PKCS12"))
+	g.Expect(cc.Spec.Encryption.Client.CipherSuites).To(BeEquivalentTo([]string{tlsRsaAes256}))
+	g.Expect(cc.Spec.Encryption.Client.RequireClientAuth).To(BeEquivalentTo(proto.Bool(false)))
 }

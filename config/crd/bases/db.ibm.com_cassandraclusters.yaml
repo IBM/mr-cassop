@@ -1381,6 +1381,50 @@ spec:
                 type: array
               encryption:
                 properties:
+                  client:
+                    description: Client defines encryption between Cassandra nodes
+                      and clients via CQL and JMX protocols for tools like reaper,
+                      cqlsh, nodetool and others.
+                    properties:
+                      algorithm:
+                        type: string
+                      cipherSuites:
+                        items:
+                          type: string
+                        type: array
+                      enabled:
+                        type: boolean
+                      optional:
+                        description: If enabled and optional is set to true both encrypted
+                          and unencrypted connections are handled.
+                        type: boolean
+                      protocol:
+                        type: string
+                      requireClientAuth:
+                        type: boolean
+                      storeType:
+                        type: string
+                      tlsSecret:
+                        description: TLS Secret fields configuration
+                        properties:
+                          caFileKey:
+                            type: string
+                          keystoreFileKey:
+                            type: string
+                          keystorePasswordKey:
+                            type: string
+                          name:
+                            type: string
+                          tlsCrtFileKey:
+                            type: string
+                          tlsFileKey:
+                            type: string
+                          truststoreFileKey:
+                            type: string
+                          truststorePasswordKey:
+                            type: string
+                        type: object
+                    type: object
                   server:
                     description: Server defines encryption between Cassandra nodes
                     properties:

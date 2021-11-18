@@ -2,11 +2,15 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
+	"github.com/ibm/cassandra-operator/controllers/names"
 	"github.com/pkg/errors"
+	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"os"
 )
 
 func (r *CassandraClusterReconciler) reconcileAdminRole(ctx context.Context, cc *dbv1alpha1.CassandraCluster, allDCs []dbv1alpha1.DC) (cql.CqlClient, error) {
@@ -23,6 +27,13 @@ func (r *CassandraClusterReconciler) reconcileAdminRole(ctx context.Context, cc 
 
 	cassandraOperatorAdminRole := string(adminRoleSecret.Data[dbv1alpha1.CassandraOperatorAdminRole])
 	cassandraOperatorAdminPassword := string(adminRoleSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword])
+
+	if cc.Spec.Encryption.Client.Enabled {
+		err = r.setupClientTLSFiles(ctx, cc)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to obtain Client TLS")
+		}
+	}
 
 	r.Log.Debug("Establishing cql session with role " + cassandraOperatorAdminRole)
 	cqlClient, err := r.CqlClient(newCassandraConfig(cc, cassandraOperatorAdminRole, cassandraOperatorAdminPassword))
@@ -74,7 +85,6 @@ func (r *CassandraClusterReconciler) createAdminRoleInCassandra(cc *dbv1alpha1.C
 	if err != nil {
 		return errors.Wrap(err, "Can't create cql session with role "+dbv1alpha1.CassandraDefaultRole)
 	}
-
 	defer cqlClient.CloseSession()
 
 	r.Log.Info("Session established with role " + dbv1alpha1.CassandraDefaultRole + ". " +
@@ -110,6 +120,45 @@ func (r *CassandraClusterReconciler) reconcileAdminSecrets(ctx context.Context, 
 
 	if err = r.reconcileAdminAuthConfigSecret(ctx, cc, newOperatorAdminRole, newOperatorAdminPassword); err != nil {
 		return errors.Wrap(err, "failed to reconcile admin auth secret")
+	}
+
+	return nil
+}
+
+func (r *CassandraClusterReconciler) setupClientTLSFiles(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
+	clientTLSSecret := &v1.Secret{}
+	err := r.Get(ctx, types.NamespacedName{Namespace: cc.Namespace, Name: cc.Spec.Encryption.Client.TLSSecret.Name}, clientTLSSecret)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get Client TLS Secret: %s", cc.Spec.Encryption.Client.TLSSecret.Name)
+	}
+
+	err = os.MkdirAll(names.OperatorClientTLSDir(cc), 0700)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create directory: %s", names.OperatorClientTLSDir(cc))
+	}
+
+	err = ioutil.WriteFile(fmt.Sprintf("%s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.TLSSecret.CAFileKey), clientTLSSecret.Data[cc.Spec.Encryption.Client.TLSSecret.CAFileKey], 0600)
+	if err != nil {
+		return errors.Wrapf(err, "failed to write into file %s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.TLSSecret.CAFileKey)
+	}
+
+	err = ioutil.WriteFile(fmt.Sprintf("%s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.TLSSecret.TLSFileKey), clientTLSSecret.Data[cc.Spec.Encryption.Client.TLSSecret.TLSFileKey], 0600)
+	if err != nil {
+		return errors.Wrapf(err, "failed to write into file %s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.TLSSecret.TLSFileKey)
+	}
+
+	err = ioutil.WriteFile(fmt.Sprintf("%s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.TLSSecret.TLSCrtFileKey), clientTLSSecret.Data[cc.Spec.Encryption.Client.TLSSecret.TLSCrtFileKey], 0600)
+	if err != nil {
+		return errors.Wrapf(err, "failed to write into file %s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.TLSSecret.TLSCrtFileKey)
+	}
+
+	return nil
+}
+
+func cleanupClientTLSDir(cc *dbv1alpha1.CassandraCluster) error {
+	err := os.RemoveAll(names.OperatorClientTLSDir(cc))
+	if err != nil {
+		return errors.Wrapf(err, "failed to remove directory %s", names.OperatorClientTLSDir(cc))
 	}
 
 	return nil

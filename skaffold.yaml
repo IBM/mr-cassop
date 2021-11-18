@@ -1,4 +1,4 @@
-apiVersion: skaffold/v2beta21
+apiVersion: skaffold/v2beta25
 kind: Config
 build:
   artifacts:
@@ -26,8 +26,7 @@ build:
     envTemplate:
       template: "{{.USER}}"
   local:
-    push: # If not specified, images are pushed only if the current Kubernetes context connects to a remote cluster.
-    useDockerCLI: false
+    push: true
     concurrency: 1
 deploy:
   helm:
@@ -50,15 +49,21 @@ deploy:
         version: "0.0.0-{{.USER}}"
         appVersion: "0.0.0-{{.USER}}"
       # Sets image.tag and image.repository separately
-      imageStrategy:
-        helm: {}
       recreatePods: true
 #  kubectl:
 #    manifests:
-#    - ./config/samples/cassandracluster.yaml
-#    flags:
-#      global: []
-#      apply:
-#      - --force=true
-#      delete: []
-
+#    - ./config/samples/tls-single-cluster.yaml
+profiles:
+- name: kind
+  activation:
+  - kubeContext: kind-cassandra
+  build:
+    local:
+      push: false # if `false` images will be loaded into local kind cluster nodes
+# Figure out to pull in kind cluster from local nodes a d not from ICR
+  deploy:
+    helm:
+      releases:
+      - name: "cassandra-operator-{{.USER}}"
+        setValueTemplates:
+          container.imagePullPolicy: IfNotPresent

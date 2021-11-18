@@ -61,6 +61,7 @@ func Sha1(s string) string {
 	return fmt.Sprintf("%x", bs)
 }
 
+// EmptySecretFields returns empty fields in Secret based on input field list
 func EmptySecretFields(secret *v1.Secret, fields []string) []string {
 	var emptyFields []string
 

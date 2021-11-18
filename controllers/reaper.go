@@ -79,6 +79,15 @@ func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Conte
 	}
 	adminSecretChecksum := util.Sha1(fmt.Sprintf("%v", adminRoleSecret.Data))
 
+	clientTLSSecret := &v1.Secret{}
+
+	if cc.Spec.Encryption.Client.Enabled {
+		clientTLSSecret, err = r.getSecret(ctx, cc.Spec.Encryption.Client.TLSSecret.Name, cc.Namespace)
+		if err != nil {
+			return err
+		}
+	}
+
 	reaperLabels := labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterComponentReaper)
 	reaperLabels = labels.WithDCLabel(reaperLabels, dc.Name)
 	percent25 := intstr.FromInt(25)
@@ -108,7 +117,7 @@ func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Conte
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
-						reaperContainer(cc, dc, adminSecretChecksum),
+						reaperContainer(cc, dc, adminSecretChecksum, clientTLSSecret),
 					},
 					Volumes:                       reaperVolumes(cc),
 					ImagePullSecrets:              imagePullSecrets(cc),
@@ -225,8 +234,8 @@ func (r *CassandraClusterReconciler) reconcileReaperService(ctx context.Context,
 	return nil
 }
 
-func reaperContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, adminSecretChecksum string) v1.Container {
-	return v1.Container{
+func reaperContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, adminSecretChecksum string, clientTLSSecret *v1.Secret) v1.Container {
+	container := v1.Container{
 		Name:            "reaper",
 		Image:           cc.Spec.Reaper.Image,
 		ImagePullPolicy: cc.Spec.Reaper.ImagePullPolicy,
@@ -271,26 +280,31 @@ func reaperContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, adminSec
 			InitialDelaySeconds: 120,
 		},
 		Resources: cc.Spec.Reaper.Resources,
-		Env:       reaperEnvironment(cc, dc, adminSecretChecksum),
+		Env:       reaperEnvironment(cc, dc, adminSecretChecksum, clientTLSSecret),
 		VolumeMounts: []v1.VolumeMount{
 			{
 				Name:      "shiro-config",
 				MountPath: "/shiro/shiro.ini",
 				SubPath:   "shiro.ini",
 			},
-			/* TODO: TLS
-			{{- if include "cassandra.client.tls.enabled" . }}
-			{{- include "cassandra.client.tls.volumeMounts" . | nindent 8 }}
-			{{- end }}
-			*/
 		},
 		TerminationMessagePath:   "/dev/termination-log",
 		TerminationMessagePolicy: v1.TerminationMessageReadFile,
 	}
+
+	if cc.Spec.Encryption.Client.Enabled {
+		container.VolumeMounts = append(container.VolumeMounts, v1.VolumeMount{
+
+			Name:      cassandraClientTLSVolumeName,
+			MountPath: cassandraClientTLSDir,
+		})
+	}
+
+	return container
 }
 
 func reaperVolumes(cc *dbv1alpha1.CassandraCluster) []v1.Volume {
-	return []v1.Volume{
+	volume := []v1.Volume{
 		{
 			Name:         "reaper-auth",
 			VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}},
@@ -307,6 +321,31 @@ func reaperVolumes(cc *dbv1alpha1.CassandraCluster) []v1.Volume {
 			},
 		},
 	}
+
+	if cc.Spec.Encryption.Client.Enabled {
+		volume = append(volume, v1.Volume{
+			Name: cassandraClientTLSVolumeName,
+			VolumeSource: v1.VolumeSource{
+				Secret: &v1.SecretVolumeSource{
+					SecretName: cc.Spec.Encryption.Client.TLSSecret.Name,
+					Items: []v1.KeyToPath{
+						{
+							Key:  cc.Spec.Encryption.Client.TLSSecret.KeystoreFileKey,
+							Path: cc.Spec.Encryption.Client.TLSSecret.KeystoreFileKey,
+						},
+						{
+							Key:  cc.Spec.Encryption.Client.TLSSecret.TruststoreFileKey,
+							Path: cc.Spec.Encryption.Client.TLSSecret.TruststoreFileKey,
+						},
+					},
+
+					DefaultMode: proto.Int32(v1.SecretVolumeSourceDefaultMode),
+				},
+			},
+		})
+	}
+
+	return volume
 }
 
 func (r CassandraClusterReconciler) reaperInitialization(ctx context.Context, cc *dbv1alpha1.CassandraCluster, reaperClient reaper.ReaperClient) error {

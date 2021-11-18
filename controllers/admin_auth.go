@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-
 	"github.com/gogo/protobuf/proto"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/compare"
@@ -143,7 +142,6 @@ func (r *CassandraClusterReconciler) handleAdminRoleChange(ctx context.Context, 
 	}
 
 	r.Log.Info("Logged in successfully with new credentials. Updating active admin secret.")
-
 	defer cqlClientTestCon.CloseSession()
 
 	err = r.reconcileAdminSecrets(ctx, cc, actualBaseAdminSecret.Data)
@@ -159,6 +157,7 @@ func (r *CassandraClusterReconciler) updateAdminRoleInCassandra(cc *dbv1alpha1.C
 	if err == nil {
 		r.Log.Info("Admin role has been already updated by a different region")
 		cqlClient.CloseSession()
+
 		return nil
 	}
 
@@ -260,14 +259,46 @@ unregister
 `, cassandraAdminRole, dbv1alpha1.CassandraOperatorAdminRole))
 	}
 
-	data["cqlshrc"] = []byte(fmt.Sprintf(`
+	cqlshConfig := fmt.Sprintf(`
+[connection]
+hostname = %s
+port = %d
 [authentication]
 username = %s
 password = %s
-[connection]
-hostname = 127.0.0.1
-port = 9042
-`, cassandraAdminRole, cassandraAdminPassword))
+`, dbv1alpha1.CassandraLocalhost, dbv1alpha1.CqlPort, cassandraAdminRole, cassandraAdminPassword)
+
+	if cc.Spec.Encryption.Client.Enabled {
+		cqlshConfig += fmt.Sprintf(`
+[ssl]
+certfile = %s/%s
+;; Optional, true by default
+validate = true
+`, cassandraClientTLSDir, cc.Spec.Encryption.Client.TLSSecret.CAFileKey)
+
+		if *cc.Spec.Encryption.Client.RequireClientAuth {
+			cqlshConfig += fmt.Sprintf(`
+;; The next 2 lines must be provided when require_client_auth = true in the cassandra.yaml file
+userkey = %s/%s
+usercert = %s/%s
+`, cassandraClientTLSDir, cc.Spec.Encryption.Client.TLSSecret.TLSFileKey,
+				cassandraClientTLSDir, cc.Spec.Encryption.Client.TLSSecret.TLSCrtFileKey)
+		}
+
+		clientTLSSecret, err := r.getSecret(ctx, cc.Spec.Encryption.Client.TLSSecret.Name, cc.Namespace)
+		if err != nil {
+			return err
+		}
+
+		data["nodetool-ssl.properties"] = []byte(fmt.Sprintf(`
+-Dcom.sun.management.jmxremote.ssl=true
+-Dcom.sun.management.jmxremote.ssl.need.client.auth=%v
+-Dcom.sun.management.jmxremote.registry.ssl=true
+`, *cc.Spec.Encryption.Client.RequireClientAuth) + tlsJVMArgs(cc, clientTLSSecret))
+	}
+
+	data["cqlshrc"] = []byte(cqlshConfig)
+
 	data[dbv1alpha1.CassandraOperatorAdminRole] = []byte(cassandraAdminRole)
 	data[dbv1alpha1.CassandraOperatorAdminPassword] = []byte(cassandraAdminPassword)
 

@@ -144,8 +144,8 @@ var _ = Describe("Cassandra cluster", func() {
 			Expect(releaseVersion).To(Equal("3.11.9"))
 
 			By("Running cql query: creating test keyspace...")
-			cqlQuery := `CREATE KEYSPACE IF NOT EXISTS %s WITH REPLICATION = { 'class' : 'NetworkTopologyStrategy', '%s' : 3 }`
-			err = session.Query(fmt.Sprintf(cqlQuery, testRepairReaperKeyspace, cassandraDCs[0].Name)).Exec()
+			cqlQuery := `CREATE KEYSPACE IF NOT EXISTS %s WITH REPLICATION = { 'class' : 'NetworkTopologyStrategy', '%s' : %v }`
+			err = session.Query(fmt.Sprintf(cqlQuery, testRepairReaperKeyspace, cassandraDCs[0].Name, *cassandraDCs[0].Replicas)).Exec()
 			Expect(err).ToNot(HaveOccurred())
 
 			By("Running cql query: creating test tables...")
@@ -181,7 +181,8 @@ var _ = Describe("Cassandra cluster", func() {
 			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to parse body %s", string(respBody)))
 			Expect(responseData["name"]).To(Equal(cassandraRelease))
 
-			By("Creating reaper job...")
+			By("Creating reaper repair job...")
+			// Do retry bc tables are not become accessible immediately, error occurs: "Request failed with status code 404. Response body: keyspace doesn't contain a table named test_table1".
 			Eventually(func() bool {
 				respBody, statusCode, err = doHTTPRequest(
 					"POST", "http://localhost:9999/repair_run?clusterName="+cassandraRelease+
@@ -196,9 +197,9 @@ var _ = Describe("Cassandra cluster", func() {
 
 				return json.Unmarshal(respBody, &responseData) == nil
 
-			}, time.Minute*2, time.Second*5).Should(BeTrue(), "Reaper job should be created")
+			}, time.Minute*2, time.Second*5).Should(BeTrue(), "Reaper repair job should be created")
 
-			By("Starting reaper job...")
+			By("Starting reaper repair job...")
 			Eventually(func() bool {
 				_, statusCode, err = doHTTPRequest("PUT", "http://localhost:9999/repair_run/"+fmt.Sprintf("%s", responseData["id"])+"/state/RUNNING")
 				if statusCode != 200 || err != nil {
@@ -206,9 +207,9 @@ var _ = Describe("Cassandra cluster", func() {
 				}
 
 				return true
-			}, time.Minute*2, time.Second*5).Should(BeTrue(), "Reaper job should be started")
+			}, time.Minute*2, time.Second*5).Should(BeTrue(), "Reaper repair job should be started")
 
-			By("Getting reaper job status...")
+			By("Getting reaper repair job status...")
 			Eventually(func() bool {
 				respBody, _, err = doHTTPRequest("GET", "http://localhost:9999/repair_run/"+fmt.Sprint(responseData["id"]))
 				if err != nil {
@@ -226,9 +227,9 @@ var _ = Describe("Cassandra cluster", func() {
 
 				return responseData["state"] == "RUNNING"
 
-			}, time.Minute*2, time.Second*5).Should(BeTrue(), "Reaper job should be running")
+			}, time.Minute*2, time.Second*5).Should(BeTrue(), "Reaper repair job should be running")
 
-			By("Checking reaper job rescheduling logic...")
+			By("Checking reaper repair job rescheduling logic...")
 			// Get response with array of maps with reaper repairs
 			Eventually(func() bool {
 				respBody, statusCode, err = doHTTPRequest("GET", "http://localhost:9999/repair_schedule?clusterName="+cassandraRelease+"&keyspace="+testRepairReaperKeyspace)

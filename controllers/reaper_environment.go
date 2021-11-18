@@ -8,9 +8,11 @@ import (
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/names"
 	v1 "k8s.io/api/core/v1"
+
+	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 )
 
-func reaperEnvironment(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC, adminSecretChecksumStr string) []v1.EnvVar {
+func reaperEnvironment(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC, adminSecretChecksumStr string, clientTLSSecret *v1.Secret) []v1.EnvVar {
 	reaperEnv := []v1.EnvVar{
 		// http://cassandra-reaper.io/docs/configuration/docker_vars/
 		{Name: "ACTIVE_ADMIN_SECRET_SHA1", Value: adminSecretChecksumStr},
@@ -25,14 +27,19 @@ func reaperEnvironment(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC, adminSecre
 		{Name: "REAPER_CASS_CONTACT_POINTS", Value: fmt.Sprintf("[ %s ]", names.DC(cc.Name, dc.Name))},
 		{Name: "REAPER_CASS_CLUSTER_NAME", Value: "cassandra"},
 		{Name: "REAPER_STORAGE_TYPE", Value: "cassandra"},
-		// TODO: "REAPER_CASS_NATIVE_PROTOCOL_SSL_ENCRYPTION_ENABLED": strconv.FormatBool(cassandraYaml["client_encryption_options"].(map[string]interface{})["enabled"].(bool)),
-		//   `-Dssl.enable` is for JMX, where `cassandra.client.tls.jvm.args` is for both jmx and cql TLS client auth
 		{Name: "REAPER_CASS_KEYSPACE", Value: cc.Spec.Reaper.Keyspace},
-		{Name: "REAPER_CASS_PORT", Value: "9042"},
-		{Name: "JAVA_OPTS", Value: javaOpts(cc)},
-		//
+		{Name: "REAPER_CASS_PORT", Value: fmt.Sprintf("%d", dbv1alpha1.CqlPort)},
+		{Name: "JAVA_OPTS", Value: javaOpts(cc, clientTLSSecret)},
 		{Name: "REAPER_CASS_AUTH_ENABLED", Value: "true"},
 	}
+
+	if cc.Spec.Encryption.Client.Enabled {
+		reaperEnv = append(reaperEnv, v1.EnvVar{
+			// Use SSL encryption when connecting to Cassandra via the native protocol
+			Name: "REAPER_CASS_NATIVE_PROTOCOL_SSL_ENCRYPTION_ENABLED", Value: "true",
+		})
+	}
+
 	/* TODO: Auth
 	{{- if .Values.reaper.webuiAuth.enabled }}
 	  REAPER_ENABLE_WEBUI_AUTH: "true"
@@ -121,15 +128,12 @@ func autoSchedulingOpts(cc *v1alpha1.CassandraCluster) []v1.EnvVar {
 	return nil
 }
 
-func javaOpts(cc *v1alpha1.CassandraCluster) string {
+func javaOpts(cc *v1alpha1.CassandraCluster, clientTLSSecret *v1.Secret) string {
 	options := ""
-	/* TODO: SSL
-	if cc.Spec.JMX.SSL {
-		options += "-Dssl.enable=true"
+
+	if cc.Spec.Encryption.Client.Enabled {
+		options += "-Dssl.enable=true " + tlsJVMArgs(cc, clientTLSSecret)
 	}
-	if cc.Spec.JMX.SSL || cc.Spec.CassandraYaml["client_encryption_options"].(map[string]interface{})["enabled"].(bool) {
-		options += CassandraClientTlsJvmArgs(cc)
-	}
-	*/
+
 	return options
 }

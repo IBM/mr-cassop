@@ -24,7 +24,7 @@ FROM ${DOCKER_PROXY_REGISTRY}debian:bullseye-slim
 
 WORKDIR /
 
-RUN addgroup --gid 901 cassandra-operator && adduser --uid 901 --gid 901 cassandra-operator
+RUN addgroup --gid 901 cassandra-operator && adduser --uid 901 --gid 901 --home /home/cassandra-operator cassandra-operator
 
 # Copy CA certificates to prevent x509: certificate signed by unknown authority errors
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt

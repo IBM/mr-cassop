@@ -1,6 +1,10 @@
 package names
 
-import "fmt"
+import (
+	"fmt"
+	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
+	"os"
+)
 
 const (
 	cassandraOperator = "cassandra-operator"
@@ -120,4 +124,8 @@ func OperatorPrometheusConfigCM() string {
 
 func OperatorShiroCM() string {
 	return cassandraOperator + "-shiro-configmap"
+}
+
+func OperatorClientTLSDir(cc *dbv1alpha1.CassandraCluster) string {
+	return fmt.Sprintf("%s/%s-%s", os.Getenv("HOME"), cc.Namespace, cc.Name)
 }

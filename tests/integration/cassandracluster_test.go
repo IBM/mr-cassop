@@ -16,6 +16,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 )
 
 var _ = Describe("prober, statefulsets and reaper", func() {
@@ -198,7 +200,7 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 					},
 					{
 						Name:  "REAPER_CASS_PORT",
-						Value: "9042",
+						Value: fmt.Sprintf("%d", dbv1alpha1.CqlPort),
 					},
 					{
 						Name:  "JAVA_OPTS",
