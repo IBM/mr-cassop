@@ -24,20 +24,20 @@ func (r *CassandraClusterReconciler) reconcileProberIngress(ctx context.Context,
 			Name:        names.ProberIngress(cc.Name),
 			Namespace:   cc.Namespace,
 			Labels:      labels.CombinedComponentLabels(cc, v1alpha1.CassandraClusterComponentProber),
-			Annotations: cc.Spec.Prober.Ingress.Annotations,
+			Annotations: cc.Spec.Ingress.Annotations,
 		},
 		Spec: nwv1.IngressSpec{
-			IngressClassName: cc.Spec.Prober.Ingress.IngressClassName,
+			IngressClassName: cc.Spec.Ingress.IngressClassName,
 			DefaultBackend:   nil,
 			TLS: []nwv1.IngressTLS{
 				{
-					Hosts:      []string{names.ProberIngressDomain(cc.Name, cc.Spec.Prober.Ingress.Domain, cc.Namespace)},
-					SecretName: cc.Spec.Prober.Ingress.Secret,
+					Hosts:      []string{names.ProberIngressDomain(cc.Name, cc.Spec.Ingress.Domain, cc.Namespace)},
+					SecretName: cc.Spec.Ingress.Secret,
 				},
 			},
 			Rules: []nwv1.IngressRule{
 				{
-					Host: names.ProberIngressDomain(cc.Name, cc.Spec.Prober.Ingress.Domain, cc.Namespace),
+					Host: names.ProberIngressDomain(cc.Name, cc.Spec.Ingress.Domain, cc.Namespace),
 					IngressRuleValue: nwv1.IngressRuleValue{
 						HTTP: &nwv1.HTTPIngressRuleValue{
 							Paths: []nwv1.HTTPIngressPath{

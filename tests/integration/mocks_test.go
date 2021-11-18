@@ -235,14 +235,16 @@ func (r *reaperMock) RunRepair(ctx context.Context, keyspace, cause string) erro
 }
 
 func markMocksAsReady(cc *dbv1alpha1.CassandraCluster) {
-	for i, domain := range cc.Spec.Prober.ExternalDCsIngressDomains {
-		mockProberClient.readyClusters[domain] = true
-		mockProberClient.seeds[domain] = []string{"13.43.13" + strconv.Itoa(i) + ".3", "13.43.13" + strconv.Itoa(i) + ".4"}
-		mockProberClient.dcs[domain] = []dbv1alpha1.DC{
-			{
-				Name:     "ext-dc-" + "-" + strconv.Itoa(i),
-				Replicas: proto.Int32(3),
-			},
+	for i, externalRegion := range cc.Spec.ExternalRegions {
+		if len(externalRegion.Domain) != 0 {
+			mockProberClient.readyClusters[externalRegion.Domain] = true
+			mockProberClient.seeds[externalRegion.Domain] = []string{"13.43.13" + strconv.Itoa(i) + ".3", "13.43.13" + strconv.Itoa(i) + ".4"}
+			mockProberClient.dcs[externalRegion.Domain] = []dbv1alpha1.DC{
+				{
+					Name:     "ext-dc-" + "-" + strconv.Itoa(i),
+					Replicas: proto.Int32(3),
+				},
+			}
 		}
 	}
 	mockProberClient.err = nil

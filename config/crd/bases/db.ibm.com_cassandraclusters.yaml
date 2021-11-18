@@ -1424,6 +1424,34 @@ spec:
                         type: object
                     type: object
                 type: object
+              externalRegions:
+                items:
+                  properties:
+                    dcs:
+                      items:
+                        properties:
+                          name:
+                            maxLength: 63
+                            minLength: 1
+                            pattern: ^[a-z0-9][a-z0-9\-]*$
+                            type: string
+                          rf:
+                            format: int32
+                            minimum: 1
+                            type: integer
+                        required:
+                        - name
+                        - rf
+                        type: object
+                      type: array
+                    domain:
+                      type: string
+                    seeds:
+                      items:
+                        type: string
+                      type: array
+                  type: object
+                type: array
               hostPort:
                 properties:
                   enabled:
@@ -1438,6 +1466,19 @@ spec:
               imagePullSecretName:
                 minLength: 1
                 type: string
+              ingress:
+                properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  domain:
+                    type: string
+                  ingressClassName:
+                    type: string
+                  secret:
+                    type: string
+                type: object
               jmx:
                 properties:
                   authentication:
@@ -1501,10 +1542,6 @@ spec:
                 properties:
                   debug:
                     type: boolean
-                  externalDCsIngressDomains:
-                    items:
-                      type: string
-                    type: array
                   image:
                     type: string
                   imagePullPolicy:
@@ -1515,19 +1552,6 @@ spec:
                     - Never
                     - IfNotPresent
                     type: string
-                  ingress:
-                    properties:
-                      annotations:
-                        additionalProperties:
-                          type: string
-                        type: object
-                      domain:
-                        type: string
-                      ingressClassName:
-                        type: string
-                      secret:
-                        type: string
-                    type: object
                   jolokia:
                     properties:
                       image:

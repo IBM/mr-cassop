@@ -53,26 +53,24 @@ hostPort:
 The config above exposes the `cql` and `tls` ports (9042 and 7001 respectively) through `hostPort`s. Unless you have a failover scenario where you target a remote DC with client connections, the `cql` port should not be exposed.  
 Valid port names are: `intra`, `tls`, `cql`, `thrift`, `jmx`. Ports `jxm`, `intra` and `tls` (if TLS is enabled) are always enabled to ensure cluster functionality.
 
-Settings such as `prober.ingress.domain`, `prober.ingress.secret` and `prober.ingress.dcsIngressDomains` are required if `hostPort.enabled`
+Settings such as `ingress.domain`, `ingress.secret` and `prober.ingress.dcsIngressDomains` are required if `hostPort.enabled`
 
 ```yaml
+ingress:
+  domain: "icm-cassandra-dev-3f3037ed650e84f558a8839c9ec8a6ed-0000.us-south.containers.appdomain.cloud"
+  secret: "icm-cassandra-dev-3f3037ed650e84f558a8839c9ec8a6ed-0000"
 prober:
-  enabled: true
-  ingress:
-    domain: "icm-cassandra-dev-3f3037ed650e84f558a8839c9ec8a6ed-0000.us-south.containers.appdomain.cloud"
-    secret: "icm-cassandra-dev-3f3037ed650e84f558a8839c9ec8a6ed-0000"
-  dcsIngressDomains: []
+  dcsIngressDomains:
   - icm-cassandra-dev-3f3037ed650e84f558a8839c9ec8a6ed-0000.us-south.containers.appdomain.cloud
   - icm-cassandra-dev2-3f3037ed650e84f558a8839c9ec8a6ed-0000.us-south.containers.appdomain.cloud
 ```
 
-With `prober.ingress.secret` you can also set any annotations required:
+With `ingress.secret` you can also set any annotations required:
 
 ```yaml
-prober:
-  ingress:
-    annotations:
-      "ingress.bluemix.net/redirect-to-https": "True"
+ingress:
+annotations:
+  "ingress.bluemix.net/redirect-to-https": "True"
 ```
 
 ## Treat Zones as Racks

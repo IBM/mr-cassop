@@ -730,13 +730,13 @@ export PAUSE_INIT=false
 					HostPort: v1alpha1.HostPort{
 						Enabled: true,
 					},
-					Prober: v1alpha1.Prober{
-						Ingress: v1alpha1.Ingress{
-							Domain: "region1.ingress.domain",
-							Secret: "region1.ingress.domain-secret",
-						},
-						ExternalDCsIngressDomains: []string{
-							"region2.ingress.domain",
+					Ingress: v1alpha1.Ingress{
+						Domain: "region1.ingress.domain",
+						Secret: "region1.ingress.domain-secret",
+					},
+					ExternalRegions: []v1alpha1.ExternalRegion{
+						{
+							Domain: "region2.ingress.domain",
 						},
 					},
 				},
@@ -918,13 +918,13 @@ export PAUSE_INIT=false
 					HostPort: v1alpha1.HostPort{
 						Enabled: true,
 					},
-					Prober: v1alpha1.Prober{
-						Ingress: v1alpha1.Ingress{
-							Domain: "region1.ingress.domain",
-							Secret: "region1.ingress.domain-secret",
-						},
-						ExternalDCsIngressDomains: []string{
-							"region2.ingress.domain",
+					Ingress: v1alpha1.Ingress{
+						Domain: "region1.ingress.domain",
+						Secret: "region1.ingress.domain-secret",
+					},
+					ExternalRegions: []v1alpha1.ExternalRegion{
+						{
+							Domain: "region2.ingress.domain",
 						},
 					},
 				},
@@ -1193,13 +1193,13 @@ export PAUSE_INIT=false
 					HostPort: v1alpha1.HostPort{
 						Enabled: true,
 					},
-					Prober: v1alpha1.Prober{
-						Ingress: v1alpha1.Ingress{
-							Domain: "region1.ingress.domain",
-							Secret: "region1.ingress.domain-secret",
-						},
-						ExternalDCsIngressDomains: []string{
-							"region2.ingress.domain",
+					Ingress: v1alpha1.Ingress{
+						Domain: "region1.ingress.domain",
+						Secret: "region1.ingress.domain-secret",
+					},
+					ExternalRegions: []v1alpha1.ExternalRegion{
+						{
+							Domain: "region2.ingress.domain",
 						},
 					},
 				},
@@ -1468,13 +1468,13 @@ export PAUSE_INIT=false
 					HostPort: v1alpha1.HostPort{
 						Enabled: true,
 					},
-					Prober: v1alpha1.Prober{
-						Ingress: v1alpha1.Ingress{
-							Domain: "region2.ingress.domain",
-							Secret: "region2.ingress.domain-secret",
-						},
-						ExternalDCsIngressDomains: []string{
-							"region1.ingress.domain",
+					Ingress: v1alpha1.Ingress{
+						Domain: "region2.ingress.domain",
+						Secret: "region2.ingress.domain-secret",
+					},
+					ExternalRegions: []v1alpha1.ExternalRegion{
+						{
+							Domain: "region1.ingress.domain",
 						},
 					},
 				},
@@ -1743,13 +1743,13 @@ export PAUSE_INIT=true
 					HostPort: v1alpha1.HostPort{
 						Enabled: true,
 					},
-					Prober: v1alpha1.Prober{
-						Ingress: v1alpha1.Ingress{
-							Domain: "region2.ingress.domain",
-							Secret: "region2.ingress.domain-secret",
-						},
-						ExternalDCsIngressDomains: []string{
-							"region1.ingress.domain",
+					Ingress: v1alpha1.Ingress{
+						Domain: "region2.ingress.domain",
+						Secret: "region2.ingress.domain-secret",
+					},
+					ExternalRegions: []v1alpha1.ExternalRegion{
+						{
+							Domain: "region1.ingress.domain",
 						},
 					},
 				},

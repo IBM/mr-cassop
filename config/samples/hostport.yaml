@@ -32,6 +32,11 @@ spec:
   - name: dc2
     replicas: 3
   imagePullSecretName: all-icr-io
+  ingress:
+    domain: "v4-us-south-3f3037ed650e84f558a8839c9ec8a6ed-0000.us-south.containers.appdomain.cloud"
+    secret: "v4-us-south-3f3037ed650e84f558a8839c9ec8a6ed-0000"
+    annotations:
+      "ingress.bluemix.net/redirect-to-https": "True"
   prober:
     debug: true
     imagePullPolicy: IfNotPresent
@@ -39,11 +44,6 @@ spec:
       requests:
         cpu: 200m
         memory: 256Mi
-    ingress:
-      domain: "v4-us-south-3f3037ed650e84f558a8839c9ec8a6ed-0000.us-south.containers.appdomain.cloud"
-      secret: "v4-us-south-3f3037ed650e84f558a8839c9ec8a6ed-0000"
-      annotations:
-        "ingress.bluemix.net/redirect-to-https": "True"
     externalDCsIngressDomains: []
     jolokia:
       imagePullPolicy: IfNotPresent

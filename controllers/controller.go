@@ -318,8 +318,11 @@ func (r *CassandraClusterReconciler) unreadyDCs(ctx context.Context, cc *v1alpha
 
 func (r *CassandraClusterReconciler) unreadyRegions(ctx context.Context, cc *v1alpha1.CassandraCluster, proberClient prober.ProberClient) ([]string, error) {
 	unreadyRegions := make([]string, 0)
-	for _, domain := range cc.Spec.Prober.ExternalDCsIngressDomains {
-		proberHost := names.ProberIngressDomain(cc.Name, domain, cc.Namespace)
+	for _, externalRegion := range cc.Spec.ExternalRegions {
+		if len(externalRegion.Domain) == 0 { //region not managed by an operator
+			continue
+		}
+		proberHost := names.ProberIngressDomain(cc.Name, externalRegion.Domain, cc.Namespace)
 		dcsReady, err := proberClient.DCsReady(ctx, proberHost)
 		if err != nil {
 			r.Log.Warnf(fmt.Sprintf("Unable to get DC's status from prober %q. Err: %#v", proberHost, err))
@@ -451,17 +454,29 @@ func (r *CassandraClusterReconciler) getAllDCs(ctx context.Context, cc *v1alpha1
 	allDCs := make([]v1alpha1.DC, 0)
 	allDCs = append(allDCs, cc.Spec.DCs...)
 
-	if len(cc.Spec.Prober.ExternalDCsIngressDomains) == 0 {
+	if len(cc.Spec.ExternalRegions) == 0 {
 		return allDCs, nil
 	}
 
-	for _, externalDCDomain := range cc.Spec.Prober.ExternalDCsIngressDomains {
-		externalDCs, err := proberClient.GetDCs(ctx, names.ProberIngressDomain(cc.Name, externalDCDomain, cc.Namespace))
-		if err != nil {
-			return nil, errors.Wrapf(err, "can't get dcs list from dc %q", externalDCDomain)
-		}
+	for _, externalRegion := range cc.Spec.ExternalRegions {
+		if len(externalRegion.Domain) != 0 {
+			externalDCs, err := proberClient.GetDCs(ctx, names.ProberIngressDomain(cc.Name, externalRegion.Domain, cc.Namespace))
+			if err != nil {
+				return nil, errors.Wrapf(err, "can't get dcs list from dc %q", externalRegion.Domain)
+			}
 
-		allDCs = append(allDCs, externalDCs...)
+			allDCs = append(allDCs, externalDCs...)
+		} else {
+			if len(externalRegion.Seeds) > 0 && len(externalRegion.DCs) > 0 {
+				for _, dc := range externalRegion.DCs {
+					rf := int32(defaultRF)
+					if dc.RF < 3 {
+						rf = dc.RF
+					}
+					allDCs = append(allDCs, v1alpha1.DC{Name: dc.Name, Replicas: &rf})
+				}
+			}
+		}
 	}
 
 	return allDCs, nil

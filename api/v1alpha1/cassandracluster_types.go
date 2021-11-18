@@ -65,17 +65,25 @@ type CassandraClusterSpec struct {
 	PodManagementPolicy appsv1.PodManagementPolicyType `json:"podManagementPolicy,omitempty"`
 	Cassandra           *Cassandra                     `json:"cassandra,omitempty"`
 	// +kubebuilder:validation:MinLength:=1
-	AdminRoleSecretName string          `json:"adminRoleSecretName"`
-	Roles               Roles           `json:"roles,omitempty"`
-	Maintenance         []Maintenance   `json:"maintenance,omitempty" diff:"maintenance"`
-	SystemKeyspaces     SystemKeyspaces `json:"systemKeyspaces,omitempty"`
-	Prober              Prober          `json:"prober,omitempty"`
-	Reaper              *Reaper         `json:"reaper,omitempty"`
-	HostPort            HostPort        `json:"hostPort,omitempty"`
-	JVM                 JVM             `json:"jvm,omitempty"`
-	JMX                 JMX             `json:"jmx,omitempty"`
-	Encryption          Encryption      `json:"encryption,omitempty"`
-	Monitoring          Monitoring      `json:"monitoring,omitempty"`
+	AdminRoleSecretName string           `json:"adminRoleSecretName"`
+	Roles               Roles            `json:"roles,omitempty"`
+	Maintenance         []Maintenance    `json:"maintenance,omitempty" diff:"maintenance"`
+	SystemKeyspaces     SystemKeyspaces  `json:"systemKeyspaces,omitempty"`
+	Ingress             Ingress          `json:"ingress,omitempty"`
+	ExternalRegions     []ExternalRegion `json:"externalRegions,omitempty"`
+	Prober              Prober           `json:"prober,omitempty"`
+	Reaper              *Reaper          `json:"reaper,omitempty"`
+	HostPort            HostPort         `json:"hostPort,omitempty"`
+	JVM                 JVM              `json:"jvm,omitempty"`
+	JMX                 JMX              `json:"jmx,omitempty"`
+	Encryption          Encryption       `json:"encryption,omitempty"`
+	Monitoring          Monitoring       `json:"monitoring,omitempty"`
+}
+
+type ExternalRegion struct {
+	Domain string             `json:"domain,omitempty"`
+	Seeds  []string           `json:"seeds,omitempty"`
+	DCs    []SystemKeyspaceDC `json:"dcs,omitempty"`
 }
 
 type Reaper struct {
@@ -251,12 +259,10 @@ type Persistence struct {
 type Prober struct {
 	Image string `json:"image,omitempty"`
 	// +kubebuilder:validation:Enum=Always;Never;IfNotPresent
-	ImagePullPolicy           v1.PullPolicy           `json:"imagePullPolicy,omitempty"`
-	Resources                 v1.ResourceRequirements `json:"resources,omitempty"`
-	Debug                     bool                    `json:"debug,omitempty"`
-	Jolokia                   Jolokia                 `json:"jolokia,omitempty"`
-	Ingress                   Ingress                 `json:"ingress,omitempty"`
-	ExternalDCsIngressDomains []string                `json:"externalDCsIngressDomains,omitempty"`
+	ImagePullPolicy v1.PullPolicy           `json:"imagePullPolicy,omitempty"`
+	Resources       v1.ResourceRequirements `json:"resources,omitempty"`
+	Debug           bool                    `json:"debug,omitempty"`
+	Jolokia         Jolokia                 `json:"jolokia,omitempty"`
 }
 
 type Jolokia struct {

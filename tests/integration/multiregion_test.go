@@ -17,9 +17,13 @@ import (
 )
 
 var _ = Describe("multiple regions", func() {
-	externalDomains := []string{
-		"domain1.external.com",
-		"domain2.external.com",
+	externalRegions := []v1alpha1.ExternalRegion{
+		{
+			Domain: "domain1.external.com",
+		},
+		{
+			Domain: "domain2.external.com",
+		},
 	}
 	cc := &v1alpha1.CassandraCluster{
 		ObjectMeta: cassandraObjectMeta,
@@ -39,14 +43,12 @@ var _ = Describe("multiple regions", func() {
 			HostPort: v1alpha1.HostPort{
 				Enabled: true,
 			},
-			Prober: v1alpha1.Prober{
-				Ingress: v1alpha1.Ingress{
-					Domain:      "domain.internal.com",
-					Secret:      "ingress-secret",
-					Annotations: map[string]string{"ingress-class": "nginx"},
-				},
-				ExternalDCsIngressDomains: externalDomains,
+			Ingress: v1alpha1.Ingress{
+				Domain:      "domain.internal.com",
+				Secret:      "ingress-secret",
+				Annotations: map[string]string{"ingress-class": "nginx"},
 			},
+			ExternalRegions: externalRegions,
 		},
 	}
 
@@ -68,14 +70,16 @@ var _ = Describe("multiple regions", func() {
 			},
 		}}
 
-		for i, domain := range cc.Spec.Prober.ExternalDCsIngressDomains {
-			mockProberClient.readyClusters[names.ProberIngressDomain(cc.Name, domain, cc.Namespace)] = false
-			mockProberClient.seeds[names.ProberIngressDomain(cc.Name, domain, cc.Namespace)] = []string{"13.432.13" + strconv.Itoa(i) + ".3", "13.432.13" + strconv.Itoa(i) + ".4"}
-			mockProberClient.dcs[names.ProberIngressDomain(cc.Name, domain, cc.Namespace)] = []v1alpha1.DC{
-				{
-					Name:     "ext-dc" + "-" + strconv.Itoa(i),
-					Replicas: proto.Int32(3),
-				},
+		for i, externalRegion := range cc.Spec.ExternalRegions {
+			if len(externalRegion.Domain) != 0 {
+				mockProberClient.readyClusters[names.ProberIngressDomain(cc.Name, externalRegion.Domain, cc.Namespace)] = false
+				mockProberClient.seeds[names.ProberIngressDomain(cc.Name, externalRegion.Domain, cc.Namespace)] = []string{"13.432.13" + strconv.Itoa(i) + ".3", "13.432.13" + strconv.Itoa(i) + ".4"}
+				mockProberClient.dcs[names.ProberIngressDomain(cc.Name, externalRegion.Domain, cc.Namespace)] = []v1alpha1.DC{
+					{
+						Name:     "ext-dc" + "-" + strconv.Itoa(i),
+						Replicas: proto.Int32(3),
+					},
+				}
 			}
 		}
 
@@ -111,8 +115,10 @@ var _ = Describe("multiple regions", func() {
 
 		By("reaper should be deployed after regions are ready")
 
-		for _, domain := range cc.Spec.Prober.ExternalDCsIngressDomains {
-			mockProberClient.readyClusters[names.ProberIngressDomain(cc.Name, domain, cc.Namespace)] = true
+		for _, externalRegion := range cc.Spec.ExternalRegions {
+			if len(externalRegion.Domain) != 0 {
+				mockProberClient.readyClusters[names.ProberIngressDomain(cc.Name, externalRegion.Domain, cc.Namespace)] = true
+			}
 		}
 
 		for index, dc := range cc.Spec.DCs {

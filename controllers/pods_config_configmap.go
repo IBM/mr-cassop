@@ -3,10 +3,11 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"github.com/ibm/cassandra-operator/controllers/prober"
-	"github.com/ibm/cassandra-operator/controllers/util"
 	"sort"
 	"strings"
+
+	"github.com/ibm/cassandra-operator/controllers/prober"
+	"github.com/ibm/cassandra-operator/controllers/util"
 
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/labels"
@@ -152,7 +153,7 @@ func (r *CassandraClusterReconciler) getInitOrderInfo(ctx context.Context, cc *v
 		return false, nextLocalDCToInit, nil
 	}
 
-	if len(cc.Spec.Prober.ExternalDCsIngressDomains) == 0 {
+	if len(cc.Spec.ExternalRegions) == 0 {
 		return false, "", nil
 	}
 
@@ -161,7 +162,7 @@ func (r *CassandraClusterReconciler) getInitOrderInfo(ctx context.Context, cc *v
 		return false, "", err
 	}
 
-	currentRegionHost := names.ProberIngressDomain(cc.Name, cc.Spec.Prober.Ingress.Domain, cc.Namespace)
+	currentRegionHost := names.ProberIngressDomain(cc.Name, cc.Spec.Ingress.Domain, cc.Namespace)
 	clusterRegionsStatuses[currentRegionHost] = len(unreadyLocalDCs) == 0
 
 	nextRegionToInit := getNextRegionToInit(cc, clusterRegionsStatuses)
@@ -187,25 +188,29 @@ func (r *CassandraClusterReconciler) getInitOrderInfo(ctx context.Context, cc *v
 
 func (r *CassandraClusterReconciler) getRemoteClusterRegionsStatuses(ctx context.Context, cc *v1alpha1.CassandraCluster, proberClient prober.ProberClient) (clusterRegionsStatuses map[string]bool, err error) {
 	clusterRegionsStatuses = make(map[string]bool)
-	for _, domain := range cc.Spec.Prober.ExternalDCsIngressDomains {
-		proberHost := names.ProberIngressDomain(cc.Name, domain, cc.Namespace)
-		regionsReady, err := proberClient.DCsReady(ctx, proberHost)
-		if err != nil {
-			r.Log.Warnf(fmt.Sprintf("Unable to get DC status from prober %q. Err: %#v", proberHost, err))
-			return nil, ErrRegionNotReady
+	for _, externalRegion := range cc.Spec.ExternalRegions {
+		if len(externalRegion.Domain) > 0 {
+			proberHost := names.ProberIngressDomain(cc.Name, externalRegion.Domain, cc.Namespace)
+			regionsReady, err := proberClient.DCsReady(ctx, proberHost)
+			if err != nil {
+				r.Log.Warnf(fmt.Sprintf("Unable to get DC status from prober %q. Err: %#v", proberHost, err))
+				return nil, ErrRegionNotReady
+			}
+			clusterRegionsStatuses[proberHost] = regionsReady
 		}
-		clusterRegionsStatuses[proberHost] = regionsReady
 	}
 
 	return clusterRegionsStatuses, nil
 }
 
 func getAllRegionsHosts(cc *v1alpha1.CassandraCluster) []string {
-	allRegionsHosts := make([]string, 0, len(cc.Spec.Prober.ExternalDCsIngressDomains)+1)
-	for _, domain := range cc.Spec.Prober.ExternalDCsIngressDomains {
-		allRegionsHosts = append(allRegionsHosts, names.ProberIngressDomain(cc.Name, domain, cc.Namespace))
+	allRegionsHosts := make([]string, 0, len(cc.Spec.ExternalRegions)+1)
+	for _, externalRegion := range cc.Spec.ExternalRegions {
+		if len(externalRegion.Domain) > 0 {
+			allRegionsHosts = append(allRegionsHosts, names.ProberIngressDomain(cc.Name, externalRegion.Domain, cc.Namespace))
+		}
 	}
-	currentRegionHost := names.ProberIngressDomain(cc.Name, cc.Spec.Prober.Ingress.Domain, cc.Namespace)
+	currentRegionHost := names.ProberIngressDomain(cc.Name, cc.Spec.Ingress.Domain, cc.Namespace)
 	allRegionsHosts = append(allRegionsHosts, currentRegionHost)
 	sort.Strings(allRegionsHosts)
 	return allRegionsHosts
@@ -239,13 +244,17 @@ func (r *CassandraClusterReconciler) getSeedsList(ctx context.Context, cc *v1alp
 	}
 	if cc.Spec.HostPort.Enabled {
 		// GET /localseeds of external DCs
-		for _, ingressDomain := range cc.Spec.Prober.ExternalDCsIngressDomains {
-			seeds, err := proberClient.GetSeeds(ctx, names.ProberIngressDomain(cc.Name, ingressDomain, cc.Namespace))
-			if err != nil {
-				r.Log.Warnw("Failed Request to DC's ingress", "ingressDomain", ingressDomain, "error", err)
-				continue
+		for _, externalRegion := range cc.Spec.ExternalRegions {
+			if len(externalRegion.Domain) > 0 {
+				seeds, err := proberClient.GetSeeds(ctx, names.ProberIngressDomain(cc.Name, externalRegion.Domain, cc.Namespace))
+				if err != nil {
+					r.Log.Warnw("Failed Request to DC's ingress", "ingressDomain", externalRegion.Domain, "error", err)
+					continue
+				}
+				cassandraSeeds = append(cassandraSeeds, seeds...)
+			} else if len(externalRegion.Seeds) > 0 {
+				cassandraSeeds = append(cassandraSeeds, externalRegion.Seeds...)
 			}
-			cassandraSeeds = append(cassandraSeeds, seeds...)
 		}
 	}
 
