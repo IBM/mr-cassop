@@ -8,6 +8,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/compare"
+	"github.com/ibm/cassandra-operator/controllers/events"
 	"github.com/ibm/cassandra-operator/controllers/labels"
 	"github.com/ibm/cassandra-operator/controllers/names"
 	"github.com/ibm/cassandra-operator/controllers/util"
@@ -26,6 +27,11 @@ type tlsSecretChecksum struct {
 	server string
 	client string
 }
+
+var (
+	errTLSSecretNotFound = errors.New("TLS secret not found")
+	errTLSSecretInvalid  = errors.New("TLS secret is not valid")
+)
 
 func (r *CassandraClusterReconciler) reconcileCassandra(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
 	for _, dc := range cc.Spec.DCs {
@@ -52,6 +58,12 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 	if cc.Spec.Encryption.Server.InternodeEncryption != internodeEncryptionNone {
 		err = r.Get(ctx, types.NamespacedName{Name: cc.Spec.Encryption.Server.TLSSecret.Name, Namespace: cc.Namespace}, serverTLSSecret)
 		if err != nil {
+			if apierrors.IsNotFound(err) {
+				errMsg := fmt.Sprintf("server TLS secret %s is not found", cc.Spec.Encryption.Server.TLSSecret.Name)
+				r.Events.Warning(cc, events.EventTLSSecretNotFound, errMsg)
+				r.Log.Warn(errMsg)
+				return errTLSSecretNotFound
+			}
 			return errors.Wrapf(err, "failed to get TLS Secret %s", cc.Spec.Encryption.Server.TLSSecret.Name)
 		}
 
@@ -73,6 +85,12 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 	if cc.Spec.Encryption.Client.Enabled {
 		clientTLSSecret, err = r.getSecret(ctx, cc.Spec.Encryption.Client.TLSSecret.Name, cc.Namespace)
 		if err != nil {
+			if apierrors.IsNotFound(err) {
+				errMsg := fmt.Sprintf("client TLS secret %s is not found", cc.Spec.Encryption.Client.TLSSecret.Name)
+				r.Events.Warning(cc, events.EventTLSSecretNotFound, errMsg)
+				r.Log.Warn(errMsg)
+				return errTLSSecretNotFound
+			}
 			return errors.Wrapf(err, "failed to get TLS Secret %s", cc.Spec.Encryption.Client.TLSSecret.Name)
 		}
 
@@ -978,7 +996,10 @@ func (r *CassandraClusterReconciler) checkRequiredFields(cc *dbv1alpha1.Cassandr
 		}
 		emptyFields := util.EmptySecretFields(tlsSecret, requiredFields)
 		if tlsSecret.Data == nil || len(emptyFields) != 0 {
-			return errors.New(fmt.Sprintf("TLS Secret %s has some empty or missing fields: %v", tlsSecret.Name, emptyFields))
+			errMsg := fmt.Sprintf("TLS Server Secret %s has some empty or missing fields: %v", tlsSecret.Name, emptyFields)
+			r.Log.Warnf(errMsg)
+			r.Events.Warning(cc, events.EventTLSSecretInvalid, errMsg)
+			return errTLSSecretInvalid
 		}
 	}
 
@@ -995,7 +1016,10 @@ func (r *CassandraClusterReconciler) checkRequiredFields(cc *dbv1alpha1.Cassandr
 
 		emptyFields := util.EmptySecretFields(tlsSecret, requiredFields)
 		if tlsSecret.Data == nil || len(emptyFields) != 0 {
-			return errors.New(fmt.Sprintf("TLS Secret %s has some empty or missing fields: %v", tlsSecret.Name, emptyFields))
+			errMsg := fmt.Sprintf("TLS Secret %s has some empty or missing fields: %v", tlsSecret.Name, emptyFields)
+			r.Log.Warnf(errMsg)
+			r.Events.Warning(cc, events.EventTLSSecretInvalid, errMsg)
+			return errTLSSecretInvalid
 		}
 	}
 

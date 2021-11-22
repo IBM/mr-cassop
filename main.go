@@ -19,10 +19,16 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
+	"net/url"
+	"os"
+	"time"
+
 	"github.com/go-logr/zapr"
 	"github.com/gocql/gocql"
 	operatorCfg "github.com/ibm/cassandra-operator/controllers/config"
 	"github.com/ibm/cassandra-operator/controllers/cql"
+	"github.com/ibm/cassandra-operator/controllers/events"
 	"github.com/ibm/cassandra-operator/controllers/logger"
 	"github.com/ibm/cassandra-operator/controllers/prober"
 	"github.com/ibm/cassandra-operator/controllers/reaper"
@@ -31,11 +37,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	"net/http"
-	"net/url"
-	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"time"
 
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers"
@@ -104,11 +106,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	eventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor(events.EventRecorderNameCassandraCluster))
+
 	cassandraReconciler := &controllers.CassandraClusterReconciler{
 		Client:       mgr.GetClient(),
 		Log:          logr,
 		Scheme:       mgr.GetScheme(),
 		Cfg:          *operatorConfig,
+		Events:       eventRecorder,
 		ProberClient: func(url *url.URL) prober.ProberClient { return prober.NewProberClient(url, httpClient) },
 		CqlClient:    func(cluster *gocql.ClusterConfig) (cql.CqlClient, error) { return cql.NewCQLClient(cluster) },
 		ReaperClient: func(url *url.URL, clusterName string) reaper.ReaperClient {

@@ -9,6 +9,7 @@ import (
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/config"
 	"github.com/ibm/cassandra-operator/controllers/cql"
+	"github.com/ibm/cassandra-operator/controllers/events"
 	"github.com/ibm/cassandra-operator/controllers/mocks"
 	"github.com/ibm/cassandra-operator/controllers/prober"
 	"github.com/ibm/cassandra-operator/controllers/reaper"
@@ -17,6 +18,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/record"
 )
 
 var baseScheme = setupScheme()
@@ -40,6 +42,7 @@ func createMockedReconciler(t *testing.T) (*CassandraClusterReconciler, *gomock.
 		Log:    zap.NewNop().Sugar(),
 		Scheme: scheme.Scheme,
 		Cfg:    config.Config{},
+		Events: events.NewEventRecorder(&record.FakeRecorder{}),
 		ProberClient: func(url *url.URL) prober.ProberClient {
 			return proberClientMock
 		},

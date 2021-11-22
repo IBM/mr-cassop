@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+
 	"github.com/gogo/protobuf/proto"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/compare"
 	"github.com/ibm/cassandra-operator/controllers/cql"
+	"github.com/ibm/cassandra-operator/controllers/events"
 	"github.com/ibm/cassandra-operator/controllers/labels"
 	"github.com/ibm/cassandra-operator/controllers/names"
 	"github.com/pkg/errors"
@@ -18,6 +20,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
+
+var errAdminSecretNotFound = errors.New("admin secret not found")
 
 func (r *CassandraClusterReconciler) reconcileAdminAuth(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
 	actualActiveAdminSecret := &v1.Secret{}
@@ -38,7 +42,11 @@ func (r *CassandraClusterReconciler) reconcileAdminAuth(ctx context.Context, cc 
 	actualBaseAdminSecret := &v1.Secret{}
 	err = r.Get(ctx, types.NamespacedName{Name: cc.Spec.AdminRoleSecretName, Namespace: cc.Namespace}, actualBaseAdminSecret)
 	if err != nil {
-		return errors.Wrap(err, "failed to get admin role secret")
+		if kerrors.IsNotFound(err) {
+			r.Events.Warning(cc, events.EventAdminRoleSecretNotFound, fmt.Sprintf("admin secret %s not found", cc.Spec.AdminRoleSecretName))
+			return errAdminSecretNotFound
+		}
+		return errors.Wrapf(err, "failed to get admin role secret %q", cc.Spec.AdminRoleSecretName)
 	}
 
 	activeAdminRoleName := string(actualActiveAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole])

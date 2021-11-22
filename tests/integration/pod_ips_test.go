@@ -33,7 +33,10 @@ var _ = Describe("pod IPs", func() {
 		cassandraPodLabels := client.MatchingLabels(labels.ComponentLabels(cc, v1alpha1.CassandraClusterComponentCassandra))
 		Expect(k8sClient.List(ctx, currentPodsList, client.InNamespace(cc.Namespace), cassandraPodLabels)).To(Succeed())
 		currentIPsCM := &v1.ConfigMap{}
-		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.PodIPsConfigMap(cc.Name), Namespace: cc.Namespace}, currentIPsCM)).To(Succeed())
+
+		Eventually(func() error {
+			return k8sClient.Get(ctx, types.NamespacedName{Name: names.PodIPsConfigMap(cc.Name), Namespace: cc.Namespace}, currentIPsCM)
+		}, mediumTimeout, mediumRetry).Should(Succeed())
 
 		for _, pod := range currentPodsList.Items {
 			Expect(currentIPsCM.Data).To(HaveKeyWithValue(pod.Name, pod.Status.PodIP))

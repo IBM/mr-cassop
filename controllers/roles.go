@@ -6,6 +6,7 @@ import (
 
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
+	"github.com/ibm/cassandra-operator/controllers/events"
 	"github.com/ibm/cassandra-operator/controllers/util"
 
 	"github.com/pkg/errors"
@@ -32,7 +33,9 @@ func (r *CassandraClusterReconciler) reconcileRoles(ctx context.Context, cc *dbv
 	err := r.Get(ctx, types.NamespacedName{Name: cc.Spec.Roles.SecretName, Namespace: cc.Namespace}, rolesSecret)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			r.Log.Warnf("roles secret %q doesn't exist", cc.Spec.Roles.SecretName)
+			errMsg := fmt.Sprintf("roles secret %q not found", cc.Spec.Roles.SecretName)
+			r.Events.Warning(cc, events.EventRoleSecretNotFound, errMsg)
+			r.Log.Warnf(errMsg)
 			return nil
 		}
 		return errors.Wrap(err, "failed to get roles secret")
@@ -51,7 +54,7 @@ func (r *CassandraClusterReconciler) reconcileRoles(ctx context.Context, cc *dbv
 
 	r.Log.Infof("user roles secret has been changed. Updating roles in cassandra.")
 
-	err = reconcileRolesInCassandra(r.extractRolesFromSecret(rolesSecret), cqlClient)
+	err = reconcileRolesInCassandra(r.extractRolesFromSecret(cc, rolesSecret), cqlClient)
 	if err != nil {
 		return errors.Wrap(err, "failed to reconcile roles in cassandra")
 	}
@@ -69,18 +72,22 @@ func (r *CassandraClusterReconciler) reconcileRoles(ctx context.Context, cc *dbv
 	return nil
 }
 
-func (r *CassandraClusterReconciler) extractRolesFromSecret(rolesSecret *v1.Secret) []Role {
+func (r *CassandraClusterReconciler) extractRolesFromSecret(cc *dbv1alpha1.CassandraCluster, rolesSecret *v1.Secret) []Role {
 	desiredRoles := make([]Role, 0, len(rolesSecret.Data))
 	for roleName, roleData := range rolesSecret.Data {
 		desiredRole := Role{}
 		err := yaml.Unmarshal(roleData, &desiredRole)
 		if err != nil {
-			r.Log.Warnf("can't unmarshal user with key %s", roleName)
+			errMsg := fmt.Sprintf("can't unmarshal one of the roles from %q secret", rolesSecret.Name)
+			r.Events.Warning(cc, events.EventInvalidRole, errMsg)
+			r.Log.Warn(errMsg)
 			continue
 		}
 
 		if len(desiredRole.Password) == 0 {
-			r.Log.Warnf("one of the roles have no field `password` defined")
+			errMsg := fmt.Sprintf("one of the roles in secret %q have no field `password` defined", rolesSecret.Name)
+			r.Events.Warning(cc, events.EventInvalidRole, errMsg)
+			r.Log.Warn(errMsg)
 			continue
 		}
 

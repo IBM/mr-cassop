@@ -18,18 +18,16 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/ibm/cassandra-operator/controllers/util"
-
-	"github.com/ibm/cassandra-operator/controllers/eventhandler"
-	"sigs.k8s.io/controller-runtime/pkg/source"
-
 	"github.com/gocql/gocql"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/config"
 	"github.com/ibm/cassandra-operator/controllers/cql"
+	"github.com/ibm/cassandra-operator/controllers/eventhandler"
+	"github.com/ibm/cassandra-operator/controllers/events"
 	"github.com/ibm/cassandra-operator/controllers/names"
 	"github.com/ibm/cassandra-operator/controllers/prober"
 	"github.com/ibm/cassandra-operator/controllers/reaper"
+	"github.com/ibm/cassandra-operator/controllers/util"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	appsv1 "k8s.io/api/apps/v1"
@@ -44,6 +42,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const (
@@ -75,6 +74,7 @@ type CassandraClusterReconciler struct {
 	Log          *zap.SugaredLogger
 	Scheme       *runtime.Scheme
 	Cfg          config.Config
+	Events       *events.EventRecorder
 	ProberClient func(url *url.URL) prober.ProberClient
 	CqlClient    func(cluster *gocql.ClusterConfig) (cql.CqlClient, error)
 	ReaperClient func(url *url.URL, clusterName string) reaper.ReaperClient
@@ -128,6 +128,10 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 
 	err = r.reconcileAdminAuth(ctx, cc)
 	if err != nil {
+		if err == errAdminSecretNotFound {
+			r.Log.Warnf("Admin secret %s not found", cc.Spec.AdminRoleSecretName)
+			return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
+		}
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling Admin Auth Secrets")
 	}
 
@@ -184,6 +188,9 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	}
 
 	if err = r.reconcileCassandra(ctx, cc); err != nil {
+		if errors.Cause(err) == errTLSSecretNotFound || errors.Cause(err) == errTLSSecretInvalid {
+			return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
+		}
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling statefulsets")
 	}
 
