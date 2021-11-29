@@ -169,7 +169,8 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, err
 	}
 
-	if err = r.reconcileCassandraConfigMap(ctx, cc); err != nil {
+	restartChecksum := checksumContainer{}
+	if err = r.reconcileCassandraConfigMap(ctx, cc, restartChecksum); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling cassandra config configmaps")
 	}
 
@@ -183,7 +184,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling Cassandra pods configmap")
 	}
 
-	if err = r.reconcileCassandra(ctx, cc); err != nil {
+	if err = r.reconcileCassandra(ctx, cc, restartChecksum); err != nil {
 		if errors.Cause(err) == errTLSSecretNotFound || errors.Cause(err) == errTLSSecretInvalid {
 			return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 		}

@@ -17,7 +17,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-func (r *CassandraClusterReconciler) reconcileCassandraConfigMap(ctx context.Context, cc *v1alpha1.CassandraCluster) error {
+func (r *CassandraClusterReconciler) reconcileCassandraConfigMap(ctx context.Context, cc *v1alpha1.CassandraCluster, restartChecksum checksumContainer) error {
 	operatorCM, err := r.getConfigMap(ctx, names.OperatorCassandraConfigCM(), r.Cfg.Namespace)
 	if err != nil {
 		return err
@@ -96,6 +96,7 @@ func (r *CassandraClusterReconciler) reconcileCassandraConfigMap(ctx context.Con
 		return errors.Wrap(err, "can't marshal 'cassandra.yaml'")
 	}
 
+	restartChecksum["cassandra.yaml"] = string(cassandraYamlBytes) //to restart cassandra pods on change
 	data["cassandra.yaml"] = string(cassandraYamlBytes)
 
 	desiredCM.Data = data

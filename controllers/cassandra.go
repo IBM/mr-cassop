@@ -23,9 +23,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-type tlsSecretChecksum struct {
-	server string
-	client string
+type checksumContainer map[string]string
+
+func (c checksumContainer) checksum() string {
+	return util.Sha1(fmt.Sprintf("%v", c))
 }
 
 var (
@@ -33,14 +34,14 @@ var (
 	errTLSSecretInvalid  = errors.New("TLS secret is not valid")
 )
 
-func (r *CassandraClusterReconciler) reconcileCassandra(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
+func (r *CassandraClusterReconciler) reconcileCassandra(ctx context.Context, cc *dbv1alpha1.CassandraCluster, restartChecksum checksumContainer) error {
 	for _, dc := range cc.Spec.DCs {
 		err := r.reconcileDCService(ctx, cc, dc)
 		if err != nil {
 			return errors.Wrapf(err, "failed to reconcile dc %q", dc.Name)
 		}
 
-		err = r.reconcileDCStatefulSet(ctx, cc, dc)
+		err = r.reconcileDCStatefulSet(ctx, cc, dc, restartChecksum)
 		if err != nil {
 			return errors.Wrapf(err, "failed to reconcile dc %q", dc.Name)
 		}
@@ -49,9 +50,8 @@ func (r *CassandraClusterReconciler) reconcileCassandra(ctx context.Context, cc 
 	return nil
 }
 
-func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context, cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) error {
+func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context, cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, restartChecksum checksumContainer) error {
 	var err error
-	tlsSecretChecksums := tlsSecretChecksum{}
 	clientTLSSecret := &v1.Secret{}
 
 	if cc.Spec.Encryption.Server.InternodeEncryption != internodeEncryptionNone {
@@ -78,7 +78,7 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 			return errors.Wrapf(err, "Failed to reconcile Annotations for Secret %s", serverTLSSecret.Name)
 		}
 
-		tlsSecretChecksums.server = util.Sha1(fmt.Sprintf("%v", serverTLSSecret.Data))
+		restartChecksum["server-tls-secret"] = fmt.Sprintf("%v", serverTLSSecret.Data)
 	}
 
 	if cc.Spec.Encryption.Client.Enabled {
@@ -105,10 +105,10 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 			return errors.Wrapf(err, "Failed to reconcile Annotations for Secret %s", clientTLSSecret.Name)
 		}
 
-		tlsSecretChecksums.client = util.Sha1(fmt.Sprintf("%v", clientTLSSecret.Data))
+		restartChecksum["client-tls-secret"] = fmt.Sprintf("%v", clientTLSSecret.Data)
 	}
 
-	desiredSts := cassandraStatefulSet(cc, dc, tlsSecretChecksums, clientTLSSecret)
+	desiredSts := cassandraStatefulSet(cc, dc, restartChecksum, clientTLSSecret)
 
 	if err := controllerutil.SetControllerReference(cc, desiredSts, r.Scheme); err != nil {
 		return errors.Wrap(err, "Cannot set controller reference")
@@ -142,7 +142,7 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 	return nil
 }
 
-func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, tlsSecretChecksums tlsSecretChecksum, clientTLSSecret *v1.Secret) *appsv1.StatefulSet {
+func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, restartChecksum checksumContainer, clientTLSSecret *v1.Secret) *appsv1.StatefulSet {
 	stsLabels := labels.CombinedComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra)
 	stsLabels = labels.WithDCLabel(stsLabels, dc.Name)
 	desiredSts := &appsv1.StatefulSet{
@@ -167,7 +167,7 @@ func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, tls
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
-						cassandraContainer(cc, dc, tlsSecretChecksums, clientTLSSecret),
+						cassandraContainer(cc, dc, restartChecksum, clientTLSSecret),
 					},
 					InitContainers: []v1.Container{
 						privilegedInitContainer(cc),
@@ -210,7 +210,7 @@ func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, tls
 	return desiredSts
 }
 
-func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, tlsSecretChecksums tlsSecretChecksum, clientTLSSecret *v1.Secret) v1.Container {
+func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, restartChecksum checksumContainer, clientTLSSecret *v1.Secret) v1.Container {
 	container := v1.Container{
 		Name:            "cassandra",
 		Image:           cc.Spec.Cassandra.Image,
@@ -259,6 +259,10 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, tlsSe
 			{
 				Name:  "HEAP_NEWSIZE",
 				Value: cc.Spec.JVM.HeapNewSize,
+			},
+			{
+				Name:  "POD_RESTART_CHECKSUM", //used to force the statefulset to restart pods on some changes that need Cassandra restart
+				Value: restartChecksum.checksum(),
 			},
 		},
 		Args: []string{
@@ -325,18 +329,10 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, tlsSe
 
 	if cc.Spec.Encryption.Server.InternodeEncryption != internodeEncryptionNone {
 		container.VolumeMounts = append(container.VolumeMounts, cassandraServerTLSVolumeMount())
-		container.Env = append(container.Env, v1.EnvVar{
-			Name:  "SERVER_TLS_SHA1",
-			Value: tlsSecretChecksums.server,
-		})
 	}
 
 	if cc.Spec.Encryption.Client.Enabled {
 		container.VolumeMounts = append(container.VolumeMounts, cassandraClientTLSVolumeMount())
-		container.Env = append(container.Env, v1.EnvVar{
-			Name:  "CLIENT_TLS_SHA1",
-			Value: tlsSecretChecksums.client,
-		})
 		container.Env = append(container.Env, v1.EnvVar{
 			Name:  "TLS_ARG",
 			Value: "--ssl",

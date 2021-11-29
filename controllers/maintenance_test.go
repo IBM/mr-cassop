@@ -67,7 +67,7 @@ func mockedRunningCassandraPod(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC, i 
 		},
 		Spec: v1.PodSpec{
 			Containers: []v1.Container{
-				cassandraContainer(cc, dc, tlsSecretChecksum{}, &v1.Secret{}),
+				cassandraContainer(cc, dc, checksumContainer{}, &v1.Secret{}),
 			},
 			InitContainers: []v1.Container{
 				maintenanceContainer(cc),
@@ -297,7 +297,7 @@ func TestGetPod(t *testing.T) {
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
-						cassandraContainer(baseCC, baseCC.Spec.DCs[0], tlsSecretChecksum{}, &v1.Secret{}),
+						cassandraContainer(baseCC, baseCC.Spec.DCs[0], checksumContainer{}, &v1.Secret{}),
 					},
 					InitContainers: []v1.Container{
 						maintenanceContainer(baseCC),

@@ -1,11 +1,9 @@
 package integration
 
 import (
-	"fmt"
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/names"
-	"github.com/ibm/cassandra-operator/controllers/util"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -83,7 +81,7 @@ var _ = Describe("Cassandra TLS encryption", func() {
 			Expect(encryptionOptions["protocol"]).To(BeEquivalentTo("TLS"))
 			Expect(encryptionOptions["store_type"]).To(BeEquivalentTo("JKS"))
 
-			checkTLSSecretChange(cc, tlsSecretName, "server-keystore", "SERVER_TLS_SHA1")
+			checkTLSVolume("server-keystore")
 		})
 	})
 
@@ -139,7 +137,7 @@ var _ = Describe("Cassandra TLS encryption", func() {
 			Expect(encryptionOptions["protocol"]).To(BeEquivalentTo("TLS"))
 			Expect(encryptionOptions["store_type"]).To(BeEquivalentTo("JKS"))
 
-			checkTLSSecretChange(cc, tlsSecretName, "client-keystore", "CLIENT_TLS_SHA1")
+			checkTLSVolume("client-keystore")
 		})
 	})
 
@@ -148,28 +146,7 @@ var _ = Describe("Cassandra TLS encryption", func() {
 	})
 })
 
-func checkTLSChecksum(cc *v1alpha1.CassandraCluster, secretName string, checksum string, envName string) {
-	sts := &appsv1.StatefulSet{}
-	tlsSecret := &v1.Secret{}
-	Expect(k8sClient.Get(ctx, types.NamespacedName{Name: secretName, Namespace: cc.Namespace}, tlsSecret)).To(Succeed())
-	if checksum == "" {
-		checksum = util.Sha1(fmt.Sprintf("%v", tlsSecret.Data))
-	}
-
-	Eventually(func() string {
-		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.DC(cc.Name, "dc1"), Namespace: cc.Namespace}, sts)).To(Succeed())
-		for _, env := range sts.Spec.Template.Spec.Containers[0].Env {
-			if env.Name == envName {
-				return env.Value
-			}
-		}
-		return ""
-	}, mediumTimeout, shortRetry).Should(BeEquivalentTo(checksum))
-}
-
-func checkTLSSecretChange(cc *v1alpha1.CassandraCluster, tlsSecretName string, volumeName string, tlsShaEnvName string) {
-	checkTLSChecksum(cc, tlsSecretName, "", tlsShaEnvName)
-
+func checkTLSVolume(volumeName string) {
 	sts := &appsv1.StatefulSet{}
 	Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.DC(cassandraObjectMeta.Name, "dc1"), Namespace: cassandraObjectMeta.Namespace}, sts)).To(Succeed())
 
@@ -181,17 +158,4 @@ func checkTLSSecretChange(cc *v1alpha1.CassandraCluster, tlsSecretName string, v
 
 	_, found = getVolumeMountByName(cassandraContainer.VolumeMounts, volumeName)
 	Expect(found).To(BeTrue())
-
-	tlsSecret := &v1.Secret{}
-
-	When("TLS secret is changed", func() {
-		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: tlsSecretName, Namespace: cassandraObjectMeta.Namespace}, tlsSecret)).To(Succeed())
-		data := tlsSecret.Data
-		data["keystore.password"] = []byte("someChangedPassword")
-		tlsSecret.Data = data
-		Expect(k8sClient.Update(ctx, tlsSecret)).To(Succeed())
-
-		checksum := util.Sha1(fmt.Sprintf("%v", tlsSecret.Data))
-		checkTLSChecksum(cc, tlsSecretName, checksum, tlsShaEnvName)
-	})
 }
