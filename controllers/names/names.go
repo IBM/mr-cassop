@@ -74,10 +74,6 @@ func RolesSecret(clusterName string) string {
 	return clusterName + "-roles-secret"
 }
 
-func ScriptsConfigMap(clusterName string) string {
-	return clusterName + "-scripts-configmap"
-}
-
 func DC(clusterName, dcName string) string {
 	return clusterName + "-cassandra-" + dcName
 }
@@ -108,10 +104,6 @@ func AdminAuthConfigSecret(clusterName string) string {
 
 func PodIPsConfigMap(clusterName string) string {
 	return clusterName + "-pod-ips"
-}
-
-func OperatorScriptsCM() string {
-	return cassandraOperator + "-scripts-configmap"
 }
 
 func OperatorCassandraConfigCM() string {

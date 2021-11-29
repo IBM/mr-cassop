@@ -135,10 +135,6 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling Admin Auth Secrets")
 	}
 
-	if err = r.reconcileScriptsConfigMap(ctx, cc); err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Error reconciling scripts configmap")
-	}
-
 	if err = r.reconcilePrometheusConfigMap(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling prometheus configmap")
 	}

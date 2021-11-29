@@ -134,7 +134,7 @@ func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Conte
 
 	r.Log.Debug("Reconciling Reaper Deployment")
 
-	desiredDeployment.Spec.Template.Spec.Volumes = append(desiredDeployment.Spec.Template.Spec.Volumes, scriptsVolume(cc), cassandraConfigVolume(cc))
+	desiredDeployment.Spec.Template.Spec.Volumes = append(desiredDeployment.Spec.Template.Spec.Volumes, cassandraConfigVolume(cc))
 	if err = controllerutil.SetControllerReference(cc, desiredDeployment, r.Scheme); err != nil {
 		return errors.Wrap(err, "Cannot set controller reference")
 	}

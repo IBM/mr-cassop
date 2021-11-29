@@ -176,7 +176,6 @@ func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, tls
 					},
 					ImagePullSecrets: imagePullSecrets(cc),
 					Volumes: []v1.Volume{
-						scriptsVolume(cc),
 						prometheusVolume(cc),
 						maintenanceVolume(cc),
 						cassandraConfigVolume(cc),
@@ -309,7 +308,6 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, tlsSe
 			},
 		},
 		VolumeMounts: []v1.VolumeMount{
-			scriptsVolumeMount(),
 			prometheusVolumeMount(),
 			cassandraDCConfigVolumeMount(),
 			cassandraDataVolumeMount(),

@@ -74,7 +74,6 @@ func mockedRunningCassandraPod(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC, i 
 			},
 			ImagePullSecrets: imagePullSecrets(cc),
 			Volumes: []v1.Volume{
-				scriptsVolume(cc),
 				maintenanceVolume(cc),
 				cassandraConfigVolume(cc),
 				podsConfigVolume(cc),

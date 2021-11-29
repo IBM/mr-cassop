@@ -240,13 +240,6 @@ func StartTestManager(mgr manager.Manager) chan struct{} {
 }
 
 func createOperatorConfigMaps() {
-	scriptsCM := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.OperatorScriptsCM(),
-			Namespace: operatorConfig.Namespace,
-		},
-	}
-
 	cassConfigCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      names.OperatorCassandraConfigCM(),
@@ -271,7 +264,6 @@ func createOperatorConfigMaps() {
 		},
 	}
 
-	Expect(k8sClient.Create(ctx, scriptsCM)).To(Succeed())
 	Expect(k8sClient.Create(ctx, cassConfigCM)).To(Succeed())
 	Expect(k8sClient.Create(ctx, shiroConfigCM)).To(Succeed())
 	Expect(k8sClient.Create(ctx, prometheusCM)).To(Succeed())
@@ -309,7 +301,6 @@ func CleanUpCreatedResources(ccName, ccNamespace string) {
 		{name: names.ReaperCqlConfigMap(cc.Name), objType: &v1.ConfigMap{}},
 		{name: names.ShiroConfigMap(cc.Name), objType: &v1.ConfigMap{}},
 		{name: names.PrometheusConfigMap(cc.Name), objType: &v1.ConfigMap{}},
-		{name: names.ScriptsConfigMap(cc.Name), objType: &v1.ConfigMap{}},
 		{name: names.MaintenanceConfigMap(cc.Name), objType: &v1.ConfigMap{}},
 		{name: names.RepairsConfigMap(cc.Name), objType: &v1.ConfigMap{}},
 		{name: names.RolesSecret(cc.Name), objType: &v1.Secret{}},
