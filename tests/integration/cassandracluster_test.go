@@ -89,7 +89,8 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 				Expect(sts.Spec.Template.Spec.Containers[0].Args).To(BeEquivalentTo([]string{
 					"bash",
 					"-c",
-					fmt.Sprintf("cp /etc/cassandra-configmaps/* $CASSANDRA_CONF/\n" +
+					fmt.Sprintf("echo \"prefer_local=true\" >> $CASSANDRA_CONF/cassandra-rackdc.properties\n" +
+						"cp /etc/cassandra-configmaps/* $CASSANDRA_CONF/\n" +
 						"cp /etc/cassandra-configmaps/jvm.options $CASSANDRA_HOME/\n" +
 						"source /etc/pods-config/${POD_NAME}_${POD_UID}.sh\n" +
 						"replace_address=\"\"\n" +

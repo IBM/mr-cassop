@@ -490,6 +490,7 @@ func getCassandraRunCommand(cc *dbv1alpha1.CassandraCluster, clientTLSSecret *v1
 	}
 
 	args = append(args,
+		"echo \"prefer_local=true\" >> $CASSANDRA_CONF/cassandra-rackdc.properties",
 		"cp /etc/cassandra-configmaps/* $CASSANDRA_CONF/",
 		"cp /etc/cassandra-configmaps/jvm.options $CASSANDRA_HOME/",
 		"source /etc/pods-config/${POD_NAME}_${POD_UID}.sh",
