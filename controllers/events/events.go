@@ -10,10 +10,17 @@ const (
 	EventRecorderNameCassandraCluster = "cassandra-cluster" // appears in the 'From' column of the events list
 
 	EventAdminRoleSecretNotFound = "AdminRoleSecretNotFound"
+	EventAdminRoleUpdateFailed   = "AdminRoleUpdateFailed"
+	EventAdminRoleCreated        = "AdminRoleCreated"
+	EventDefaultAdminRoleDropped = "DefaultAdminRoleRemoved"
 	EventRoleSecretNotFound      = "RolesSecretNotFound"
 	EventTLSSecretNotFound       = "TLSSecretNotFound"
 	EventTLSSecretInvalid        = "TLSSecretInvalid"
 	EventInvalidRole             = "InvalidRole"
+
+	EventAdminRoleChanged = "AdminRoleChanged"
+	EventRegionInit       = "RegionInit"
+	EventDCInit           = "DCInit"
 )
 
 // EventReason is the reason why the event was created. The value appears in the 'Reason' tab of the events list

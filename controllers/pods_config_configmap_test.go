@@ -5,6 +5,9 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/ibm/cassandra-operator/controllers/events"
+	"k8s.io/client-go/tools/record"
+
 	"go.uber.org/zap"
 
 	"github.com/gogo/protobuf/proto"
@@ -2123,6 +2126,7 @@ export PAUSE_INIT=false
 				return proberClient
 			},
 			Scheme: baseScheme,
+			Events: events.NewEventRecorder(&record.FakeRecorder{}),
 			Log:    zap.NewNop().Sugar(),
 		}
 

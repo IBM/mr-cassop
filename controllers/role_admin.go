@@ -5,6 +5,7 @@ import (
 	"fmt"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
+	"github.com/ibm/cassandra-operator/controllers/events"
 	"github.com/ibm/cassandra-operator/controllers/names"
 	"github.com/pkg/errors"
 	"io/ioutil"
@@ -70,6 +71,8 @@ func (r *CassandraClusterReconciler) reconcileAdminRole(ctx context.Context, cc 
 		}
 		return nil
 	})
+
+	r.Events.Normal(cc, events.EventAdminRoleCreated, "secure admin role is created")
 
 	err = r.reconcileAdminSecrets(ctx, cc, adminRoleSecret.Data)
 	if err != nil {

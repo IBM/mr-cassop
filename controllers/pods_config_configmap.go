@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/ibm/cassandra-operator/controllers/events"
+
 	"github.com/ibm/cassandra-operator/controllers/prober"
 	"github.com/ibm/cassandra-operator/controllers/util"
 
@@ -150,6 +152,9 @@ func (r *CassandraClusterReconciler) getInitOrderInfo(ctx context.Context, cc *v
 	nextLocalDCToInit = getNextLocalDCToInit(cc, unreadyLocalDCs)
 
 	if !cc.Spec.HostPort.Enabled {
+		if nextLocalDCToInit != "" {
+			r.Events.Normal(cc, events.EventDCInit, fmt.Sprintf("initializing dc %q", nextLocalDCToInit))
+		}
 		return false, nextLocalDCToInit, nil
 	}
 
@@ -177,12 +182,16 @@ func (r *CassandraClusterReconciler) getInitOrderInfo(ctx context.Context, cc *v
 	}
 
 	if nextRegionToInit != currentRegionHost {
-		r.Log.Infof("Current region is on pause. Waiting for region %q to be ready", nextRegionToInit)
+		msg := fmt.Sprintf("Current region initialization is paused. Waiting for region %q to be ready", nextRegionToInit)
+		r.Events.Normal(cc, events.EventRegionInit, msg)
+		r.Log.Info(msg)
 		return true, "", nil
 	}
 
 	nextLocalDCToInit = getNextLocalDCToInit(cc, unreadyLocalDCs)
-	r.Log.Infof("Current region (%q) is initializing. DC %q is initializing", currentRegionHost, nextLocalDCToInit)
+	msg := fmt.Sprintf("Current region (%q) is initializing. DC %q is initializing", currentRegionHost, nextLocalDCToInit)
+	r.Log.Infof(msg)
+	r.Events.Normal(cc, events.EventRegionInit, msg)
 	return false, nextLocalDCToInit, nil
 }
 

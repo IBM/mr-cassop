@@ -128,8 +128,8 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 
 	err = r.reconcileAdminAuth(ctx, cc)
 	if err != nil {
-		if err == errAdminSecretNotFound {
-			r.Log.Warnf("Admin secret %s not found", cc.Spec.AdminRoleSecretName)
+		if err == errAdminSecretNotFound || err == errAdminSecretInvalid {
+			r.Log.Warnf("Failed to reconcile admin auth with secret %q: %s", cc.Spec.AdminRoleSecretName, err.Error())
 			return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 		}
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling Admin Auth Secrets")
@@ -271,7 +271,6 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	err = cleanupClientTLSDir(cc)
 	if err != nil {
 		r.Log.Errorf("%+v", err)
-
 	}
 
 	return ctrl.Result{}, nil
@@ -436,6 +435,7 @@ func (r *CassandraClusterReconciler) removeDefaultUserIfExists(ctx context.Conte
 		return errors.Wrap(err, "Can't drop role "+v1alpha1.CassandraDefaultRole)
 	}
 
+	r.Events.Normal(cc, events.EventDefaultAdminRoleDropped, "default admin role is removed")
 	return nil
 }
 

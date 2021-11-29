@@ -21,7 +21,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-var errAdminSecretNotFound = errors.New("admin secret not found")
+var (
+	errAdminSecretNotFound = errors.New("admin secret not found")
+	errAdminSecretInvalid  = errors.New("admin secret is invalid")
+)
 
 func (r *CassandraClusterReconciler) reconcileAdminAuth(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
 	actualActiveAdminSecret := &v1.Secret{}
@@ -47,6 +50,13 @@ func (r *CassandraClusterReconciler) reconcileAdminAuth(ctx context.Context, cc 
 			return errAdminSecretNotFound
 		}
 		return errors.Wrapf(err, "failed to get admin role secret %q", cc.Spec.AdminRoleSecretName)
+	}
+
+	if len(actualBaseAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole]) == 0 || len(actualBaseAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword]) == 0 {
+		errMsg := fmt.Sprintf("admin secret is invalid. Field %q or %q is empty", dbv1alpha1.CassandraOperatorAdminRole, dbv1alpha1.CassandraOperatorAdminPassword)
+		r.Events.Warning(cc, events.EventAdminRoleUpdateFailed, errMsg)
+		r.Log.Warn(errMsg)
+		return errAdminSecretInvalid
 	}
 
 	activeAdminRoleName := string(actualActiveAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole])
@@ -130,10 +140,12 @@ func (r *CassandraClusterReconciler) handleAdminRoleChange(ctx context.Context, 
 
 	err := r.updateAdminRoleInCassandra(cc, cassandraOperatorAdminRole, newCassandraOperatorAdminRole, cassandraOperatorAdminPassword, newCassandraOperatorAdminPassword)
 	if err != nil {
-		return errors.Wrap(err, "failed to update admin role password in cassandra")
+		errMsg := "failed to update admin role in cassandra"
+		r.Events.Warning(cc, events.EventAdminRoleUpdateFailed, errMsg)
+		return errors.Wrap(err, errMsg)
 	}
 
-	r.Log.Info("Role updated in Cassandra. Waiting for cluster to propagate the changed password to all nodes ")
+	r.Log.Info("Role updated in Cassandra. Waiting for cluster to propagate the changes to all nodes ")
 	r.Log.Info("Attempting to login with new credentials to verify they applied in cassandra")
 
 	var cqlClientTestCon cql.CqlClient
@@ -146,12 +158,15 @@ func (r *CassandraClusterReconciler) handleAdminRoleChange(ctx context.Context, 
 	})
 
 	if err != nil {
-		return errors.Wrap(err, "Couldn't log in. Either the role failed to change or the the cluster didn't propagate the role change in timely manner.")
+		errMsg := "Couldn't log in with new credentials. Either the role failed to change or the the cluster didn't propagate the role change in timely manner."
+		r.Events.Warning(cc, events.EventAdminRoleUpdateFailed, errMsg)
+		return errors.Wrap(err, errMsg)
 	}
 
 	r.Log.Info("Logged in successfully with new credentials. Updating active admin secret.")
 	defer cqlClientTestCon.CloseSession()
 
+	r.Events.Normal(cc, events.EventAdminRoleChanged, "admin role has been successfully changed")
 	err = r.reconcileAdminSecrets(ctx, cc, actualBaseAdminSecret.Data)
 	if err != nil {
 		return errors.Wrap(err, "failed to update admin secret")
