@@ -53,10 +53,9 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 	var err error
 	tlsSecretChecksums := tlsSecretChecksum{}
 	clientTLSSecret := &v1.Secret{}
-	serverTLSSecret := &v1.Secret{}
 
 	if cc.Spec.Encryption.Server.InternodeEncryption != internodeEncryptionNone {
-		err = r.Get(ctx, types.NamespacedName{Name: cc.Spec.Encryption.Server.TLSSecret.Name, Namespace: cc.Namespace}, serverTLSSecret)
+		serverTLSSecret, err := r.getSecret(ctx, cc.Spec.Encryption.Server.TLSSecret.Name, cc.Namespace)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				errMsg := fmt.Sprintf("server TLS secret %s is not found", cc.Spec.Encryption.Server.TLSSecret.Name)
@@ -67,14 +66,14 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 			return errors.Wrapf(err, "failed to get TLS Secret %s", cc.Spec.Encryption.Server.TLSSecret.Name)
 		}
 
-		err = r.checkRequiredFields(cc, serverTLSSecret)
+		err = r.validateTLSFields(cc, serverTLSSecret, tlsServerRequireFields(cc))
 		if err != nil {
 			return errors.Wrap(err, "failed to validate Server TLS Secret fields")
 		}
 
 		annotations := make(map[string]string)
 		annotations[dbv1alpha1.CassandraClusterInstance] = cc.Name
-		err := r.reconcileAnnotations(ctx, serverTLSSecret, annotations)
+		err = r.reconcileAnnotations(ctx, serverTLSSecret, annotations)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to reconcile Annotations for Secret %s", serverTLSSecret.Name)
 		}
@@ -94,7 +93,7 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 			return errors.Wrapf(err, "failed to get TLS Secret %s", cc.Spec.Encryption.Client.TLSSecret.Name)
 		}
 
-		err = r.checkRequiredFields(cc, clientTLSSecret)
+		err = r.validateTLSFields(cc, clientTLSSecret, tlsClientRequiredFields(cc))
 		if err != nil {
 			return errors.Wrap(err, "failed to validate Client TLS Secret fields")
 		}
@@ -986,49 +985,41 @@ func cassandraClientTLSVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
 	}
 }
 
-func (r *CassandraClusterReconciler) checkRequiredFields(cc *dbv1alpha1.CassandraCluster, tlsSecret *v1.Secret) error {
-	if cc.Spec.Encryption.Server.InternodeEncryption != internodeEncryptionNone {
-		requiredFields := []string{
-			cc.Spec.Encryption.Server.TLSSecret.KeystoreFileKey,
-			cc.Spec.Encryption.Server.TLSSecret.KeystorePasswordKey,
-			cc.Spec.Encryption.Server.TLSSecret.TruststoreFileKey,
-			cc.Spec.Encryption.Server.TLSSecret.TruststorePasswordKey,
-		}
-		emptyFields := util.EmptySecretFields(tlsSecret, requiredFields)
-		if tlsSecret.Data == nil || len(emptyFields) != 0 {
-			errMsg := fmt.Sprintf("TLS Server Secret %s has some empty or missing fields: %v", tlsSecret.Name, emptyFields)
-			r.Log.Warnf(errMsg)
-			r.Events.Warning(cc, events.EventTLSSecretInvalid, errMsg)
-			return errTLSSecretInvalid
-		}
-	}
-
-	if cc.Spec.Encryption.Client.Enabled {
-		requiredFields := []string{
-			cc.Spec.Encryption.Client.TLSSecret.KeystoreFileKey,
-			cc.Spec.Encryption.Client.TLSSecret.KeystorePasswordKey,
-			cc.Spec.Encryption.Client.TLSSecret.TruststoreFileKey,
-			cc.Spec.Encryption.Client.TLSSecret.TruststorePasswordKey,
-			cc.Spec.Encryption.Client.TLSSecret.CAFileKey,
-			cc.Spec.Encryption.Client.TLSSecret.TLSCrtFileKey,
-			cc.Spec.Encryption.Client.TLSSecret.TLSFileKey,
-		}
-
-		emptyFields := util.EmptySecretFields(tlsSecret, requiredFields)
-		if tlsSecret.Data == nil || len(emptyFields) != 0 {
-			errMsg := fmt.Sprintf("TLS Secret %s has some empty or missing fields: %v", tlsSecret.Name, emptyFields)
-			r.Log.Warnf(errMsg)
-			r.Events.Warning(cc, events.EventTLSSecretInvalid, errMsg)
-			return errTLSSecretInvalid
-		}
-	}
-
-	return nil
-}
-
 func tlsJVMArgs(cc *dbv1alpha1.CassandraCluster, clientTLSSecret *v1.Secret) string {
 	return fmt.Sprintf("-Djavax.net.ssl.keyStore=%s/%s -Djavax.net.ssl.keyStorePassword=%s -Djavax.net.ssl.trustStore=%s/%s -Djavax.net.ssl.trustStorePassword=%s",
 		cassandraClientTLSDir, cc.Spec.Encryption.Client.TLSSecret.KeystoreFileKey, strings.TrimRight(string(clientTLSSecret.Data[cc.Spec.Encryption.Client.TLSSecret.KeystorePasswordKey]), "\r\n"),
 		cassandraClientTLSDir, cc.Spec.Encryption.Client.TLSSecret.TruststoreFileKey, strings.TrimRight(string(clientTLSSecret.Data[cc.Spec.Encryption.Client.TLSSecret.TruststorePasswordKey]), "\r\n"))
 
+}
+
+func tlsServerRequireFields(cc *dbv1alpha1.CassandraCluster) []string {
+	return []string{
+		cc.Spec.Encryption.Server.TLSSecret.KeystoreFileKey,
+		cc.Spec.Encryption.Server.TLSSecret.KeystorePasswordKey,
+		cc.Spec.Encryption.Server.TLSSecret.TruststoreFileKey,
+		cc.Spec.Encryption.Server.TLSSecret.TruststorePasswordKey,
+	}
+}
+
+func tlsClientRequiredFields(cc *dbv1alpha1.CassandraCluster) []string {
+	return []string{
+		cc.Spec.Encryption.Client.TLSSecret.KeystoreFileKey,
+		cc.Spec.Encryption.Client.TLSSecret.KeystorePasswordKey,
+		cc.Spec.Encryption.Client.TLSSecret.TruststoreFileKey,
+		cc.Spec.Encryption.Client.TLSSecret.TruststorePasswordKey,
+		cc.Spec.Encryption.Client.TLSSecret.CAFileKey,
+		cc.Spec.Encryption.Client.TLSSecret.TLSCrtFileKey,
+		cc.Spec.Encryption.Client.TLSSecret.TLSFileKey,
+	}
+}
+
+func (r *CassandraClusterReconciler) validateTLSFields(cc *dbv1alpha1.CassandraCluster, tlsSecret *v1.Secret, requiredFields []string) error {
+	emptyFields := util.EmptySecretFields(tlsSecret, requiredFields)
+	if tlsSecret.Data == nil || len(emptyFields) != 0 {
+		errMsg := fmt.Sprintf("TLS Secret %s has some empty or missing fields: %v", tlsSecret.Name, emptyFields)
+		r.Log.Warnf(errMsg)
+		r.Events.Warning(cc, events.EventTLSSecretInvalid, errMsg)
+		return errors.Errorf(errMsg)
+	}
+	return nil
 }
