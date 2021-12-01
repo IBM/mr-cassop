@@ -89,8 +89,6 @@ EOF
 
 **Note: you must define at least one DC.**
 
-The cluster can be accessed by the default `cassandra/cassandra` username and password. Use the service URL as the hostname:
-
 ```bash
 kubectl get svc -l cassandra-cluster-instance=example
 
@@ -101,9 +99,28 @@ example-cassandra-dc1   ClusterIP   None         <none>        7000/TCP,7001/TCP
 Wait until the cluster is up and running. Now you can execute queries:
 
 ```bash
-kubectl exec -it example-cassandra-dc1-1 -- cqlsh -u cassandra -p cassandra -e "DESCRIBE keyspaces;"
+kubectl exec -it example-cassandra-dc1-1 -- cqlsh -u cassandra-operator -p pass -e "DESCRIBE keyspaces;"
 
 system_traces  system_schema  system_auth  system  system_distributed
+```
+
+Also in the container you can execute `cqlsh` and `nodetool` commands without setting the auth flags everytime:
+
+```bash
+kubectl exec -it example-cassandra-dc1-1 -- bash
+cassandra@test-cluster-cassandra-dc1-0:~$ cqlsh -e "DESCRIBE keyspaces;"
+
+system_schema  system_auth  system  reaper  system_distributed  system_traces
+
+cassandra@test-cluster-cassandra-dc1-0:~$ nodetool status
+Datacenter: dc1
+===============
+Status=Up/Down
+|/ State=Normal/Leaving/Joining/Moving
+--  Address         Load       Tokens       Owns (effective)  Host ID                               Rack
+UN  172.30.200.204  919.86 KiB  16           100.0%            01b26cc1-4870-4617-97ab-adfa566cccee  rack1
+UN  172.30.16.197   926.94 KiB  16           100.0%            f3a861ae-848d-4e52-a7bf-dc63cb87ef57  rack1
+UN  172.30.200.83   924.49 KiB  16           100.0%            dd93c221-a8b1-47fd-aa63-40282863bf57  rack1
 ```
 
 See [CassandraCluster configuration](cassandracluster-configuration.md) for more details.

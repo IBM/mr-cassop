@@ -56,7 +56,7 @@ The Cassandra operator also supports changing the admin role password or even cr
 
 In case of creating a new role, the operator WILL NOT delete the old one. It's the user's responsibility to remove the old role.
 
-:::caution
+:::
 
 #### Multi-region setup
 

@@ -40,13 +40,27 @@ func (r *CassandraClusterReconciler) reconcileProber(ctx context.Context, cc *db
 		return errors.Wrap(err, "failed to reconcile prober service")
 	}
 
-	if cc.Spec.HostPort.Enabled {
+	if len(managedExternalRegionsDomains(cc.Spec.ExternalRegions)) > 0 {
 		if err := r.reconcileProberIngress(ctx, cc); err != nil {
 			return errors.Wrap(err, "failed to reconcile prober ingress")
 		}
 	}
 
 	return nil
+}
+
+func managedExternalRegionsDomains(externalRegions []dbv1alpha1.ExternalRegion) []string {
+	if len(externalRegions) == 0 {
+		return nil
+	}
+	managedRegionsDomains := make([]string, 0)
+	for _, externalRegion := range externalRegions {
+		if len(externalRegion.Domain) > 0 {
+			managedRegionsDomains = append(managedRegionsDomains, externalRegion.Domain)
+		}
+	}
+
+	return managedRegionsDomains
 }
 
 func (r *CassandraClusterReconciler) reconcileProberDeployment(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
