@@ -77,7 +77,7 @@ type CassandraClusterReconciler struct {
 	Events       *events.EventRecorder
 	ProberClient func(url *url.URL) prober.ProberClient
 	CqlClient    func(cluster *gocql.ClusterConfig) (cql.CqlClient, error)
-	ReaperClient func(url *url.URL, clusterName string) reaper.ReaperClient
+	ReaperClient func(url *url.URL, clusterName string, defaultRepairThreadCount int32) reaper.ReaperClient
 }
 
 // +kubebuilder:rbac:groups=db.ibm.com,resources=cassandraclusters,verbs=get;list;watch;create;update;patch;delete
@@ -237,7 +237,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error parsing reaper service url")
 	}
-	reaperClient := r.ReaperClient(reaperServiceUrl, cc.Name)
+	reaperClient := r.ReaperClient(reaperServiceUrl, cc.Name, cc.Spec.Reaper.RepairThreadCount)
 	isRunning, err := reaperClient.IsRunning(ctx)
 	if err != nil {
 		r.Log.Warnf("Reaper ping request failed: %s. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)

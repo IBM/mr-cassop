@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/go-cmp/cmp"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/gogo/protobuf/proto"
@@ -145,7 +147,7 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 
 				Expect(reaperDeployment.Spec.Template.Spec.Containers[0].Args).Should(Equal([]string(nil)))
 
-				Expect(reaperDeployment.Spec.Template.Spec.Containers[0].Env).Should(BeEquivalentTo([]v1.EnvVar{
+				expectedEnvVars := []v1.EnvVar{
 					{
 						Name:  "ACTIVE_ADMIN_SECRET_SHA1",
 						Value: adminSecretChecksum,
@@ -164,7 +166,7 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 					},
 					{
 						Name:  "REAPER_DATACENTER_AVAILABILITY",
-						Value: "each",
+						Value: "EACH",
 					},
 					{
 						Name:  "REAPER_REPAIR_INTENSITY",
@@ -173,11 +175,6 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 					{
 						Name:  "REAPER_REPAIR_MANAGER_SCHEDULING_INTERVAL_SECONDS",
 						Value: "0",
-					},
-					{
-						Name:      "REAPER_REPAIR_RUN_THREADS",
-						Value:     "1",
-						ValueFrom: nil,
 					},
 					{
 						Name:  "REAPER_BLACKLIST_TWCS",
@@ -189,7 +186,7 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 					},
 					{
 						Name:  "REAPER_CASS_CLUSTER_NAME",
-						Value: "cassandra",
+						Value: "test-cassandra-cluster",
 					},
 					{
 						Name:  "REAPER_STORAGE_TYPE",
@@ -260,7 +257,11 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 							},
 						},
 					},
-				}))
+					{Name: "REAPER_INCREMENTAL_REPAIR", Value: "false"},
+					{Name: "REAPER_REPAIR_PARALELLISM", Value: "DATACENTER_AWARE"},
+				}
+
+				Expect(reaperDeployment.Spec.Template.Spec.Containers[0].Env).Should(BeEquivalentTo(expectedEnvVars), cmp.Diff(reaperDeployment.Spec.Template.Spec.Containers[0].Env, expectedEnvVars))
 			}
 			mockReaperClient.isRunning = true
 			mockReaperClient.err = nil

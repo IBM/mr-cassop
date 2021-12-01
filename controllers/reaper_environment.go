@@ -19,13 +19,12 @@ func reaperEnvironment(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC, adminSecre
 		{Name: "REAPER_CASS_ACTIVATE_QUERY_LOGGER", Value: "true"},
 		{Name: "REAPER_LOGGING_ROOT_LEVEL", Value: "INFO"},
 		{Name: "REAPER_LOGGING_APPENDERS_CONSOLE_THRESHOLD", Value: "INFO"},
-		{Name: "REAPER_DATACENTER_AVAILABILITY", Value: cc.Spec.Reaper.DatacenterAvailability},
+		{Name: "REAPER_DATACENTER_AVAILABILITY", Value: "EACH"},
 		{Name: "REAPER_REPAIR_INTENSITY", Value: fmt.Sprint(cc.Spec.Reaper.RepairIntensity)},
 		{Name: "REAPER_REPAIR_MANAGER_SCHEDULING_INTERVAL_SECONDS", Value: fmt.Sprint(cc.Spec.Reaper.RepairManagerSchedulingIntervalSeconds)},
-		{Name: "REAPER_REPAIR_RUN_THREADS", Value: fmt.Sprint(cc.Spec.Reaper.RepairRunThreads)},
 		{Name: "REAPER_BLACKLIST_TWCS", Value: strconv.FormatBool(cc.Spec.Reaper.BlacklistTWCS)},
 		{Name: "REAPER_CASS_CONTACT_POINTS", Value: fmt.Sprintf("[ %s ]", names.DC(cc.Name, dc.Name))},
-		{Name: "REAPER_CASS_CLUSTER_NAME", Value: "cassandra"},
+		{Name: "REAPER_CASS_CLUSTER_NAME", Value: cc.Name},
 		{Name: "REAPER_STORAGE_TYPE", Value: "cassandra"},
 		{Name: "REAPER_CASS_KEYSPACE", Value: cc.Spec.Reaper.Keyspace},
 		{Name: "REAPER_CASS_PORT", Value: fmt.Sprintf("%d", dbv1alpha1.CqlPort)},
@@ -33,10 +32,28 @@ func reaperEnvironment(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC, adminSecre
 		{Name: "REAPER_CASS_AUTH_ENABLED", Value: "true"},
 	}
 
+	if cc.Spec.Reaper.RepairRunThreads > 0 {
+		reaperEnv = append(reaperEnv, v1.EnvVar{
+			Name: "REAPER_REPAIR_RUN_THREADS", Value: fmt.Sprint(cc.Spec.Reaper.RepairRunThreads),
+		})
+	}
+
 	if cc.Spec.Encryption.Client.Enabled {
 		reaperEnv = append(reaperEnv, v1.EnvVar{
 			// Use SSL encryption when connecting to Cassandra via the native protocol
 			Name: "REAPER_CASS_NATIVE_PROTOCOL_SSL_ENCRYPTION_ENABLED", Value: "true",
+		})
+	}
+
+	if cc.Spec.Reaper.HangingRepairTimeoutMins > 0 {
+		reaperEnv = append(reaperEnv, v1.EnvVar{
+			Name: "REAPER_HANGING_REPAIR_TIMEOUT_MINS", Value: fmt.Sprint(cc.Spec.Reaper.HangingRepairTimeoutMins),
+		})
+	}
+
+	if cc.Spec.Reaper.SegmentCountPerNode > 0 {
+		reaperEnv = append(reaperEnv, v1.EnvVar{
+			Name: "REAPER_SEGMENT_COUNT_PER_NODE", Value: fmt.Sprint(cc.Spec.Reaper.SegmentCountPerNode),
 		})
 	}
 
@@ -109,10 +126,14 @@ func incrementalRepairOpts(cc *v1alpha1.CassandraCluster) []v1.EnvVar {
 	if cc.Spec.Reaper.IncrementalRepair {
 		return []v1.EnvVar{
 			{Name: "REAPER_INCREMENTAL_REPAIR", Value: "true"},
-			{Name: "REAPER_REPAIR_PARALLELISM", Value: "PARALLEL"},
+			{Name: "REAPER_REPAIR_PARALELLISM", Value: "PARALLEL"},
 		}
 	}
-	return nil
+
+	return []v1.EnvVar{
+		{Name: "REAPER_INCREMENTAL_REPAIR", Value: "false"},
+		{Name: "REAPER_REPAIR_PARALELLISM", Value: cc.Spec.Reaper.RepairParallelism},
+	}
 }
 
 func autoSchedulingOpts(cc *v1alpha1.CassandraCluster) []v1.EnvVar {

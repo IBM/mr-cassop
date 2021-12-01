@@ -116,8 +116,8 @@ func main() {
 		Events:       eventRecorder,
 		ProberClient: func(url *url.URL) prober.ProberClient { return prober.NewProberClient(url, httpClient) },
 		CqlClient:    func(cluster *gocql.ClusterConfig) (cql.CqlClient, error) { return cql.NewCQLClient(cluster) },
-		ReaperClient: func(url *url.URL, clusterName string) reaper.ReaperClient {
-			return reaper.NewReaperClient(url, clusterName, httpClient)
+		ReaperClient: func(url *url.URL, clusterName string, defaultRepairThreadCount int32) reaper.ReaperClient {
+			return reaper.NewReaperClient(url, clusterName, httpClient, defaultRepairThreadCount)
 		},
 	}
 	err = controllers.SetupCassandraReconciler(cassandraReconciler, mgr, logr)

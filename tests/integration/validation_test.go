@@ -494,8 +494,7 @@ var _ = Describe("cassandracluster validation", func() {
 					},
 					ImagePullSecretName: "pullSecretName",
 					Reaper: &v1alpha1.Reaper{
-						Keyspace:               "system_auth",
-						DatacenterAvailability: "invalid",
+						Keyspace: "system_auth",
 					},
 				},
 			}
@@ -725,7 +724,6 @@ var _ = Describe("cassandracluster validation", func() {
 						Image:                                  "reaper/image",
 						ImagePullPolicy:                        v1.PullAlways,
 						Keyspace:                               "reaper",
-						DatacenterAvailability:                 "each",
 						Tolerations:                            nil,
 						NodeSelector:                           nil,
 						IncrementalRepair:                      false,

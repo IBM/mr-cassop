@@ -18,9 +18,10 @@ const (
 )
 
 type reaperClient struct {
-	baseUrl     *url.URL
-	client      *http.Client
-	clusterName string
+	baseUrl           *url.URL
+	client            *http.Client
+	clusterName       string
+	repairThreadCount int32
 }
 
 type ReaperClient interface {
@@ -47,11 +48,12 @@ func (e *requestFailedWithStatus) Error() string {
 	return fmt.Sprintf("Request failed with status code %d. Response body: %s", e.code, e.message)
 }
 
-func NewReaperClient(url *url.URL, clusterName string, client *http.Client) ReaperClient {
+func NewReaperClient(url *url.URL, clusterName string, client *http.Client, defaultRepairThreadCount int32) ReaperClient {
 	return &reaperClient{
-		baseUrl:     url,
-		client:      client,
-		clusterName: clusterName,
+		baseUrl:           url,
+		client:            client,
+		clusterName:       clusterName,
+		repairThreadCount: defaultRepairThreadCount,
 	}
 }
 

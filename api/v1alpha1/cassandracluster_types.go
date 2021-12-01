@@ -92,11 +92,11 @@ type Reaper struct {
 	// +kubebuilder:validation:Enum=Always;Never;IfNotPresent
 	ImagePullPolicy v1.PullPolicy `json:"imagePullPolicy,omitempty"`
 	// +kubebuilder:validation:MinLength=1
-	Keyspace string `json:"keyspace,omitempty"`
-	// +kubebuilder:validation:Enum=each
-	DatacenterAvailability                 string                  `json:"datacenterAvailability,omitempty"`
-	Tolerations                            []v1.Toleration         `json:"tolerations,omitempty"`
-	NodeSelector                           map[string]string       `json:"nodeSelector,omitempty"`
+	Keyspace     string            `json:"keyspace,omitempty"`
+	Tolerations  []v1.Toleration   `json:"tolerations,omitempty"`
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	// +kubebuilder:validation:Minimum=1
+	HangingRepairTimeoutMins               int32                   `json:"hangingRepairTimeoutMins,omitempty"`
 	IncrementalRepair                      bool                    `json:"incrementalRepair,omitempty"`
 	RepairIntensity                        string                  `json:"repairIntensity,omitempty"` // value between 0.0 and 1.0, but must never be 0.0.
 	RepairManagerSchedulingIntervalSeconds int32                   `json:"repairManagerSchedulingIntervalSeconds,omitempty"`
@@ -104,7 +104,15 @@ type Reaper struct {
 	Resources                              v1.ResourceRequirements `json:"resources,omitempty"`
 	RepairSchedules                        RepairSchedules         `json:"repairSchedules,omitempty"`
 	AutoScheduling                         AutoScheduling          `json:"autoScheduling,omitempty"`
-	RepairRunThreads                       int32                   `json:"repairRunThreads,omitempty"`
+	// +kubebuilder:validation:Enum=DATACENTER_AWARE;SEQUENTIAL;PARALLEL
+	RepairParallelism string `json:"repairParallelism,omitempty"`
+	// +kubebuilder:validation:Minimum=1
+	RepairRunThreads int32 `json:"repairRunThreads,omitempty"`
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=4
+	RepairThreadCount int32 `json:"repairThreadCount,omitempty"`
+	// +kubebuilder:validation:Minimum=1
+	SegmentCountPerNode int32 `json:"segmentCountPerNode,omitempty"`
 }
 
 type HostPort struct {

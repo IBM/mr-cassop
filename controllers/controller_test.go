@@ -49,7 +49,7 @@ func createMockedReconciler(t *testing.T) (*CassandraClusterReconciler, *gomock.
 		CqlClient: func(clusterConfig *gocql.ClusterConfig) (cql.CqlClient, error) {
 			return cqlClientMock, nil
 		},
-		ReaperClient: func(url *url.URL, clusterName string) reaper.ReaperClient {
+		ReaperClient: func(url *url.URL, clusterName string, defaultRepairThreadCount int32) reaper.ReaperClient {
 			return reaperClientMock
 		},
 	}

@@ -55,6 +55,7 @@ func (r *reaperClient) createRepairRun(ctx context.Context, keyspace, cause stri
 	urlParams.Add("keyspace", keyspace)
 	urlParams.Add("owner", OwnerCassandraOperator)
 	urlParams.Add("cause", cause)
+	urlParams.Add("repairThreadCount", fmt.Sprint(r.repairThreadCount))
 
 	req.URL.RawQuery = urlParams.Encode()
 	req = req.WithContext(ctx)

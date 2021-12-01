@@ -71,12 +71,12 @@ func (r *CassandraClusterReconciler) defaultReaper(cc *dbv1alpha1.CassandraClust
 		cc.Spec.Reaper.RepairIntensity = "1.0"
 	}
 
-	if cc.Spec.Reaper.RepairRunThreads == 0 {
-		cc.Spec.Reaper.RepairRunThreads = 1
+	if cc.Spec.Reaper.RepairParallelism == "" {
+		cc.Spec.Reaper.RepairParallelism = "DATACENTER_AWARE"
 	}
 
-	if cc.Spec.Reaper.DatacenterAvailability == "" {
-		cc.Spec.Reaper.DatacenterAvailability = "each"
+	if cc.Spec.Reaper.RepairThreadCount == 0 {
+		cc.Spec.Reaper.RepairThreadCount = 1
 	}
 
 	if len(cc.Spec.Reaper.Tolerations) == 0 {

@@ -36,7 +36,6 @@ func TestDefaultingFunction(t *testing.T) {
 	g.Expect(cc.Spec.Reaper.Keyspace).To(Equal("reaper"))
 	g.Expect(cc.Spec.Reaper.Image).To(Equal("reaper/image"))
 	g.Expect(cc.Spec.Reaper.ImagePullPolicy).To(Equal(v1.PullIfNotPresent))
-	g.Expect(cc.Spec.Reaper.DatacenterAvailability).To(Equal("each"))
 	g.Expect(cc.Spec.Reaper.RepairIntensity).To(Equal("1.0"))
 	g.Expect(cc.Spec.Reaper.Tolerations).To(BeNil())
 	g.Expect(cc.Spec.Reaper.NodeSelector).To(BeNil())
