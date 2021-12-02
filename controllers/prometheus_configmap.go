@@ -53,6 +53,6 @@ func prometheusVolumeMount() v1.VolumeMount {
 	return v1.VolumeMount{
 		Name:      "prometheus-config",
 		MountPath: "/prometheus/prometheus.yaml",
-		SubPath: "prometheus.yaml",
+		SubPath:   "prometheus.yaml",
 	}
 }

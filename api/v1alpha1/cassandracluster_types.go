@@ -245,7 +245,6 @@ type Cassandra struct {
 	// +kubebuilder:validation:Enum:=info;debug;trace
 	LogLevel string `json:"logLevel,omitempty"`
 
-	// AdditionalSeeds                          []string `json:"additionalSeeds,omitempty"`
 	// RackName                       string   `json:"rackName,omitempty"`
 	// PreferLocal                    bool     `json:"preferLocal,omitempty"`
 

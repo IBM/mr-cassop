@@ -448,6 +448,169 @@ export PAUSE_INIT=false
 			expectedError: nil,
 		},
 		{
+			name: "ExternalRegions.Seeds should be added too",
+			cc: &v1alpha1.CassandraCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-cluster",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.CassandraClusterSpec{
+					DCs: []v1alpha1.DC{
+						{
+							Name:     "dc1",
+							Replicas: proto.Int(3),
+						},
+					},
+					HostPort: v1alpha1.HostPort{
+						Enabled:           true,
+						UseExternalHostIP: true,
+					},
+					ExternalRegions: []v1alpha1.ExternalRegion{
+						{
+							Seeds: []string{"10.10.10.121", "10.10.9.121"},
+						},
+						{
+							Seeds: []string{"10.11.10.121", "10.11.9.121"},
+						},
+					},
+				},
+			},
+			k8sObjects: []client.Object{readyStatefulSet},
+			k8sLists: []client.ObjectList{
+				&v1.PodList{
+					Items: []v1.Pod{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      "test-cluster-cassandra-dc1-0",
+								Namespace: "default",
+								Labels: map[string]string{
+									v1alpha1.CassandraClusterInstance:  "test-cluster",
+									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
+								},
+								UID: "uid1",
+							},
+							Spec: v1.PodSpec{
+								NodeName: "node1",
+							},
+							Status: v1.PodStatus{
+								PodIP: "10.1.1.3",
+							},
+						},
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      "test-cluster-cassandra-dc1-1",
+								Namespace: "default",
+								Labels: map[string]string{
+									v1alpha1.CassandraClusterInstance:  "test-cluster",
+									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
+								},
+								UID: "uid2",
+							},
+							Spec: v1.PodSpec{
+								NodeName: "node2",
+							},
+							Status: v1.PodStatus{
+								PodIP: "10.1.1.4",
+							},
+						},
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      "test-cluster-cassandra-dc1-2",
+								Namespace: "default",
+								Labels: map[string]string{
+									v1alpha1.CassandraClusterInstance:  "test-cluster",
+									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
+								},
+								UID: "uid3",
+							},
+							Spec: v1.PodSpec{
+								NodeName: "node3",
+							},
+							Status: v1.PodStatus{
+								PodIP: "10.1.1.5",
+							},
+						},
+					},
+				},
+				&v1.NodeList{
+					Items: []v1.Node{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "node1",
+							},
+							Status: v1.NodeStatus{
+								Addresses: []v1.NodeAddress{
+									{
+										Type:    v1.NodeInternalIP,
+										Address: "12.43.22.143",
+									},
+									{
+										Type:    v1.NodeExternalIP,
+										Address: "54.32.141.231",
+									},
+								},
+							},
+						},
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "node2",
+							},
+							Status: v1.NodeStatus{
+								Addresses: []v1.NodeAddress{
+									{
+										Type:    v1.NodeInternalIP,
+										Address: "12.43.22.153",
+									},
+									{
+										Type:    v1.NodeExternalIP,
+										Address: "54.32.141.232",
+									},
+								},
+							},
+						},
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "node3",
+							},
+							Status: v1.NodeStatus{
+								Addresses: []v1.NodeAddress{
+									{
+										Type:    v1.NodeInternalIP,
+										Address: "12.43.22.142",
+									},
+									{
+										Type:    v1.NodeExternalIP,
+										Address: "54.32.141.233",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedCMData: map[string]string{
+				`test-cluster-cassandra-dc1-0_uid1.sh`: `export CASSANDRA_BROADCAST_ADDRESS=54.32.141.231
+export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.3
+export CASSANDRA_SEEDS=54.32.141.231,54.32.141.232,10.10.10.121,10.10.9.121,10.11.10.121,10.11.9.121
+export CASSANDRA_NODE_PREVIOUS_IP=
+export PAUSE_INIT=false
+`,
+				`test-cluster-cassandra-dc1-1_uid2.sh`: `export CASSANDRA_BROADCAST_ADDRESS=54.32.141.232
+export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.4
+export CASSANDRA_SEEDS=54.32.141.231,54.32.141.232,10.10.10.121,10.10.9.121,10.11.10.121,10.11.9.121
+export CASSANDRA_NODE_PREVIOUS_IP=
+export PAUSE_INIT=false
+`,
+				`test-cluster-cassandra-dc1-2_uid3.sh`: `export CASSANDRA_BROADCAST_ADDRESS=54.32.141.233
+export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.5
+export CASSANDRA_SEEDS=54.32.141.231,54.32.141.232,10.10.10.121,10.10.9.121,10.11.10.121,10.11.9.121
+export CASSANDRA_NODE_PREVIOUS_IP=
+export PAUSE_INIT=false
+`,
+			},
+			expectedError: nil,
+		},
+		{
 			name: "ErrPodNotScheduled error if pod has nodename empty",
 			cc: &v1alpha1.CassandraCluster{
 				ObjectMeta: metav1.ObjectMeta{
