@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
@@ -22,6 +23,7 @@ func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.Cass
 	r.defaultCassandra(cc)
 	r.defaultProber(cc)
 	r.defaultReaper(cc)
+	r.defaultMonitoring(cc)
 
 	if len(cc.Spec.Maintenance) > 0 {
 		for i, entry := range cc.Spec.Maintenance {
@@ -53,6 +55,12 @@ func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.Cass
 func (r *CassandraClusterReconciler) defaultReaper(cc *dbv1alpha1.CassandraCluster) {
 	if cc.Spec.Reaper == nil {
 		cc.Spec.Reaper = &dbv1alpha1.Reaper{}
+	}
+
+	if cc.Spec.Reaper.ServiceMonitor.Enabled {
+		if _, err := time.ParseDuration(cc.Spec.Reaper.ServiceMonitor.ScrapeInterval); err != nil {
+			cc.Spec.Reaper.ServiceMonitor.ScrapeInterval = "60s"
+		}
 	}
 
 	if cc.Spec.Reaper.Keyspace == "" {
@@ -258,5 +266,19 @@ func (r *CassandraClusterReconciler) defaultTLSSecret(tlsSecret *dbv1alpha1.TLSS
 
 	if tlsSecret.TruststorePasswordKey == "" {
 		tlsSecret.TruststorePasswordKey = "truststore.password"
+	}
+}
+
+func (r *CassandraClusterReconciler) defaultMonitoring(cc *dbv1alpha1.CassandraCluster) {
+	if !cc.Spec.Monitoring.Enabled {
+		return
+	}
+	if cc.Spec.Monitoring.Agent == "" {
+		cc.Spec.Monitoring.Agent = "tlp"
+	}
+	if cc.Spec.Monitoring.ServiceMonitor.Enabled {
+		if _, err := time.ParseDuration(cc.Spec.Monitoring.ServiceMonitor.ScrapeInterval); err != nil {
+			cc.Spec.Monitoring.ServiceMonitor.ScrapeInterval = "30s"
+		}
 	}
 }

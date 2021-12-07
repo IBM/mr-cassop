@@ -242,7 +242,7 @@ func StartTestManager(mgr manager.Manager) chan struct{} {
 func createOperatorConfigMaps() {
 	cassConfigCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.OperatorCassandraConfigCM(),
+			Name:      names.OperatorCassandraCM(),
 			Namespace: operatorConfig.Namespace,
 		},
 		Data: map[string]string{
@@ -259,7 +259,7 @@ func createOperatorConfigMaps() {
 
 	prometheusCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.OperatorPrometheusConfigCM(),
+			Name:      names.OperatorPrometheusCM(),
 			Namespace: operatorConfig.Namespace,
 		},
 	}

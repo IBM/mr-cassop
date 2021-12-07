@@ -86,6 +86,7 @@ type CassandraClusterReconciler struct {
 // +kubebuilder:rbac:groups="",resources=configmaps/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;delete;
+// +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;patch;create;update;
 // +kubebuilder:rbac:groups="",resources=pods/status,verbs=get;patch;update
 // +kubebuilder:rbac:groups="",resources=pods/exec,verbs=create
@@ -97,6 +98,7 @@ type CassandraClusterReconciler struct {
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch
 // +kubebuilder:rbac:groups="batch",resources=jobs,verbs=get;list;watch;create;update;delete;patch
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings;roles;rolebindings,verbs=list;watch;get;create;update;delete
+// +kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=list;watch;get;create;update;delete
 
 func (r *CassandraClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	res, err := r.reconcileWithContext(ctx, req)
@@ -135,12 +137,20 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling Admin Auth Secrets")
 	}
 
+	if err = r.reconcileMaintenanceConfigMap(ctx, cc); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error reconciling maintenance configmap")
+	}
+
 	if err = r.reconcilePrometheusConfigMap(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling prometheus configmap")
 	}
 
-	if err = r.reconcileMaintenanceConfigMap(ctx, cc); err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Error reconciling maintenance configmap")
+	if err = r.reconcileCollectdConfigMap(ctx, cc); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile collectd configmap")
+	}
+
+	if err = r.reconcileCassandraServiceMonitor(ctx, cc); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile service monitor")
 	}
 
 	if err = r.reconcileProber(ctx, cc); err != nil {
@@ -171,7 +181,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 
 	restartChecksum := checksumContainer{}
 	if err = r.reconcileCassandraConfigMap(ctx, cc, restartChecksum); err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Error reconciling cassandra config configmaps")
+		return ctrl.Result{}, errors.Wrap(err, "Error reconciling cassandra configmaps")
 	}
 
 	// although the pods don't exist yet on the first run, we still need to create the configmap (even empty)
@@ -181,7 +191,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 			r.Log.Warnf("%s. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
 			return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 		}
-		return ctrl.Result{}, errors.Wrap(err, "Error reconciling Cassandra pods configmap")
+		return ctrl.Result{}, errors.Wrap(err, "Error reconciling cassandra pods configmap")
 	}
 
 	if err = r.reconcileCassandra(ctx, cc, restartChecksum); err != nil {
@@ -252,7 +262,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Failed to initialize reaper")
 	}
 
-	if err := r.reconcileRepairSchedules(ctx, cc, reaperClient); err != nil {
+	if err = r.reconcileRepairSchedules(ctx, cc, reaperClient); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile repair schedules")
 	}
 
@@ -262,10 +272,10 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	}
 
 	if err = r.reconcileCQLConfigMaps(ctx, cc, cqlClient, reaperClient); err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile CQL config maps")
+		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile CQL configmaps")
 	}
 
-	if err := r.removeDefaultUserIfExists(ctx, cc, cqlClient); err != nil {
+	if err = r.removeDefaultUserIfExists(ctx, cc, cqlClient); err != nil {
 		return ctrl.Result{}, err
 	}
 

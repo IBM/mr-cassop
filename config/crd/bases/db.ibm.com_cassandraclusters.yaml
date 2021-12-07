@@ -1566,16 +1566,29 @@ spec:
               monitoring:
                 properties:
                   agent:
+                    enum:
+                    - instaclustr
+                    - datastax
+                    - tlp
                     type: string
                   enabled:
                     type: boolean
-                  port:
-                    format: int32
-                    type: integer
-                required:
-                - agent
-                - enabled
-                - port
+                  serviceMonitor:
+                    properties:
+                      enabled:
+                        type: boolean
+                      labels:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      namespace:
+                        type: string
+                      scrapeInterval:
+                        type: string
+                    required:
+                    - enabled
+                    - namespace
+                    type: object
                 type: object
               podManagementPolicy:
                 description: PodManagementPolicyType defines the policy for creating
@@ -1815,6 +1828,22 @@ spec:
                     format: int32
                     minimum: 1
                     type: integer
+                  serviceMonitor:
+                    properties:
+                      enabled:
+                        type: boolean
+                      labels:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      namespace:
+                        type: string
+                      scrapeInterval:
+                        type: string
+                    required:
+                    - enabled
+                    - namespace
+                    type: object
                   tolerations:
                     items:
                       description: The pod this Toleration is attached to tolerates

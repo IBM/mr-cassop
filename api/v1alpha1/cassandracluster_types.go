@@ -33,6 +33,10 @@ const (
 	CassandraClusterComponentReaper    = "reaper"
 	CassandraClusterComponentCassandra = "cassandra"
 
+	CassandraAgentTlp         = "tlp"
+	CassandraAgentInstaclustr = "instaclustr"
+	CassandraAgentDatastax    = "datastax"
+
 	CassandraDefaultRole           = "cassandra"
 	CassandraDefaultPassword       = "cassandra"
 	CassandraOperatorAdminRole     = "admin-role"
@@ -43,11 +47,14 @@ const (
 	JolokiaContainerPort = 8080
 	ProberContainerPort  = 8888
 
-	IntraPort  = 7000
-	TlsPort    = 7001
-	JmxPort    = 7199
-	CqlPort    = 9042
-	ThriftPort = 9160
+	IntraPort       = 7000
+	TlsPort         = 7001
+	JmxPort         = 7199
+	TlpPort         = 8090
+	CqlPort         = 9042
+	DatastaxPort    = 9103
+	ThriftPort      = 9160
+	InstaclustrPort = 9500
 
 	ReaperReplicasNumber = 1
 )
@@ -102,6 +109,7 @@ type Reaper struct {
 	RepairManagerSchedulingIntervalSeconds int32                   `json:"repairManagerSchedulingIntervalSeconds,omitempty"`
 	BlacklistTWCS                          bool                    `json:"blacklistTWCS,omitempty"`
 	Resources                              v1.ResourceRequirements `json:"resources,omitempty"`
+	ServiceMonitor                         ServiceMonitor          `json:"serviceMonitor,omitempty"`
 	RepairSchedules                        RepairSchedules         `json:"repairSchedules,omitempty"`
 	AutoScheduling                         AutoScheduling          `json:"autoScheduling,omitempty"`
 	// +kubebuilder:validation:Enum=DATACENTER_AWARE;SEQUENTIAL;PARALLEL
@@ -122,9 +130,17 @@ type HostPort struct {
 }
 
 type Monitoring struct {
-	Enabled bool   `json:"enabled"`
-	Port    int32  `json:"port"`
-	Agent   string `json:"agent"`
+	Enabled bool `json:"enabled,omitempty"`
+	// +kubebuilder:validation:Enum=instaclustr;datastax;tlp
+	Agent          string         `json:"agent,omitempty"`
+	ServiceMonitor ServiceMonitor `json:"serviceMonitor,omitempty"`
+}
+
+type ServiceMonitor struct {
+	Enabled        bool              `json:"enabled"`
+	Namespace      string            `json:"namespace"`
+	Labels         map[string]string `json:"labels,omitempty"`
+	ScrapeInterval string            `json:"scrapeInterval,omitempty"`
 }
 
 type JVM struct {

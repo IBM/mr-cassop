@@ -37,5 +37,5 @@ RUN ./openssl_fix.sh && \
     rm openssl_fix.sh && \
     chown cassandra:cassandra /home/cassandra/.bashrc
 
-RUN chown cassandra:cassandra /opt/cassandra
+RUN chown cassandra:cassandra /opt/cassandra /prometheus
 USER cassandra

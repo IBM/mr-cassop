@@ -8,6 +8,7 @@ import (
 	nwv1 "k8s.io/api/networking/v1"
 	rbac "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 var (
@@ -154,4 +155,14 @@ func EqualIngress(actual, desired *nwv1.Ingress) bool {
 
 func DiffIngress(actual, desired *nwv1.Ingress) string {
 	return cmp.Diff(actual, desired, ingressOpts...)
+}
+
+// EqualServiceMonitor compares 2 servicemonitors for equality
+func EqualServiceMonitor(actual, desired *unstructured.Unstructured) bool {
+	return cmp.Equal(actual.GetLabels(), desired.GetLabels()) && cmp.Equal(actual.Object["spec"], desired.Object["spec"])
+}
+
+// DiffStatefulSet generates a patch diff between 2 servicemonitors
+func DiffServiceMonitor(actual, desired *unstructured.Unstructured) string {
+	return cmp.Diff(actual.Object["spec"], desired.Object["spec"]) + "\n" + cmp.Diff(actual.GetLabels(), desired.GetLabels())
 }

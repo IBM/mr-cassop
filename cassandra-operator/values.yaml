@@ -17,3 +17,8 @@ proberImage: us.icr.io/cassandra-operator/prober:0.0.1 # this value will be upda
 jolokiaImage: us.icr.io/cassandra-operator/jolokia:0.0.1 # this value will be updated on next release in GHA
 cassandraImage: us.icr.io/cassandra-operator/cassandra:3.11.9-0.0.1 # this value will be updated on next release in GHA
 reaperImage: thelastpickle/cassandra-reaper:2.3.1
+clusterDashboards:
+  enabled: []
+  namespace: ""
+  labels:
+    grafana_dashboard: "1"

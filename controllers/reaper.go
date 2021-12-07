@@ -54,6 +54,10 @@ func (r *CassandraClusterReconciler) reconcileReaper(ctx context.Context, cc *db
 			return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile reaper service")
 		}
 
+		if err := r.reconcileReaperServiceMonitor(ctx, cc); err != nil {
+			return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile reaper service monitor")
+		}
+
 		if index == 0 { // Wait for 1st reaper deployment to finish, otherwise we can get an error 'Schema migration is locked by another instance'
 			reaperDeployment := &appsv1.Deployment{}
 			err := r.Get(ctx, types.NamespacedName{Name: names.ReaperDeployment(cc.Name, dc.Name), Namespace: cc.Namespace}, reaperDeployment)

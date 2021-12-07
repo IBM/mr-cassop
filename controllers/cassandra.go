@@ -110,7 +110,7 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 
 	desiredSts := cassandraStatefulSet(cc, dc, restartChecksum, clientTLSSecret)
 
-	if err := controllerutil.SetControllerReference(cc, desiredSts, r.Scheme); err != nil {
+	if err = controllerutil.SetControllerReference(cc, desiredSts, r.Scheme); err != nil {
 		return errors.Wrap(err, "Cannot set controller reference")
 	}
 
@@ -176,7 +176,6 @@ func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, res
 					},
 					ImagePullSecrets: imagePullSecrets(cc),
 					Volumes: []v1.Volume{
-						prometheusVolume(cc),
 						maintenanceVolume(cc),
 						cassandraConfigVolume(cc),
 						podsConfigVolume(cc),
@@ -191,6 +190,15 @@ func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, res
 				},
 			},
 		},
+	}
+
+	if cc.Spec.Monitoring.Enabled {
+		if cc.Spec.Monitoring.Agent == dbv1alpha1.CassandraAgentTlp {
+			desiredSts.Spec.Template.Spec.Volumes = append(desiredSts.Spec.Template.Spec.Volumes, prometheusVolume(cc))
+		}
+		if cc.Spec.Monitoring.Agent == dbv1alpha1.CassandraAgentDatastax {
+			desiredSts.Spec.Template.Spec.Volumes = append(desiredSts.Spec.Template.Spec.Volumes, collectdVolume(cc))
+		}
 	}
 
 	if cc.Spec.Cassandra.Persistence.Enabled {
@@ -312,7 +320,6 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, resta
 			},
 		},
 		VolumeMounts: []v1.VolumeMount{
-			prometheusVolumeMount(),
 			cassandraDCConfigVolumeMount(),
 			cassandraDataVolumeMount(),
 			podsConfigVolumeMount(),
@@ -321,6 +328,19 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, resta
 		Ports:                    cassandraContainerPorts(cc),
 		TerminationMessagePath:   "/dev/termination-log",
 		TerminationMessagePolicy: v1.TerminationMessageReadFile,
+	}
+
+	if cc.Spec.Monitoring.Enabled {
+		if cc.Spec.Monitoring.Agent == dbv1alpha1.CassandraAgentTlp {
+			container.VolumeMounts = append(container.VolumeMounts, prometheusVolumeMount())
+		}
+		if cc.Spec.Monitoring.Agent == dbv1alpha1.CassandraAgentDatastax {
+			container.VolumeMounts = append(container.VolumeMounts, collectdVolumeMount())
+		}
+		container.Env = append(container.Env, v1.EnvVar{
+			Name:  "JVM_OPTS",
+			Value: getJavaAgent(cc.Spec.Monitoring.Agent),
+		})
 	}
 
 	if cc.Spec.Cassandra.Persistence.Enabled && cc.Spec.Cassandra.Persistence.CommitLogVolume {
@@ -395,6 +415,17 @@ func (r *CassandraClusterReconciler) reconcileDCService(ctx context.Context, cc 
 			PublishNotReadyAddresses: true,
 			Selector:                 svcLabels,
 		},
+	}
+
+	if cc.Spec.Monitoring.Enabled {
+		port := getJavaAgentPort(cc.Spec.Monitoring.Agent)
+		desiredService.Spec.Ports = append(desiredService.Spec.Ports, v1.ServicePort{
+			Name:       "agent",
+			Protocol:   v1.ProtocolTCP,
+			Port:       port,
+			TargetPort: intstr.FromInt(int(port)),
+			NodePort:   0,
+		})
 	}
 
 	if err := controllerutil.SetControllerReference(cc, desiredService, r.Scheme); err != nil {
@@ -485,6 +516,14 @@ func getCassandraRunCommand(cc *dbv1alpha1.CassandraCluster, clientTLSSecret *v1
 		args = append(args, "rm -rf /var/lib/cassandra/data/system/peers*")
 	}
 
+	if cc.Spec.Monitoring.Agent == dbv1alpha1.CassandraAgentDatastax {
+		args = append(args, `
+if [[ ! -f "/etc/mtab" ]] && [[ -f "/proc/mounts" ]]; then
+	ln -sf /proc/mounts /etc/mtab
+fi
+`)
+	}
+
 	args = append(args,
 		"echo \"prefer_local=true\" >> $CASSANDRA_CONF/cassandra-rackdc.properties",
 		"cp /etc/cassandra-configmaps/* $CASSANDRA_CONF/",
@@ -528,10 +567,6 @@ fi`,
 		)
 	}
 
-	if cc.Spec.Monitoring.Enabled {
-		cassandraRunCommand = append(cassandraRunCommand, getJavaAgent(cc.Spec.Monitoring.Agent))
-	}
-
 	if cc.Spec.Encryption.Client.Enabled {
 		cassandraRunCommand = append(cassandraRunCommand,
 			"-Dcom.sun.management.jmxremote.ssl=true",
@@ -549,14 +584,27 @@ fi`,
 func getJavaAgent(agent string) string {
 	javaAgent := ""
 	switch agent {
-	case "instaclustr":
+	case dbv1alpha1.CassandraAgentInstaclustr:
 		javaAgent = "-javaagent:/prometheus/cassandra-exporter-agent.jar"
-	case "datastax":
+	case dbv1alpha1.CassandraAgentDatastax:
 		javaAgent = "-javaagent:/prometheus/datastax-mcac-agent/lib/datastax-mcac-agent.jar"
-	case "tlp":
-		javaAgent = "-javaagent:/prometheus/jmx_prometheus_javaagent.jar=8090:/prometheus/prometheus.yaml"
+	case dbv1alpha1.CassandraAgentTlp:
+		javaAgent = fmt.Sprintf("-javaagent:/prometheus/jmx_prometheus_javaagent.jar=%d:/prometheus/prometheus.yaml", dbv1alpha1.TlpPort)
 	}
 	return javaAgent
+}
+
+func getJavaAgentPort(agent string) int32 {
+	port := int32(0)
+	switch agent {
+	case dbv1alpha1.CassandraAgentInstaclustr:
+		port = dbv1alpha1.InstaclustrPort
+	case dbv1alpha1.CassandraAgentDatastax:
+		port = dbv1alpha1.DatastaxPort
+	case dbv1alpha1.CassandraAgentTlp:
+		port = dbv1alpha1.TlpPort
+	}
+	return port
 }
 
 func imagePullSecrets(cc *dbv1alpha1.CassandraCluster) []v1.LocalObjectReference {

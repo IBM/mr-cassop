@@ -82,6 +82,11 @@ spec:
         intensity: "1.0"
         incrementalRepair: false
         repairParallelism: "DATACENTER_AWARE"
+    serviceMonitor:
+      enabled: false
+      namespace: ""
+      labels: {}
+      scrapeInterval: 60s
   systemKeyspaces:
     dcs:
     - name: dc1
@@ -103,5 +108,9 @@ spec:
     maxHeapSize: 1024M
   monitoring:
     enabled: false
-    port: 8090
     agent: "tlp"
+    serviceMonitor:
+      enabled: false
+      namespace: ""
+      labels: {}
+      scrapeInterval: 30s

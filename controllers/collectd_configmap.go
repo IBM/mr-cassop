@@ -13,18 +13,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-func (r *CassandraClusterReconciler) reconcilePrometheusConfigMap(ctx context.Context, cc *v1alpha1.CassandraCluster) error {
-	if !cc.Spec.Monitoring.Enabled {
+func (r *CassandraClusterReconciler) reconcileCollectdConfigMap(ctx context.Context, cc *v1alpha1.CassandraCluster) error {
+	if !cc.Spec.Monitoring.Enabled || cc.Spec.Monitoring.Agent != v1alpha1.CassandraAgentDatastax {
 		return nil
 	}
-
-	operatorCM, err := r.getConfigMap(ctx, names.OperatorPrometheusCM(), r.Cfg.Namespace)
+	operatorCM, err := r.getConfigMap(ctx, names.OperatorCollectdCM(), r.Cfg.Namespace)
 	if err != nil {
 		return err
 	}
 	desiredCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.PrometheusConfigMap(cc.Name),
+			Name:      names.CollectdConfigMap(cc.Name),
 			Namespace: cc.Namespace,
 			Labels:    labels.CombinedComponentLabels(cc, v1alpha1.CassandraClusterComponentCassandra),
 		},
@@ -39,13 +38,13 @@ func (r *CassandraClusterReconciler) reconcilePrometheusConfigMap(ctx context.Co
 	return nil
 }
 
-func prometheusVolume(cc *v1alpha1.CassandraCluster) v1.Volume {
+func collectdVolume(cc *v1alpha1.CassandraCluster) v1.Volume {
 	return v1.Volume{
-		Name: "prometheus-config",
+		Name: "collectd-config",
 		VolumeSource: v1.VolumeSource{
 			ConfigMap: &v1.ConfigMapVolumeSource{
 				LocalObjectReference: v1.LocalObjectReference{
-					Name: names.PrometheusConfigMap(cc.Name),
+					Name: names.CollectdConfigMap(cc.Name),
 				},
 				DefaultMode: proto.Int32(v1.ConfigMapVolumeSourceDefaultMode),
 			},
@@ -53,10 +52,9 @@ func prometheusVolume(cc *v1alpha1.CassandraCluster) v1.Volume {
 	}
 }
 
-func prometheusVolumeMount() v1.VolumeMount {
+func collectdVolumeMount() v1.VolumeMount {
 	return v1.VolumeMount{
-		Name:      "prometheus-config",
-		MountPath: "/prometheus/prometheus.yaml",
-		SubPath:   "prometheus.yaml",
+		Name:      "collectd-config",
+		MountPath: "/prometheus/datastax-mcac-agent/config",
 	}
 }
