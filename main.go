@@ -17,7 +17,6 @@ limitations under the License.
 package main
 
 import (
-	"flag"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -68,14 +67,6 @@ func init() {
 }
 
 func main() {
-	var metricsAddr string
-	var enableLeaderElection bool
-	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
-	flag.Parse()
-
 	operatorConfig, err := operatorCfg.LoadConfig()
 	if err != nil {
 		fmt.Printf("unable to load operator config: %s", err.Error())
@@ -97,7 +88,7 @@ func main() {
 	mgr, err := ctrl.NewManager(restCfg, ctrl.Options{
 		Scheme:                  scheme,
 		MetricsBindAddress:      fmt.Sprintf(":%d", operatorConfig.MetricsPort),
-		LeaderElection:          enableLeaderElection,
+		LeaderElection:          operatorConfig.LeaderElectionEnabled,
 		LeaderElectionID:        leaderElectionID,
 		LeaderElectionNamespace: operatorConfig.Namespace,
 	})

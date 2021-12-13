@@ -249,7 +249,10 @@ var _ = Describe("Cassandra cluster", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				scheduledRepairsResponse := findFirstMapByKV(responsesData, "column_families", repairSchedule.Tables)
-				parsedReaperRespTime, err := time.Parse(reaperResponseTimeLayout, scheduledRepairsResponse["next_activation"].(string))
+				Expect(scheduledRepairsResponse).ToNot(BeNil(), fmt.Sprintf("Couldn't find an entry with key=value column_families=%v", responseData))
+				nextActivation, ok := scheduledRepairsResponse["next_activation"].(string)
+				Expect(ok).To(BeTrue(), fmt.Sprintf("next_activation is not string: %T", scheduledRepairsResponse["next_activation"]))
+				parsedReaperRespTime, err := time.Parse(reaperResponseTimeLayout, nextActivation)
 				Expect(err).ToNot(HaveOccurred())
 
 				fmt.Println("Processing schedule for tables: ", scheduledRepairsResponse["column_families"], "...")

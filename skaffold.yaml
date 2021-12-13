@@ -65,5 +65,21 @@ profiles:
     helm:
       releases:
       - name: "cassandra-operator-{{.USER}}"
+        chartPath: ./cassandra-operator
+        valuesFiles:
+        - cassandra-operator/values.yaml
         setValueTemplates:
+          container.image: "us.icr.io/cassandra-operator/cassandra-operator:{{.USER}}"
+          container.imagePullSecret: icm-coreeng-pull-secret
           container.imagePullPolicy: IfNotPresent
+          logLevel: debug
+          proberImage: "us.icr.io/cassandra-operator/prober:{{.USER}}"
+          jolokiaImage: "us.icr.io/cassandra-operator/jolokia:{{.USER}}"
+          cassandraImage: "us.icr.io/cassandra-operator/cassandra:{{.USER}}"
+        createNamespace: true
+        wait: true
+        packaged:
+          version: "0.0.0-{{.USER}}"
+          appVersion: "0.0.0-{{.USER}}"
+        # Sets image.tag and image.repository separately
+        recreatePods: true

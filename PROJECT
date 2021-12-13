@@ -1,9 +1,14 @@
 domain: ibm.com
-layout: go.kubebuilder.io/v3-alpha
+layout: go.kubebuilder.io/v3
 repo: github.com/ibm/cassandra-operator
 resources:
-- group: db
+- domain: ibm.com
+  controller: true
+  group: db
   kind: CassandraCluster
+  path: github.com/ibm/cassandra-operator/api/v1alpha1
   version: v1alpha1
 plugins:
-  go.operator-sdk.io/v2-alpha: {}
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}
+version: "3"
