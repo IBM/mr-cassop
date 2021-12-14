@@ -4,8 +4,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"k8s.io/apimachinery/pkg/types"
 	"testing"
+
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
@@ -138,7 +140,6 @@ var _ = BeforeSuite(func() {
 			Prober: v1alpha1.Prober{
 				ImagePullPolicy: v1.PullAlways,
 				Resources:       proberResources,
-				Debug:           false,
 				Jolokia: v1alpha1.Jolokia{
 					ImagePullPolicy: v1.PullAlways,
 					Resources:       proberResources,
@@ -150,9 +151,10 @@ var _ = BeforeSuite(func() {
 		},
 	}
 
+	adminRoleSecret = &v1.Secret{}
 	err = restClient.Get(context.Background(), types.NamespacedName{Namespace: cassandraCluster.Namespace, Name: adminRoleSecretName}, adminRoleSecret)
-
-	if err != nil {
+	if err != nil && errors.IsNotFound(err) {
+		By("admin role secret doesn't exist. Creating it.")
 		adminRoleSecret = &v1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      adminRoleSecretName,
@@ -165,8 +167,11 @@ var _ = BeforeSuite(func() {
 		}
 
 		Expect(restClient.Create(context.Background(), adminRoleSecret)).To(Succeed())
+	} else if err != nil {
+		Expect(err).ToNot(HaveOccurred())
+	} else {
+		By("admin secret exists")
 	}
-
 })
 
 var _ = AfterSuite(func() {
@@ -200,6 +205,6 @@ var _ = AfterEach(func() {
 	By("Wait until all pods are terminated...")
 	waitPodsTermination(cassandraNamespace, cassandraDeploymentLabel)
 
-	By("Wait until CassandraCluster schema is deleted")
+	By("Wait until CassandraCluster resource is deleted")
 	waitForCassandraClusterSchemaDeletion(cassandraNamespace, cassandraRelease)
 })

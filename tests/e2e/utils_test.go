@@ -82,8 +82,8 @@ func waitForCassandraClusterSchemaDeletion(namespace string, release string) {
 			}
 		}
 
-		return "Incorrect. Schema still exit."
-	}, time.Second*5).Should(Equal(metav1.StatusReasonNotFound), "Cassandra cluster CassandraCluster schema should be deleted")
+		return "Incorrect. Cassandracluster resource still exit."
+	}, time.Second*5).Should(Equal(metav1.StatusReasonNotFound), "Cassandra cluster CassandraCluster resource should be deleted")
 }
 
 func portForwardPod(namespace string, labels map[string]string, portMappings []string) *portforward.PortForwarder {
@@ -96,7 +96,7 @@ func portForwardPod(namespace string, labels map[string]string, portMappings []s
 	Expect(len(podList.Items)).ToNot(BeEquivalentTo(0), "pods not found for port forwarding")
 
 	pod := podList.Items[0]
-	fmt.Printf("pod.Name: %v", pod.Name)
+	fmt.Printf("port forwarding pod: %s\n", pod.Name)
 	path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/portforward", pod.Namespace, pod.Name)
 	hostIP := strings.TrimLeft(restClientConfig.Host, "htps:/")
 	serverURL := url.URL{Scheme: "https", Path: path, Host: hostIP}

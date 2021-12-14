@@ -1,18 +1,11 @@
 package logger
 
 import (
-	"log"
-
-	"go.uber.org/zap/zapcore"
-
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
-const (
-	FieldOperatorVersion = "operator_version"
-)
-
-func NewLogger(format string, level zapcore.Level) *zap.SugaredLogger {
+func NewLogger(format string, level zapcore.Level) (*zap.SugaredLogger, error) {
 	var loggerConfig zap.Config
 
 	if format == "json" {
@@ -27,9 +20,9 @@ func NewLogger(format string, level zapcore.Level) *zap.SugaredLogger {
 
 	zaplog, err := loggerConfig.Build()
 	if err != nil {
-		log.Panicf("Could not initialize zap logger: %v", err)
+		return nil, err
 	}
 	logger := zaplog.Sugar()
 
-	return logger
+	return logger, nil
 }

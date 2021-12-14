@@ -138,6 +138,14 @@ func (r *CassandraClusterReconciler) defaultProber(cc *dbv1alpha1.CassandraClust
 		cc.Spec.Prober.ImagePullPolicy = v1.PullIfNotPresent
 	}
 
+	if cc.Spec.Prober.LogLevel == "" {
+		cc.Spec.Prober.LogLevel = "info"
+	}
+
+	if cc.Spec.Prober.LogFormat == "" {
+		cc.Spec.Prober.LogFormat = "json"
+	}
+
 	if cc.Spec.Prober.Jolokia.Image == "" {
 		cc.Spec.Prober.Jolokia.Image = r.Cfg.DefaultJolokiaImage
 	}

@@ -38,6 +38,12 @@ func reaperEnvironment(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC, adminSecre
 		})
 	}
 
+	if cc.Spec.Reaper.MaxParallelRepairs > 0 {
+		reaperEnv = append(reaperEnv, v1.EnvVar{
+			Name: "REAPER_MAX_PARALLEL_REPAIRS", Value: fmt.Sprint(cc.Spec.Reaper.MaxParallelRepairs),
+		})
+	}
+
 	if cc.Spec.Encryption.Client.Enabled {
 		reaperEnv = append(reaperEnv, v1.EnvVar{
 			// Use SSL encryption when connecting to Cassandra via the native protocol

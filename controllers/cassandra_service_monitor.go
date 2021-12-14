@@ -5,7 +5,6 @@ import (
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/compare"
 	"github.com/ibm/cassandra-operator/controllers/labels"
-	"github.com/ibm/cassandra-operator/controllers/logger"
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/pkg/errors"
@@ -139,7 +138,7 @@ func (r *CassandraClusterReconciler) removeOldServiceMonitors(ctx context.Contex
 	}
 	for _, item := range serviceMonitorList.Items {
 		if item.GetNamespace() != serviceMonitorNamespace {
-			logger.FromContext(ctx).Infof("Deleting ServiceMonitor %s/%s", item.GetNamespace(), item.GetName())
+			r.Log.Infof("Deleting ServiceMonitor %s/%s", item.GetNamespace(), item.GetName())
 			if err = r.Delete(ctx, &item); err != nil {
 				return errors.WithStack(err)
 			}
@@ -160,7 +159,7 @@ func (r *CassandraClusterReconciler) removeServiceMonitors(ctx context.Context, 
 	}
 
 	for _, item := range serviceMonitorList.Items {
-		logger.FromContext(ctx).Infow("Deleting ServiceMonitor %s/%s", item.GetNamespace(), item.GetName())
+		r.Log.Infow("Deleting ServiceMonitor %s/%s", item.GetNamespace(), item.GetName())
 		if err = r.Delete(ctx, &item); err != nil {
 			return errors.WithStack(err)
 		}

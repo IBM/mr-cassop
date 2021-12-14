@@ -131,7 +131,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 
 	err = r.reconcileAdminAuth(ctx, cc)
 	if err != nil {
-		if err == errAdminSecretNotFound || err == errAdminSecretInvalid {
+		if errors.Cause(err) == errAdminSecretNotFound || errors.Cause(err) == errAdminSecretInvalid {
 			r.Log.Warnf("Failed to reconcile admin auth with secret %q: %s", cc.Spec.AdminRoleSecretName, err.Error())
 			return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 		}

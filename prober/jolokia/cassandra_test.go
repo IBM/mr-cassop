@@ -9,24 +9,24 @@ import (
 
 var (
 	allEndpointsValue = AllEndpointStates{
-		"/10.244.0.5": EndpointStates{
+		"/10.244.0.5": EndpointState{
 			Status:      "NORMAL",
 			DC:          "dc1",
 			Rack:        "rack1",
 			Internal_IP: "10.244.0.5",
 			RPC_Address: "10.244.0.5",
 		},
-		"/10.244.0.6": EndpointStates{
-			Status: "NORMAL",
-			DC: "dc1",
-			Rack: "rack1",
+		"/10.244.0.6": EndpointState{
+			Status:      "NORMAL",
+			DC:          "dc1",
+			Rack:        "rack1",
 			Internal_IP: "10.244.0.6",
 			RPC_Address: "10.244.0.6",
 		},
-		"/10.244.0.7": EndpointStates{
-			Status: "NORMAL",
-			DC: "dc2",
-			Rack: "rack1",
+		"/10.244.0.7": EndpointState{
+			Status:      "NORMAL",
+			DC:          "dc2",
+			Rack:        "rack1",
 			Internal_IP: "10.244.0.7",
 			RPC_Address: "10.244.0.7",
 		},
@@ -63,7 +63,7 @@ func TestAllEndpointStates_UnmarshaText(t *testing.T) {
 func TestCassResponse_UnmarshalText(t *testing.T) {
 	tests := []struct {
 		name string
-		e    CassResponse
+		e    CassandraNodeState
 		data string
 	}{
 		{
@@ -83,7 +83,7 @@ func TestCassResponse_UnmarshalText(t *testing.T) {
 		},
 	}
 
-	cassResponseValue := CassResponse{
+	cassResponseValue := CassandraNodeState{
 		SimpleStates: map[string]string{
 			"/10.244.0.5": "UP",
 			"/10.244.0.6": "UP",

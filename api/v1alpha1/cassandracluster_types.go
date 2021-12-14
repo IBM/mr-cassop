@@ -123,6 +123,8 @@ type Reaper struct {
 	RepairThreadCount int32 `json:"repairThreadCount,omitempty"`
 	// +kubebuilder:validation:Minimum=1
 	SegmentCountPerNode int32 `json:"segmentCountPerNode,omitempty"`
+	// +kubebuilder:validation:Minimum=1
+	MaxParallelRepairs int32 `json:"maxParallelRepairs,omitempty"`
 }
 
 type HostPort struct {
@@ -299,8 +301,11 @@ type Prober struct {
 	// +kubebuilder:validation:Enum=Always;Never;IfNotPresent
 	ImagePullPolicy v1.PullPolicy           `json:"imagePullPolicy,omitempty"`
 	Resources       v1.ResourceRequirements `json:"resources,omitempty"`
-	Debug           bool                    `json:"debug,omitempty"`
-	Jolokia         Jolokia                 `json:"jolokia,omitempty"`
+	// +kubebuilder:validation:Enum:=info;debug;trace
+	LogLevel string `json:"logLevel,omitempty"`
+	// +kubebuilder:validation:Enum:=console;json
+	LogFormat string  `json:"logFormat,omitempty"`
+	Jolokia   Jolokia `json:"jolokia,omitempty"`
 }
 
 type Jolokia struct {

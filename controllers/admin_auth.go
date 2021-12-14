@@ -90,7 +90,11 @@ func (r *CassandraClusterReconciler) reconcileAdminAuth(ctx context.Context, cc 
 func (r *CassandraClusterReconciler) createClusterAdminSecrets(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
 	baseAdminSecret, err := r.adminRoleSecret(ctx, cc)
 	if err != nil {
-		return err
+		if kerrors.IsNotFound(errors.Cause(err)) {
+			r.Events.Warning(cc, events.EventAdminRoleSecretNotFound, fmt.Sprintf("admin secret %s not found", cc.Spec.AdminRoleSecretName))
+			return errAdminSecretNotFound
+		}
+		return errors.Wrap(err, "can't get base admin secret")
 	}
 
 	secretRoleName, secretRolePassword, err := extractCredentials(baseAdminSecret)

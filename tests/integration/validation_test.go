@@ -706,7 +706,6 @@ var _ = Describe("cassandracluster validation", func() {
 					Prober: v1alpha1.Prober{
 						ImagePullPolicy: v1.PullAlways,
 						Image:           "prober/image",
-						Debug:           false,
 						Jolokia: v1alpha1.Jolokia{
 							Image:           "jolokia/image",
 							ImagePullPolicy: v1.PullAlways,

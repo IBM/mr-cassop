@@ -233,31 +233,43 @@ var _ = Describe("Cassandra cluster", func() {
 			Eventually(func() bool {
 				respBody, statusCode, err = doHTTPRequest("GET", "http://localhost:9999/repair_schedule?clusterName="+cassandraRelease+"&keyspace="+testRepairReaperKeyspace)
 				if statusCode != 200 || err != nil {
+					fmt.Fprintf(GinkgoWriter, "/repair_schedule request failed (%d): %s", statusCode, string(respBody))
 					return false
 				}
 
 				err = json.Unmarshal(respBody, &responsesData)
 				Expect(err).ToNot(HaveOccurred())
 
-				return len(responsesData) != 0
+				if len(responsesData) == 0 {
+					fmt.Fprintf(GinkgoWriter, "empty response data, raw body: %s", string(respBody))
+					return false
+				}
 
-			}, time.Minute*2, time.Second*5).Should(BeTrue(), "Reaper repairs should be received.")
+				for _, repairSchedule := range reaperRepairSchedules {
+					parsedRepairScheduleTime, err := time.Parse(reaperRequestTimeLayout, repairSchedule.ScheduleTriggerTime)
+					Expect(err).ToNot(HaveOccurred())
 
-			By("Checking rescheduled times...")
-			for _, repairSchedule := range reaperRepairSchedules {
-				parsedRepairScheduleTime, err := time.Parse(reaperRequestTimeLayout, repairSchedule.ScheduleTriggerTime)
-				Expect(err).ToNot(HaveOccurred())
+					scheduledRepairsResponse := findFirstMapByKV(responsesData, "column_families", repairSchedule.Tables)
+					if scheduledRepairsResponse == nil {
+						fmt.Fprintf(GinkgoWriter, "couldn't find scheduled repair with column_families=%v. Raw body: %s", repairSchedule.Tables, string(respBody))
+						return false
+					}
 
-				scheduledRepairsResponse := findFirstMapByKV(responsesData, "column_families", repairSchedule.Tables)
-				Expect(scheduledRepairsResponse).ToNot(BeNil(), fmt.Sprintf("Couldn't find an entry with key=value column_families=%v", responseData))
-				nextActivation, ok := scheduledRepairsResponse["next_activation"].(string)
-				Expect(ok).To(BeTrue(), fmt.Sprintf("next_activation is not string: %T", scheduledRepairsResponse["next_activation"]))
-				parsedReaperRespTime, err := time.Parse(reaperResponseTimeLayout, nextActivation)
-				Expect(err).ToNot(HaveOccurred())
+					nextActivation, ok := scheduledRepairsResponse["next_activation"].(string)
+					if !ok {
+						fmt.Fprintf(GinkgoWriter, "next activation is not string: %#v", scheduledRepairsResponse["next_activation"])
+						return false
+					}
 
-				fmt.Println("Processing schedule for tables: ", scheduledRepairsResponse["column_families"], "...")
-				testReaperRescheduleTime(parsedRepairScheduleTime, parsedReaperRespTime, currentTime)
-			}
+					parsedReaperRespTime, err := time.Parse(reaperResponseTimeLayout, nextActivation)
+					Expect(err).ToNot(HaveOccurred())
+
+					fmt.Fprintf(GinkgoWriter, "Processing schedule for tables: %v", scheduledRepairsResponse["column_families"])
+					testReaperRescheduleTime(parsedRepairScheduleTime, parsedReaperRespTime, currentTime)
+				}
+
+				return true
+			}, time.Minute*2, time.Second*5).Should(BeTrue(), "All repair schedules from spec should be present in Reaper")
 		})
 	})
 })

@@ -7,7 +7,6 @@ import (
 )
 
 var (
-	CassandraStates = jmxRequest{"read", "org.apache.cassandra.net:type=FailureDetector", "SimpleStates,AllEndpointStates"}
 	// regexEndpointStatesRemovals matches digits before a colon OR anything after a comma:
 	// 	RACK:10:rack1 -> `10:`
 	// 	STATUS:22:NORMAL,-2918089050085335913 -> `,-2918089050085335913`, `22:`
@@ -18,20 +17,20 @@ var (
 	regexEndpointStatesToYamlColon = regexp.MustCompile(`(/\S+)|:`)
 )
 
-type CassResponse struct {
-	// SimpleStates maps node IPs to a status of either "UP" or "DOWN.
+type CassandraNodeState struct {
+	// SimpleStates maps node IPs to a status of either "UP" or "DOWN".
 	SimpleStates map[string]string
-	// AllEndpointStates maps node IPs to a struct with the extended states defined in EndpointStates.
+	// AllEndpointStates maps node IPs to a struct with the extended states defined in EndpointState.
 	AllEndpointStates AllEndpointStates
 }
 
-// EndpointStates of useful properties of a node's state
-type EndpointStates struct {
+// EndpointState of useful properties of a node's state
+type EndpointState struct {
 	Status, DC, Rack, Internal_IP, RPC_Address string
 }
 
 // AllEndpointStates implements UnmarshalText to transform the Cassandra MBean to a Go struct.
-type AllEndpointStates map[string]EndpointStates
+type AllEndpointStates map[string]EndpointState
 
 // UnmarshalText interprets the MBean AllEndpointStates and unmarshalls it into a map[string]string.
 // Parameter raw is a []byte that expects the following format for a map of known Endpoints:
@@ -42,7 +41,7 @@ func (e *AllEndpointStates) UnmarshalText(raw []byte) error {
 	data = regexEndpointStatesRemovals.ReplaceAllString(data, "")
 	data = regexEndpointStatesToYamlColon.ReplaceAllString(data, "$1: ")
 
-	var states map[string]EndpointStates
+	var states map[string]EndpointState
 	if err := yaml.Unmarshal([]byte(data), &states); err != nil {
 		return err
 	}

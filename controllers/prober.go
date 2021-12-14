@@ -3,6 +3,8 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strconv"
+
 	"github.com/gogo/protobuf/proto"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/compare"
@@ -16,7 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"strconv"
 )
 
 func (r *CassandraClusterReconciler) reconcileProber(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
@@ -215,6 +216,7 @@ func (r *CassandraClusterReconciler) reconcileProberService(ctx context.Context,
 		desiredService.Spec.ClusterIPs = actualService.Spec.ClusterIPs
 		desiredService.Spec.IPFamilies = actualService.Spec.IPFamilies
 		desiredService.Spec.IPFamilyPolicy = actualService.Spec.IPFamilyPolicy
+		desiredService.Spec.InternalTrafficPolicy = actualService.Spec.InternalTrafficPolicy
 		if !compare.EqualService(desiredService, actualService) {
 			r.Log.Info("Updating prober service")
 			r.Log.Debugf(compare.DiffService(actualService, desiredService))
@@ -244,10 +246,11 @@ func proberContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 		Resources:       cc.Spec.Prober.Resources,
 		Env: []v1.EnvVar{
 			{Name: "POD_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}},
-			{Name: "DEBUG", Value: fmt.Sprintf("%t", cc.Spec.Prober.Debug)},
+			{Name: "LOGLEVEL", Value: cc.Spec.Prober.LogLevel},
+			{Name: "LOGFORMAT", Value: cc.Spec.Prober.LogFormat},
 			{Name: "JOLOKIA_PORT", Value: strconv.Itoa(dbv1alpha1.JolokiaContainerPort)},
 			{Name: "SERVER_PORT", Value: strconv.Itoa(dbv1alpha1.ProberContainerPort)},
-			{Name: "JMX_POLL_PERIOD_SECONDS", Value: "10"},
+			{Name: "JMX_POLLING_INTERVAL", Value: "10s"},
 			{Name: "JMX_PORT", Value: fmt.Sprintf("%d", dbv1alpha1.JmxPort)},
 			{Name: "ADMIN_SECRET_NAME", Value: adminSecret},
 		},

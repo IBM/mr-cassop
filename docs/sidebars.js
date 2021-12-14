@@ -29,6 +29,15 @@ module.exports = {
     'exposing-clusters',
     'multi-region-cluster-configuration',
     'maintenance-mode',
+    {
+      type: 'category',
+      label: 'Architecture',
+      collapsed: true,
+      items: [
+        'architecture-overview',
+        'prober',
+      ],
+    },
     'development',
   ],
 };

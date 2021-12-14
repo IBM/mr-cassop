@@ -1599,8 +1599,6 @@ spec:
                 type: string
               prober:
                 properties:
-                  debug:
-                    type: boolean
                   image:
                     type: string
                   imagePullPolicy:
@@ -1652,6 +1650,17 @@ spec:
                             type: object
                         type: object
                     type: object
+                  logFormat:
+                    enum:
+                    - console
+                    - json
+                    type: string
+                  logLevel:
+                    enum:
+                    - info
+                    - debug
+                    - trace
+                    type: string
                   resources:
                     description: ResourceRequirements describes the compute resource
                       requirements.
@@ -1720,6 +1729,10 @@ spec:
                   keyspace:
                     minLength: 1
                     type: string
+                  maxParallelRepairs:
+                    format: int32
+                    minimum: 1
+                    type: integer
                   nodeSelector:
                     additionalProperties:
                       type: string

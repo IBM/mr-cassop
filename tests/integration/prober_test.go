@@ -52,10 +52,11 @@ var _ = Describe("prober deployment", func() {
 			Expect(proberContainer.Image).To(Equal(operatorConfig.DefaultProberImage), "default values")
 			Expect(proberContainer.Env).To(Equal([]v1.EnvVar{
 				{Name: "POD_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{APIVersion: "v1", FieldPath: "metadata.namespace"}}},
-				{Name: "DEBUG", Value: "false"},
+				{Name: "LOGLEVEL", Value: "info"},
+				{Name: "LOGFORMAT", Value: "json"},
 				{Name: "JOLOKIA_PORT", Value: "8080"},
 				{Name: "SERVER_PORT", Value: "8888"},
-				{Name: "JMX_POLL_PERIOD_SECONDS", Value: "10"},
+				{Name: "JMX_POLLING_INTERVAL", Value: "10s"},
 				{Name: "JMX_PORT", Value: "7199"},
 				{Name: "ADMIN_SECRET_NAME", Value: "test-cassandra-cluster-auth-active-admin"},
 			}))

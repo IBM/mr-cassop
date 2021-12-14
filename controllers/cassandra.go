@@ -453,6 +453,7 @@ func (r *CassandraClusterReconciler) reconcileDCService(ctx context.Context, cc 
 		desiredService.Spec.ClusterIPs = actualService.Spec.ClusterIPs
 		desiredService.Spec.IPFamilies = actualService.Spec.IPFamilies
 		desiredService.Spec.IPFamilyPolicy = actualService.Spec.IPFamilyPolicy
+		desiredService.Spec.InternalTrafficPolicy = actualService.Spec.InternalTrafficPolicy
 		if !compare.EqualService(desiredService, actualService) {
 			r.Log.Infof("Updating service for DC %q", dc.Name)
 			r.Log.Debugf(compare.DiffService(actualService, desiredService))

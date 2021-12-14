@@ -222,6 +222,7 @@ func (r *CassandraClusterReconciler) reconcileReaperService(ctx context.Context,
 		desiredService.Spec.ClusterIPs = actualService.Spec.ClusterIPs
 		desiredService.Spec.IPFamilies = actualService.Spec.IPFamilies
 		desiredService.Spec.IPFamilyPolicy = actualService.Spec.IPFamilyPolicy
+		desiredService.Spec.InternalTrafficPolicy = actualService.Spec.InternalTrafficPolicy
 		if !compare.EqualService(desiredService, actualService) {
 			r.Log.Infof("Updating reaper service")
 			r.Log.Debugf(compare.DiffService(actualService, desiredService))
