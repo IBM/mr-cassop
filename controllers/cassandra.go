@@ -126,6 +126,11 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 		return errors.Wrap(err, "Failed to get statefulset")
 	} else {
 		desiredSts.Annotations = actualSts.Annotations
+		// the pod selector is immutable once set, so always enforce the same as existing
+		desiredSts.Spec.Selector = actualSts.Spec.Selector
+		desiredSts.Spec.Template.Labels = actualSts.Spec.Template.Labels
+		// annotation can be used by things like `kubectl rollout sts restart` so don't overwrite it
+		desiredSts.Spec.Template.Annotations = actualSts.Spec.Template.Annotations
 		if !compare.EqualStatefulSet(desiredSts, actualSts) {
 			r.Log.Info("Updating cassandra statefulset")
 			r.Log.Debug(compare.DiffStatefulSet(actualSts, desiredSts))
