@@ -25,11 +25,13 @@ tiller
 
 # editor and IDE paraphernalia
 .idea
+**/*.iml
 *.swp
 *.swo
 *~
 
-node_modules
+# config samples
+config/samples
 
 # macOS custom attributes
 **/.DS_Store

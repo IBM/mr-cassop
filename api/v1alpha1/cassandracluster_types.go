@@ -41,6 +41,8 @@ const (
 	CassandraDefaultPassword       = "cassandra"
 	CassandraOperatorAdminRole     = "admin-role"
 	CassandraOperatorAdminPassword = "admin-password"
+	CassandraOperatorJmxUsername   = "jmx-username"
+	CassandraOperatorJmxPassword   = "jmx-password"
 	CassandraLocalhost             = "127.0.0.1"
 
 	ProberServicePort    = 80

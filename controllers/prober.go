@@ -233,6 +233,10 @@ func (r *CassandraClusterReconciler) reconcileProberService(ctx context.Context,
 }
 
 func proberContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
+	adminSecret := names.ActiveAdminSecret(cc.Name)
+	if cc.Spec.JMX.Authentication == jmxAuthenticationLocalFiles {
+		adminSecret = cc.Spec.AdminRoleSecretName
+	}
 	return v1.Container{
 		Name:            "prober",
 		Image:           cc.Spec.Prober.Image,
@@ -245,7 +249,7 @@ func proberContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 			{Name: "SERVER_PORT", Value: strconv.Itoa(dbv1alpha1.ProberContainerPort)},
 			{Name: "JMX_POLL_PERIOD_SECONDS", Value: "10"},
 			{Name: "JMX_PORT", Value: fmt.Sprintf("%d", dbv1alpha1.JmxPort)},
-			{Name: "ADMIN_SECRET_NAME", Value: names.ActiveAdminSecret(cc.Name)},
+			{Name: "ADMIN_SECRET_NAME", Value: adminSecret},
 		},
 		Ports: []v1.ContainerPort{
 			{

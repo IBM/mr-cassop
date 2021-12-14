@@ -27,7 +27,7 @@ build:
       template: "{{.USER}}"
   local:
     push: true
-    concurrency: 1
+    concurrency: 4
 deploy:
   helm:
     releases:

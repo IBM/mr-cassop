@@ -17,7 +17,6 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -89,39 +88,35 @@ func (r *CassandraClusterReconciler) reconcileAdminAuth(ctx context.Context, cc 
 }
 
 func (r *CassandraClusterReconciler) createClusterAdminSecrets(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
-	baseAdminSecret := &v1.Secret{}
-	err := r.Get(ctx, types.NamespacedName{Namespace: cc.Namespace, Name: cc.Spec.AdminRoleSecretName}, baseAdminSecret)
+	baseAdminSecret, err := r.adminRoleSecret(ctx, cc)
 	if err != nil {
-		return errors.Wrap(err, "can't get base admin secret")
+		return err
 	}
 
-	secretRoleName := string(baseAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole])
-	secretRolePassword := string(baseAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword])
-
-	if len(secretRoleName) == 0 || len(secretRolePassword) == 0 {
-		return errors.New("admin role or password is empty")
+	secretRoleName, secretRolePassword, err := extractCredentials(baseAdminSecret)
+	if err != nil {
+		return err
 	}
 
 	desiredRoleName := dbv1alpha1.CassandraDefaultRole
 	desiredRolePassword := dbv1alpha1.CassandraDefaultPassword
+	desiredSecretData := baseAdminSecret.Data
 
-	if cc.Spec.Cassandra.Persistence.Enabled {
-		pvcs := &v1.PersistentVolumeClaimList{}
-		err = r.List(ctx, pvcs, client.InNamespace(cc.Namespace), client.MatchingLabels(labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra)))
-		if err != nil {
-			return errors.Wrap(err, "can't get pvcs")
-		}
-
-		if len(pvcs.Items) > 0 { // cluster existed before. Use the credentials from the provided secret to recreate the cluster.
-			r.Log.Info("PVCs found. Assuming cluster existed before. Using credentials from secret %s", cc.Spec.AdminRoleSecretName)
-			desiredRoleName = secretRoleName
-			desiredRolePassword = secretRolePassword
-		}
+	cqlClient, err := r.CqlClient(newCassandraConfig(cc, secretRoleName, secretRolePassword))
+	if err == nil {
+		r.Log.Info("Admin role has already been initialized")
+		cqlClient.CloseSession()
+		desiredRoleName = secretRoleName
+		desiredRolePassword = secretRolePassword
 	}
 
-	desiredSecretData := baseAdminSecret.Data
 	desiredSecretData[dbv1alpha1.CassandraOperatorAdminRole] = []byte(desiredRoleName)
 	desiredSecretData[dbv1alpha1.CassandraOperatorAdminPassword] = []byte(desiredRolePassword)
+
+	if cc.Spec.JMX.Authentication == jmxAuthenticationLocalFiles {
+		desiredSecretData[dbv1alpha1.CassandraOperatorJmxUsername] = []byte(secretRoleName)
+		desiredSecretData[dbv1alpha1.CassandraOperatorJmxPassword] = []byte(secretRolePassword)
+	}
 
 	err = r.reconcileAdminSecrets(ctx, cc, desiredSecretData)
 	if err != nil {
@@ -129,6 +124,24 @@ func (r *CassandraClusterReconciler) createClusterAdminSecrets(ctx context.Conte
 	}
 
 	return nil
+}
+
+func extractCredentials(baseAdminSecret *v1.Secret) (string, string, error) {
+	secretRoleName := string(baseAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole])
+	secretRolePassword := string(baseAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword])
+	if len(secretRoleName) == 0 || len(secretRolePassword) == 0 {
+		return "", "", errors.New("admin role or password is empty")
+	}
+	return secretRoleName, secretRolePassword, nil
+}
+
+func (r *CassandraClusterReconciler) adminRoleSecret(ctx context.Context, cc *dbv1alpha1.CassandraCluster) (*v1.Secret, error) {
+	baseAdminSecret := &v1.Secret{}
+	err := r.Get(ctx, types.NamespacedName{Namespace: cc.Namespace, Name: cc.Spec.AdminRoleSecretName}, baseAdminSecret)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't get base admin secret")
+	}
+	return baseAdminSecret, nil
 }
 
 func (r *CassandraClusterReconciler) handleAdminRoleChange(ctx context.Context, cc *dbv1alpha1.CassandraCluster, actualBaseAdminSecret, actualActiveAdminSecret *v1.Secret) error {
@@ -165,6 +178,11 @@ func (r *CassandraClusterReconciler) handleAdminRoleChange(ctx context.Context, 
 
 	r.Log.Info("Logged in successfully with new credentials. Updating active admin secret.")
 	defer cqlClientTestCon.CloseSession()
+
+	if cc.Spec.JMX.Authentication == jmxAuthenticationLocalFiles {
+		actualBaseAdminSecret.Data[dbv1alpha1.CassandraOperatorJmxUsername] = []byte(newCassandraOperatorAdminRole)
+		actualBaseAdminSecret.Data[dbv1alpha1.CassandraOperatorJmxPassword] = []byte(newCassandraOperatorAdminPassword)
+	}
 
 	r.Events.Normal(cc, events.EventAdminRoleChanged, "admin role has been successfully changed")
 	err = r.reconcileAdminSecrets(ctx, cc, actualBaseAdminSecret.Data)
@@ -258,7 +276,7 @@ func (r *CassandraClusterReconciler) reconcileActiveAdminSecret(ctx context.Cont
 	return nil
 }
 
-func (r *CassandraClusterReconciler) reconcileAdminAuthConfigSecret(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cassandraAdminRole, cassandraAdminPassword string) error {
+func (r *CassandraClusterReconciler) reconcileAdminAuthConfigSecret(ctx context.Context, cc *dbv1alpha1.CassandraCluster, secretData map[string][]byte) error {
 	desiredAdminAuthConfigSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      names.AdminAuthConfigSecret(cc.Name),
@@ -270,16 +288,18 @@ func (r *CassandraClusterReconciler) reconcileAdminAuthConfigSecret(ctx context.
 
 	data := make(map[string][]byte)
 
+	cassandraAdminRole := string(secretData[dbv1alpha1.CassandraOperatorAdminRole])
+	cassandraAdminPassword := string(secretData[dbv1alpha1.CassandraOperatorAdminPassword])
+
 	if cc.Spec.JMX.Authentication == jmxAuthenticationLocalFiles {
-		data["jmxremote.password"] = []byte(fmt.Sprintf("%s %s\n", cassandraAdminRole, cassandraAdminPassword))
+		jmxUsername := string(secretData[dbv1alpha1.CassandraOperatorJmxUsername])
+		jmxPassword := string(secretData[dbv1alpha1.CassandraOperatorJmxPassword])
+		data["jmxremote.password"] = []byte(fmt.Sprintf("%s %s\n", jmxUsername, jmxPassword))
 		// jmxremote.access file is not hot-reload in runtime, so we need to set the cassandra role before the start
 		data["jmxremote.access"] = []byte(fmt.Sprintf(`%s readwrite \
 create javax.management.monitor.*, javax.management.timer.* \
 unregister
-%s readwrite \
-create javax.management.monitor.*, javax.management.timer.* \
-unregister
-`, cassandraAdminRole, dbv1alpha1.CassandraOperatorAdminRole))
+`, jmxUsername))
 	}
 
 	cqlshConfig := fmt.Sprintf(`
