@@ -200,9 +200,9 @@ func (r *CassandraClusterReconciler) getRemoteClusterRegionsStatuses(ctx context
 	for _, externalRegion := range cc.Spec.ExternalRegions {
 		if len(externalRegion.Domain) > 0 {
 			proberHost := names.ProberIngressDomain(cc.Name, externalRegion.Domain, cc.Namespace)
-			regionsReady, err := proberClient.DCsReady(ctx, proberHost)
+			regionsReady, err := proberClient.RegionReady(ctx, proberHost)
 			if err != nil {
-				r.Log.Warnf(fmt.Sprintf("Unable to get DC status from prober %q. Err: %#v", proberHost, err))
+				r.Log.Warnf(fmt.Sprintf("Unable to get region readiness status from prober %q. Err: %#v", proberHost, err))
 				return nil, ErrRegionNotReady
 			}
 			clusterRegionsStatuses[proberHost] = regionsReady
@@ -249,16 +249,17 @@ func (r *CassandraClusterReconciler) getSeedsList(ctx context.Context, cc *v1alp
 	cassandraSeeds := getLocalSeedsHostnames(cc, broadcastAddresses)
 
 	if err := proberClient.UpdateSeeds(ctx, cassandraSeeds); err != nil {
-		return nil, errors.Wrap(err, "Prober request to update local seeds failed.")
+		return nil, errors.Wrap(err, "Prober request to update region seeds failed.")
 	}
 	if cc.Spec.HostPort.Enabled {
-		// GET /localseeds of external DCs
+		// GET /seeds of external regions
 		for _, externalRegion := range cc.Spec.ExternalRegions {
 			if len(externalRegion.Domain) > 0 {
-				seeds, err := proberClient.GetSeeds(ctx, names.ProberIngressDomain(cc.Name, externalRegion.Domain, cc.Namespace))
+				regionsHost := names.ProberIngressDomain(cc.Name, externalRegion.Domain, cc.Namespace)
+				seeds, err := proberClient.GetSeeds(ctx, regionsHost)
 				if err != nil {
-					r.Log.Warnw("Failed Request to DC's ingress", "ingressDomain", externalRegion.Domain, "error", err)
-					continue
+					r.Log.Warnf("can't get seeds from region %s", regionsHost)
+					return nil, ErrRegionNotReady
 				}
 				cassandraSeeds = append(cassandraSeeds, seeds...)
 			} else if len(externalRegion.Seeds) > 0 {

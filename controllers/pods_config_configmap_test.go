@@ -41,15 +41,15 @@ func TestPodsConfigMapData(t *testing.T) {
 
 	asserts := NewGomegaWithT(t)
 	cases := []struct {
-		name                 string
-		k8sObjects           []client.Object
-		k8sLists             []client.ObjectList
-		cc                   *v1alpha1.CassandraCluster
-		externalSeeds        map[string][]string
-		expectedCMData       map[string]string
-		externalDCsSeeds     map[string][]string
-		externalDCsReadiness map[string]bool
-		expectedError        error
+		name                     string
+		k8sObjects               []client.Object
+		k8sLists                 []client.ObjectList
+		cc                       *v1alpha1.CassandraCluster
+		externalSeeds            map[string][]string
+		expectedCMData           map[string]string
+		externalRegionsSeeds     map[string][]string
+		externalRegionsReadiness map[string]bool
+		expectedError            error
 	}{
 		{
 			name: "simple case with hostport disabled",
@@ -907,10 +907,10 @@ export PAUSE_INIT=false
 					},
 				},
 			},
-			externalDCsReadiness: map[string]bool{
+			externalRegionsReadiness: map[string]bool{
 				"default-test-cluster-cassandra-prober.region2.ingress.domain": true,
 			},
-			externalDCsSeeds: map[string][]string{
+			externalRegionsSeeds: map[string][]string{
 				"default-test-cluster-cassandra-prober.region2.ingress.domain": {"42.32.34.111", "42.32.34.113"},
 			},
 			k8sLists: []client.ObjectList{
@@ -1095,10 +1095,10 @@ export PAUSE_INIT=false
 					},
 				},
 			},
-			externalDCsReadiness: map[string]bool{
+			externalRegionsReadiness: map[string]bool{
 				"default-test-cluster-cassandra-prober.region2.ingress.domain": false,
 			},
-			externalDCsSeeds: map[string][]string{
+			externalRegionsSeeds: map[string][]string{
 				"default-test-cluster-cassandra-prober.region2.ingress.domain": {"42.32.34.111", "42.32.34.113"},
 			},
 			k8sLists: []client.ObjectList{
@@ -1370,10 +1370,10 @@ export PAUSE_INIT=false
 					},
 				},
 			},
-			externalDCsReadiness: map[string]bool{
+			externalRegionsReadiness: map[string]bool{
 				"default-test-cluster-cassandra-prober.region2.ingress.domain": false,
 			},
-			externalDCsSeeds: map[string][]string{
+			externalRegionsSeeds: map[string][]string{
 				"default-test-cluster-cassandra-prober.region2.ingress.domain": {"42.32.34.111", "42.32.34.113"},
 			},
 			k8sLists: []client.ObjectList{
@@ -1645,10 +1645,10 @@ export PAUSE_INIT=false
 					},
 				},
 			},
-			externalDCsReadiness: map[string]bool{
+			externalRegionsReadiness: map[string]bool{
 				"default-test-cluster-cassandra-prober.region1.ingress.domain": false,
 			},
-			externalDCsSeeds: map[string][]string{
+			externalRegionsSeeds: map[string][]string{
 				"default-test-cluster-cassandra-prober.region1.ingress.domain": {"42.32.34.111", "42.32.34.113"},
 			},
 			k8sLists: []client.ObjectList{
@@ -2276,11 +2276,11 @@ export PAUSE_INIT=false
 		mCtrl := gomock.NewController(t)
 		proberClient := mocks.NewMockProberClient(mCtrl)
 		proberClient.EXPECT().UpdateSeeds(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
-		for region, seeds := range c.externalDCsSeeds {
+		for region, seeds := range c.externalRegionsSeeds {
 			proberClient.EXPECT().GetSeeds(gomock.Any(), region).Times(1).Return(seeds, nil)
 		}
-		for region, ready := range c.externalDCsReadiness {
-			proberClient.EXPECT().DCsReady(gomock.Any(), region).Times(1).Return(ready, nil)
+		for region, ready := range c.externalRegionsReadiness {
+			proberClient.EXPECT().RegionReady(gomock.Any(), region).Times(1).Return(ready, nil)
 		}
 
 		reconciler := &CassandraClusterReconciler{

@@ -35,21 +35,6 @@ func (m *MockProberClient) EXPECT() *MockProberClientMockRecorder {
 	return m.recorder
 }
 
-// DCsReady mocks base method.
-func (m *MockProberClient) DCsReady(ctx context.Context, host string) (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DCsReady", ctx, host)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// DCsReady indicates an expected call of DCsReady.
-func (mr *MockProberClientMockRecorder) DCsReady(ctx, host interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DCsReady", reflect.TypeOf((*MockProberClient)(nil).DCsReady), ctx, host)
-}
-
 // GetDCs mocks base method.
 func (m *MockProberClient) GetDCs(ctx context.Context, host string) ([]v1alpha1.DC, error) {
 	m.ctrl.T.Helper()
@@ -95,18 +80,19 @@ func (mr *MockProberClientMockRecorder) Ready(ctx interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ready", reflect.TypeOf((*MockProberClient)(nil).Ready), ctx)
 }
 
-// UpdateDCStatus mocks base method.
-func (m *MockProberClient) UpdateDCStatus(ctx context.Context, ready bool) error {
+// RegionReady mocks base method.
+func (m *MockProberClient) RegionReady(ctx context.Context, host string) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateDCStatus", ctx, ready)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret := m.ctrl.Call(m, "RegionReady", ctx, host)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
-// UpdateDCStatus indicates an expected call of UpdateDCStatus.
-func (mr *MockProberClientMockRecorder) UpdateDCStatus(ctx, ready interface{}) *gomock.Call {
+// RegionReady indicates an expected call of RegionReady.
+func (mr *MockProberClientMockRecorder) RegionReady(ctx, host interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateDCStatus", reflect.TypeOf((*MockProberClient)(nil).UpdateDCStatus), ctx, ready)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegionReady", reflect.TypeOf((*MockProberClient)(nil).RegionReady), ctx, host)
 }
 
 // UpdateDCs mocks base method.
@@ -121,6 +107,20 @@ func (m *MockProberClient) UpdateDCs(ctx context.Context, dcs []v1alpha1.DC) err
 func (mr *MockProberClientMockRecorder) UpdateDCs(ctx, dcs interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateDCs", reflect.TypeOf((*MockProberClient)(nil).UpdateDCs), ctx, dcs)
+}
+
+// UpdateRegionStatus mocks base method.
+func (m *MockProberClient) UpdateRegionStatus(ctx context.Context, ready bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateRegionStatus", ctx, ready)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateRegionStatus indicates an expected call of UpdateRegionStatus.
+func (mr *MockProberClientMockRecorder) UpdateRegionStatus(ctx, ready interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateRegionStatus", reflect.TypeOf((*MockProberClient)(nil).UpdateRegionStatus), ctx, ready)
 }
 
 // UpdateSeeds mocks base method.

@@ -21,10 +21,10 @@ type Prober struct {
 }
 
 type state struct {
-	seeds         []string
-	localDCsReady bool
-	dcs           []dc
-	nodes         map[string]nodeState
+	seeds       []string
+	regionReady bool
+	dcs         []dc
+	nodes       map[string]nodeState
 }
 
 type dc struct {
@@ -66,10 +66,10 @@ func (p *Prober) Run() error {
 func setupRoutes(router *httprouter.Router, prober *Prober) {
 	router.GET("/healthz/:broadcastip", prober.healthCheck)
 	router.GET("/ping", prober.ping)
-	router.GET("/readylocaldcs", prober.getReadyLocalDCs)
-	router.PUT("/readylocaldcs", prober.putReadyLocalDCs)
-	router.GET("/localseeds", prober.getSeeds)
-	router.PUT("/localseeds", prober.putSeeds)
+	router.GET("/region-ready", prober.getRegionReady)
+	router.PUT("/region-ready", prober.putRegionReady)
+	router.GET("/seeds", prober.getSeeds)
+	router.PUT("/seeds", prober.putSeeds)
 	router.GET("/dcs", prober.getDCs)
 	router.PUT("/dcs", prober.putDCs)
 }

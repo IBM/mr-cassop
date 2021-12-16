@@ -299,14 +299,14 @@ func (r *CassandraClusterReconciler) clusterReady(ctx context.Context, cc *v1alp
 	}
 
 	if len(unreadyDCs) > 0 {
-		if err = proberClient.UpdateDCStatus(ctx, false); err != nil {
+		if err = proberClient.UpdateRegionStatus(ctx, false); err != nil {
 			return false, errors.Wrap(err, "Failed to set DC status to not ready for prober")
 		}
 		r.Log.Warnf("Not all DCs are ready: %q.", unreadyDCs)
 		return false, nil
 	}
 	r.Log.Debug("All DCs are ready")
-	err = proberClient.UpdateDCStatus(ctx, true)
+	err = proberClient.UpdateRegionStatus(ctx, true)
 	if err != nil {
 		return false, errors.Wrap(err, "Failed to set DC's status to ready")
 	}
@@ -346,13 +346,13 @@ func (r *CassandraClusterReconciler) unreadyRegions(ctx context.Context, cc *v1a
 			continue
 		}
 		proberHost := names.ProberIngressDomain(cc.Name, externalRegion.Domain, cc.Namespace)
-		dcsReady, err := proberClient.DCsReady(ctx, proberHost)
+		regionReady, err := proberClient.RegionReady(ctx, proberHost)
 		if err != nil {
 			r.Log.Warnf(fmt.Sprintf("Unable to get DC's status from prober %q. Err: %#v", proberHost, err))
 			return nil, ErrRegionNotReady
 		}
 
-		if !dcsReady {
+		if !regionReady {
 			unreadyRegions = append(unreadyRegions, proberHost)
 		}
 	}

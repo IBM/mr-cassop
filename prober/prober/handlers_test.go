@@ -199,17 +199,17 @@ func TestPing(t *testing.T) {
 	asserts.Expect(recorder.Code).To(gomega.Equal(http.StatusOK))
 }
 
-func TestGetReadyLocalDCs(t *testing.T) {
+func TestGetRegionReady(t *testing.T) {
 	asserts := gomega.NewWithT(t)
 	testProber := &Prober{
 		auth: UserAuth{},
 		log:  zap.NewNop().Sugar(),
 		state: state{
-			localDCsReady: false,
+			regionReady: false,
 		},
 	}
 
-	request := httptest.NewRequest(http.MethodGet, "/readylocaldcs", nil)
+	request := httptest.NewRequest(http.MethodGet, "/region-ready", nil)
 	recorder := httptest.NewRecorder()
 	router := httprouter.New()
 	setupRoutes(router, testProber)
@@ -220,7 +220,7 @@ func TestGetReadyLocalDCs(t *testing.T) {
 	asserts.Expect(b).To(gomega.Equal([]byte("false")))
 	asserts.Expect(recorder.Code).To(gomega.Equal(http.StatusOK))
 
-	testProber.state.localDCsReady = true
+	testProber.state.regionReady = true
 	recorder = httptest.NewRecorder()
 	router.ServeHTTP(recorder, request)
 	b, err = io.ReadAll(recorder.Result().Body)
@@ -229,7 +229,7 @@ func TestGetReadyLocalDCs(t *testing.T) {
 	asserts.Expect(recorder.Code).To(gomega.Equal(http.StatusOK))
 }
 
-func TestPutReadyLocalDCs(t *testing.T) {
+func TestPutRegionReady(t *testing.T) {
 	testCases := []struct {
 		requestBody           io.Reader
 		expectedCode          int
@@ -268,16 +268,16 @@ func TestPutReadyLocalDCs(t *testing.T) {
 		router := httprouter.New()
 		setupRoutes(router, testProber)
 
-		request := httptest.NewRequest(http.MethodPut, "/readylocaldcs", testCase.requestBody)
+		request := httptest.NewRequest(http.MethodPut, "/region-ready", testCase.requestBody)
 		recorder := httptest.NewRecorder()
 		router.ServeHTTP(recorder, request)
 
 		asserts.Expect(recorder.Code).To(gomega.Equal(testCase.expectedCode))
-		asserts.Expect(testProber.state.localDCsReady).To(gomega.Equal(testCase.expectedLocalDCsState))
+		asserts.Expect(testProber.state.regionReady).To(gomega.Equal(testCase.expectedLocalDCsState))
 	}
 }
 
-func TestGetLocalSeeds(t *testing.T) {
+func TestGetSeeds(t *testing.T) {
 	asserts := gomega.NewWithT(t)
 	testProber := &Prober{
 		auth: UserAuth{},
@@ -289,7 +289,7 @@ func TestGetLocalSeeds(t *testing.T) {
 	router := httprouter.New()
 	setupRoutes(router, testProber)
 
-	request := httptest.NewRequest(http.MethodGet, "/localseeds", nil)
+	request := httptest.NewRequest(http.MethodGet, "/seeds", nil)
 	recorder := httptest.NewRecorder()
 
 	router.ServeHTTP(recorder, request)
@@ -299,7 +299,7 @@ func TestGetLocalSeeds(t *testing.T) {
 	asserts.Expect(b).To(gomega.BeEquivalentTo([]byte("[\"seed1\",\"seed2\"]")))
 }
 
-func TestPutLocalSeeds(t *testing.T) {
+func TestPutSeeds(t *testing.T) {
 	asserts := gomega.NewWithT(t)
 
 	testCases := []struct {
@@ -334,7 +334,7 @@ func TestPutLocalSeeds(t *testing.T) {
 		router := httprouter.New()
 		setupRoutes(router, testProber)
 
-		request := httptest.NewRequest(http.MethodPut, "/localseeds", testCase.requestBody)
+		request := httptest.NewRequest(http.MethodPut, "/seeds", testCase.requestBody)
 		recorder := httptest.NewRecorder()
 		router.ServeHTTP(recorder, request)
 

@@ -5,11 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
+
+	"github.com/ibm/cassandra-operator/api/v1alpha1"
 
 	"github.com/pkg/errors"
 )
@@ -20,8 +21,8 @@ type ProberClient interface {
 	UpdateSeeds(ctx context.Context, seeds []string) error
 	GetDCs(ctx context.Context, host string) ([]v1alpha1.DC, error)
 	UpdateDCs(ctx context.Context, dcs []v1alpha1.DC) error
-	UpdateDCStatus(ctx context.Context, ready bool) error
-	DCsReady(ctx context.Context, host string) (bool, error)
+	UpdateRegionStatus(ctx context.Context, ready bool) error
+	RegionReady(ctx context.Context, host string) (bool, error)
 }
 
 type proberClient struct {
@@ -53,7 +54,7 @@ func (p *proberClient) Ready(ctx context.Context) (bool, error) {
 }
 
 func (p *proberClient) GetSeeds(ctx context.Context, host string) ([]string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("https://%s/localseeds", host), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("https://%s/seeds", host), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +85,7 @@ func (p *proberClient) GetSeeds(ctx context.Context, host string) ([]string, err
 
 func (p *proberClient) UpdateSeeds(ctx context.Context, seeds []string) error {
 	body, _ := json.Marshal(seeds)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, p.url("/localseeds"), bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, p.url("/seeds"), bytes.NewReader(body))
 	if err != nil {
 		return errors.Wrap(err, "Can't create request")
 	}
@@ -140,8 +141,8 @@ func (p *proberClient) UpdateDCs(ctx context.Context, dcs []v1alpha1.DC) error {
 	return nil
 }
 
-func (p *proberClient) UpdateDCStatus(ctx context.Context, ready bool) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, p.url("/readylocaldcs"), bytes.NewReader([]byte(strconv.FormatBool(ready))))
+func (p *proberClient) UpdateRegionStatus(ctx context.Context, ready bool) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, p.url("/region-ready"), bytes.NewReader([]byte(strconv.FormatBool(ready))))
 	if err != nil {
 		return errors.Wrap(err, "Can't create request")
 	}
@@ -153,8 +154,8 @@ func (p *proberClient) UpdateDCStatus(ctx context.Context, ready bool) error {
 	return nil
 }
 
-func (p *proberClient) DCsReady(ctx context.Context, host string) (bool, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("https://%s/readylocaldcs", host), nil)
+func (p *proberClient) RegionReady(ctx context.Context, host string) (bool, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("https://%s/region-ready", host), nil)
 	if err != nil {
 		return false, errors.Wrap(err, "Can't create request")
 	}

@@ -60,11 +60,11 @@ func (r proberMock) UpdateDCs(ctx context.Context, dcs []dbv1alpha1.DC) error {
 	return r.err
 }
 
-func (r proberMock) UpdateDCStatus(ctx context.Context, ready bool) error {
+func (r proberMock) UpdateRegionStatus(ctx context.Context, ready bool) error {
 	return r.err
 }
 
-func (r proberMock) DCsReady(ctx context.Context, host string) (bool, error) {
+func (r proberMock) RegionReady(ctx context.Context, host string) (bool, error) {
 	dcsReady, found := r.readyClusters[host]
 	if !found {
 		return false, errors.Errorf("Host %q not found", host)

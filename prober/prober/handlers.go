@@ -27,21 +27,21 @@ func (p *Prober) ping(w http.ResponseWriter, _ *http.Request, _ httprouter.Param
 	p.write(w, []byte("pong"))
 }
 
-func (p *Prober) getReadyLocalDCs(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
-	p.write(w, []byte(strconv.FormatBool(p.state.localDCsReady)))
+func (p *Prober) getRegionReady(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
+	p.write(w, []byte(strconv.FormatBool(p.state.regionReady)))
 }
 
-func (p *Prober) putReadyLocalDCs(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func (p *Prober) putRegionReady(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	var ready bool
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		p.log.Error(err, "can't ready body")
 		w.WriteHeader(http.StatusInternalServerError)
 	} else if ready, err = strconv.ParseBool(string(body)); err != nil {
-		p.log.Error(err, "can't parse dc readiness state")
+		p.log.Error(err, "can't parse region readiness state")
 		w.WriteHeader(http.StatusBadRequest)
 	} else {
-		p.state.localDCsReady = ready
+		p.state.regionReady = ready
 	}
 }
 
