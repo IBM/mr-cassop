@@ -24,6 +24,15 @@ spec:
           imagePullPolicy: {{ .Values.container.imagePullPolicy }}
           resources:
             {{- toYaml .Values.container.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              port: 8042
+              path: /readyz
+          ports:
+            - containerPort: 8329
+              name: metrics
+            - containerPort: 8042
+              name: readyz
           env:
             - name: NAMESPACE
               value: {{ .Release.Namespace | quote }}

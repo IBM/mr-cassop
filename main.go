@@ -23,6 +23,8 @@ import (
 	"os"
 	"time"
 
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
+
 	"github.com/go-logr/zapr"
 	"github.com/gocql/gocql"
 	operatorCfg "github.com/ibm/cassandra-operator/controllers/config"
@@ -57,7 +59,11 @@ var (
 	}
 )
 
-const leaderElectionID = "cassandra-operator-leader-election-lock"
+const (
+	leaderElectionID = "cassandra-operator-leader-election-lock"
+
+	healthCheckBindAddress = 8042
+)
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
@@ -79,6 +85,7 @@ func main() {
 	logr.Infof("Leader election enabled: %t", operatorConfig.LeaderElectionEnabled)
 	logr.Infof("Log level: %s", operatorConfig.LogLevel.String())
 	logr.Infof("Prometheus metrics exporter port: %d", operatorConfig.MetricsPort)
+	logr.Infof("Health probe bind address: :%d", healthCheckBindAddress)
 
 	logr = logr.With(logger.FieldOperatorVersion, Version)
 
@@ -91,9 +98,16 @@ func main() {
 		LeaderElection:          operatorConfig.LeaderElectionEnabled,
 		LeaderElectionID:        leaderElectionID,
 		LeaderElectionNamespace: operatorConfig.Namespace,
+		HealthProbeBindAddress:  fmt.Sprintf(":%d", healthCheckBindAddress),
 	})
 	if err != nil {
 		logr.With(zap.Error(err)).Error("unable to start manager")
+		os.Exit(1)
+	}
+
+	err = mgr.AddReadyzCheck("ready", healthz.Ping)
+	if err != nil {
+		logr.With(zap.Error(err)).Error("unable to setup readiness check")
 		os.Exit(1)
 	}
 
