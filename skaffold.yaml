@@ -6,22 +6,18 @@ build:
     context: .
     docker:
       dockerfile: Dockerfile
-
   - image: "us.icr.io/cassandra-operator/prober"
     context: prober/
     docker:
       dockerfile: Dockerfile
-
   - image: "us.icr.io/cassandra-operator/cassandra"
     context: cassandra/
     docker:
       dockerfile: Dockerfile
-
   - image: "us.icr.io/cassandra-operator/jolokia"
     context: jolokia/
     docker:
       dockerfile: Dockerfile
-
   tagPolicy:
     envTemplate:
       template: "{{.USER}}"
@@ -43,12 +39,12 @@ deploy:
         proberImage: "us.icr.io/cassandra-operator/prober:{{.USER}}"
         jolokiaImage: "us.icr.io/cassandra-operator/jolokia:{{.USER}}"
         cassandraImage: "us.icr.io/cassandra-operator/cassandra:{{.USER}}"
+        admissionWebhooks.enabled: true
       createNamespace: true
       wait: true
       packaged:
         version: "0.0.0-{{.USER}}"
         appVersion: "0.0.0-{{.USER}}"
-      # Sets image.tag and image.repository separately
       recreatePods: true
 #  kubectl:
 #    manifests:
@@ -59,8 +55,8 @@ profiles:
   - kubeContext: kind-cassandra
   build:
     local:
-      push: false # if `false` images will be loaded into local kind cluster nodes
-# Figure out to pull in kind cluster from local nodes a d not from ICR
+      # when `push` set to `false` the images are not pushed to ICR but loaded into kind cluster nodes
+      push: false
   deploy:
     helm:
       releases:
@@ -70,8 +66,7 @@ profiles:
         - cassandra-operator/values.yaml
         setValueTemplates:
           container.image: "us.icr.io/cassandra-operator/cassandra-operator:{{.USER}}"
-          container.imagePullSecret: icm-coreeng-pull-secret
-          container.imagePullPolicy: IfNotPresent
+          container.imagePullPolicy: Never
           logLevel: debug
           proberImage: "us.icr.io/cassandra-operator/prober:{{.USER}}"
           jolokiaImage: "us.icr.io/cassandra-operator/jolokia:{{.USER}}"
@@ -81,5 +76,4 @@ profiles:
         packaged:
           version: "0.0.0-{{.USER}}"
           appVersion: "0.0.0-{{.USER}}"
-        # Sets image.tag and image.repository separately
         recreatePods: true

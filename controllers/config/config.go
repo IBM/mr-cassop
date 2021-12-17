@@ -22,6 +22,7 @@ type Config struct {
 	LogLevel              zapcore.Level `env:"LOGLEVEL" envDefault:"info"`
 	LogFormat             string        `env:"LOGFORMAT" envDefault:"json"`
 	WebhooksEnabled       bool          `env:"WEBHOOKS_ENABLED" envDefault:"true"`
+	WebhooksPort          int32         `env:"WEBHOOKS_PORT" envDefault:"9443"`
 	MetricsPort           int32         `env:"METRICS_PORT" envDefault:"8329"`
 	RetryDelay            time.Duration `env:"RETRY_DELAY" envDefault:"10s"`
 	DefaultCassandraImage string        `env:"DEFAULT_CASSANDRA_IMAGE,required"`

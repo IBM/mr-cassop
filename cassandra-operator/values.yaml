@@ -22,3 +22,5 @@ clusterDashboards:
   namespace: ""
   labels:
     grafana_dashboard: "1"
+admissionWebhooks:
+  enabled: true

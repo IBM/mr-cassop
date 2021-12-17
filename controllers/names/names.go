@@ -133,3 +133,15 @@ func OperatorShiroCM() string {
 func OperatorClientTLSDir(cc *dbv1alpha1.CassandraCluster) string {
 	return fmt.Sprintf("%s/%s-%s", os.Getenv("HOME"), cc.Namespace, cc.Name)
 }
+
+func OperatorWebhookTLSDir() string {
+	return fmt.Sprintf("%s/%s", os.Getenv("HOME"), "k8s-webhook-server/serving-certs")
+}
+
+func ValidatingWebhookName() string {
+	return cassandraOperator + "-cassandracluster-validation"
+}
+
+func WebhooksServiceName() string {
+	return cassandraOperator + "-webhooks"
+}

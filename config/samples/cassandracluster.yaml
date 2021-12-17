@@ -3,9 +3,13 @@ kind: CassandraCluster
 metadata:
   name: test-cluster
 spec:
+  imagePullSecretName: icm-coreeng-pull-secret
+  adminRoleSecretName: admin-role
   cassandra:
-    imagePullPolicy: IfNotPresent
+    imagePullPolicy: Always
     numSeeds: 2
+    logLevel: debug
+    purgeGossip: false
     persistence:
       enabled: false
       commitLogVolume: false
@@ -25,26 +29,26 @@ spec:
       requests:
         memory: 1.5Gi
         cpu: "1"
+  jvm:
+    maxHeapSize: 1024M
   cqlConfigMapLabelKey: cql-scripts
   dcs:
   - name: dc1
     replicas: 3
   - name: dc2
     replicas: 3
-  imagePullSecretName: icm-coreeng-pull-secret
   ingress:
     domain: icm-cassandra-dev-3f3037ed650e84f558a8839c9ec8a6ed-0000.us-south.containers.appdomain.cloud
     secret: icm-cassandra-dev-3f3037ed650e84f558a8839c9ec8a6ed-0000
     annotations:
       "ingress.bluemix.net/redirect-to-https": "True"
   prober:
-    debug: true
-    imagePullPolicy: IfNotPresent
+    logLevel: debug
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: 200m
         memory: 256Mi
-    externalDCsIngressDomains: []
     jolokia:
       imagePullPolicy: IfNotPresent
       resources:
@@ -52,6 +56,8 @@ spec:
           cpu: 200m
           memory: 256Mi
   reaper:
+    incrementalRepair: false
+    repairParallelism: "DATACENTER_AWARE"
     imagePullPolicy: IfNotPresent
     resources:
       requests:
@@ -63,13 +69,7 @@ spec:
     tolerations: []
     nodeSelector: {}
     repairIntensity: "1.0"
-    datacenterAvailability: each
     keyspace: reaper
-    dcs:
-    - name: dc1
-      replicas: 3
-    - name: dc2
-      replicas: 3
     repairSchedules:
       enabled: false
       repairs:
@@ -104,8 +104,6 @@ spec:
     - cql
     - jmx
     - thrift
-  jvm:
-    maxHeapSize: 1024M
   monitoring:
     enabled: false
     agent: "tlp"
@@ -114,3 +112,14 @@ spec:
       namespace: ""
       labels: {}
       scrapeInterval: 30s
+  jmx: {}
+  encryption:
+    server:
+      internodeEncryption: none # If set to `all` all internode traffic are encrypted
+      tlsSecret:
+        name: cassandra-cluster-tls
+    client:
+      enabled: false
+      tlsSecret:
+        name: cassandra-client-tls
+      requireClientAuth: false

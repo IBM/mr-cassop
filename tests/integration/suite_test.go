@@ -20,6 +20,9 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/ibm/cassandra-operator/controllers/webhooks"
+	admissionv1 "k8s.io/api/admissionregistration/v1"
+	"k8s.io/client-go/kubernetes/scheme"
 	"net/url"
 	"path/filepath"
 	"strconv"
@@ -48,7 +51,6 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -121,9 +123,19 @@ var _ = BeforeSuite(func() {
 	ctrl.SetLogger(zapr.NewLogger(logr))
 	logf.SetLogger(zapr.NewLogger(logr))
 
+	clusterRole := &rbac.ClusterRole{}
+	clusterRole.Name = "cassandra-operator"
+	clusterRole.UID = "1"
+
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths: []string{filepath.Join("..", "..", "config", "crd", "bases")},
+		WebhookInstallOptions: envtest.WebhookInstallOptions{
+			ValidatingWebhooks: []admissionv1.ValidatingWebhookConfiguration{
+				webhooks.CreateValidatingWebhookConf(operatorConfig.Namespace, clusterRole, []byte{}),
+			},
+		},
+		ErrorIfCRDPathMissing: false,
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases")},
 	}
 
 	cfg, err = testEnv.Start()
@@ -146,8 +158,21 @@ var _ = BeforeSuite(func() {
 
 	createOperatorConfigMaps()
 
-	mgr, err := ctrl.NewManager(cfg, ctrl.Options{Scheme: scheme.Scheme})
+	// start webhook server using Manager
+	webhookInstallOptions := &testEnv.WebhookInstallOptions
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+		Scheme:             scheme.Scheme,
+		Host:               webhookInstallOptions.LocalServingHost,
+		Port:               webhookInstallOptions.LocalServingPort,
+		CertDir:            webhookInstallOptions.LocalServingCertDir,
+		LeaderElection:     false,
+		MetricsBindAddress: "0",
+	})
 	Expect(err).ToNot(HaveOccurred())
+
+	err = (&v1alpha1.CassandraCluster{}).SetupWebhookWithManager(mgr)
+	Expect(err).ToNot(HaveOccurred())
+
 	Expect(mgr).ToNot(BeNil())
 
 	cassandraCtrl := &controllers.CassandraClusterReconciler{

@@ -749,4 +749,41 @@ var _ = Describe("cassandracluster validation", func() {
 			Expect(err).ToNot(HaveOccurred())
 		})
 	})
+
+	Context("with invalid reaper parameters", func() {
+		It("Should fail the validation", func() {
+			cc := &v1alpha1.CassandraCluster{
+				ObjectMeta: cassandraObjectMeta,
+				Spec: v1alpha1.CassandraClusterSpec{
+					DCs: []v1alpha1.DC{
+						{
+							Name:     "dc1",
+							Replicas: proto.Int32(3),
+						},
+						{
+							Name:     "dc2",
+							Replicas: proto.Int32(6),
+						},
+					},
+					ImagePullSecretName: "pullSecretName",
+					AdminRoleSecretName: "admin-role",
+					Cassandra: &v1alpha1.Cassandra{
+						NumSeeds:                      3,
+						TerminationGracePeriodSeconds: proto.Int64(60),
+						ImagePullPolicy:               v1.PullAlways,
+						Image:                         "cassandra/image",
+					},
+					Reaper: &v1alpha1.Reaper{
+						IncrementalRepair: true,
+						RepairParallelism: "DATACENTER_AWARE",
+					},
+				},
+			}
+
+			markMocksAsReady(cc)
+			err := k8sClient.Create(ctx, cc)
+			Expect(err).To(BeAssignableToTypeOf(&errors.StatusError{}))
+			Expect(err.(*errors.StatusError).ErrStatus.Reason == "repairParallelism must be only `PARALLEL` if incrementalRepair is true").To(BeTrue())
+		})
+	})
 })

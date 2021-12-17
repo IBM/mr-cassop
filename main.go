@@ -18,27 +18,30 @@ package main
 
 import (
 	"fmt"
+	"github.com/ibm/cassandra-operator/controllers/names"
 	"net/http"
 	"net/url"
 	"os"
 	"time"
 
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
-
 	"github.com/go-logr/zapr"
 	"github.com/gocql/gocql"
+	"github.com/ibm/cassandra-operator/controllers/webhooks"
+	"go.uber.org/zap"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
+
 	operatorCfg "github.com/ibm/cassandra-operator/controllers/config"
 	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/ibm/cassandra-operator/controllers/events"
 	"github.com/ibm/cassandra-operator/controllers/logger"
 	"github.com/ibm/cassandra-operator/controllers/prober"
 	"github.com/ibm/cassandra-operator/controllers/reaper"
-	"go.uber.org/zap"
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	ctrl "sigs.k8s.io/controller-runtime"
 
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers"
@@ -101,7 +104,7 @@ func main() {
 		HealthProbeBindAddress:  fmt.Sprintf(":%d", healthCheckBindAddress),
 	})
 	if err != nil {
-		logr.With(zap.Error(err)).Error("unable to start manager")
+		logr.With(zap.Error(err)).Error("unable to create manager")
 		os.Exit(1)
 	}
 
@@ -131,7 +134,40 @@ func main() {
 		os.Exit(1)
 	}
 
-	logr.Info("starting manager")
+	// We use k8s.io/client-go client due to the fact that we require Create and Update operations.
+	// So we can't use sigs.k8s.io/controller-runtime rest client as it requires running manager with cache.
+	kubeClient, err := kubernetes.NewForConfig(restCfg)
+	if err != nil {
+		logr.With(zap.Error(err)).Error("failed to create client set")
+		os.Exit(1)
+	}
+
+	if operatorConfig.WebhooksEnabled {
+		logr.Infof("Creating Webhooks Assets...")
+		err = webhooks.CreateWebhookAssets(kubeClient, operatorConfig)
+		if err != nil {
+			logr.With(zap.Error(err)).Fatal("failed to create webhooks assets")
+			os.Exit(1)
+		}
+
+		logr.Infof("Admission webhooks container port: %d", int(operatorConfig.WebhooksPort))
+		mgr.GetWebhookServer().Port = int(operatorConfig.WebhooksPort)
+		mgr.GetWebhookServer().CertDir = names.OperatorWebhookTLSDir()
+		if err = (&dbv1alpha1.CassandraCluster{}).SetupWebhookWithManager(mgr); err != nil {
+			logr.With(zap.Error(err)).Fatal("failed to setup webhook with manager")
+			os.Exit(1)
+		}
+		dbv1alpha1.SetWebhookLogger(logr)
+	} else {
+		logr.Infof("Deleting Webhooks Assests if exist")
+		err = webhooks.DeleteWebhookAssets(kubeClient, operatorConfig)
+		if err != nil {
+			logr.With(zap.Error(err)).Fatal("failed to delete webhooks assets")
+			os.Exit(1)
+		}
+	}
+
+	logr.Info("Starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		logr.With(zap.Error(err)).Error("problem running manager")
 		os.Exit(1)

@@ -108,9 +108,19 @@ rules:
   verbs:
   - create
   - delete
+  - get
   - list
   - update
   - watch
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - validatingwebhookconfigurations
+  verbs:
+  - create
+  - delete
+  - get
+  - update
 - apiGroups:
   - apps
   resources:
