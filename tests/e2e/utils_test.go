@@ -23,6 +23,8 @@ import (
 	"k8s.io/client-go/transport/spdy"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	prometheusClient "github.com/prometheus/client_model/go"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -123,8 +125,7 @@ func portForwardPod(namespace string, labels map[string]string, portMappings []s
 
 	go func() {
 		defer GinkgoRecover()
-		err = pf.ForwardPorts() // this will block until stopped
-		Expect(err).To(Succeed())
+		Expect(pf.ForwardPorts()).To(Succeed())
 	}()
 
 	for range readyChan {
@@ -134,7 +135,6 @@ func portForwardPod(namespace string, labels map[string]string, portMappings []s
 }
 
 func doHTTPRequest(method string, url string) ([]byte, int, error) {
-
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
 		return nil, 0, err
@@ -251,4 +251,40 @@ func showPodLogs(labels map[string]string) {
 			fmt.Println(str)
 		}
 	}
+}
+
+// getMetrics returns all metrics in the specified metric family with a given metric name
+func getMetrics(metricFamilies map[string]*prometheusClient.MetricFamily, metricName string) ([]*prometheusClient.Metric, bool) {
+	mf, found := metricFamilies[metricName]
+	if found && mf.Name != nil && *mf.Name == metricName {
+		if len(mf.Metric) == 0 {
+			return []*prometheusClient.Metric{}, false
+		}
+		return mf.Metric, true
+	}
+	return []*prometheusClient.Metric{}, false
+}
+
+// getMetric returns the first metric in the specified metric family
+func getMetric(metricFamilies map[string]*prometheusClient.MetricFamily, metricName string) (prometheusClient.Metric, bool) {
+	metrics, found := getMetrics(metricFamilies, metricName)
+	if found {
+		return *metrics[0], true
+	}
+	return prometheusClient.Metric{}, false
+}
+
+// getMetricByLabel returns the first metric in the specified metric family that has the specified label and label value. The label value parameter is a substring.
+func getMetricByLabel(metricFamilies map[string]*prometheusClient.MetricFamily, metricName, labelName, labelValue string) (prometheusClient.Metric, bool) {
+	metrics, found := getMetrics(metricFamilies, metricName)
+	if found {
+		for _, metric := range metrics {
+			for _, label := range metric.Label {
+				if *label.Name == labelName && strings.Contains(*label.Value, labelValue) {
+					return *metric, true
+				}
+			}
+		}
+	}
+	return prometheusClient.Metric{}, false
 }

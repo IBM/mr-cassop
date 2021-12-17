@@ -123,7 +123,7 @@ UN  172.30.16.197   926.94 KiB  16           100.0%            f3a861ae-848d-4e5
 UN  172.30.200.83   924.49 KiB  16           100.0%            dd93c221-a8b1-47fd-aa63-40282863bf57  rack1
 ```
 
-See [CassandraCluster configuration](cassandracluster-configuration.md) for more details.
+See the [CassandraCluster field specification reference](cassandracluster-configuration.md) for more details.
 
 ## Uninstall Cassandra Operator and the Cluster
 

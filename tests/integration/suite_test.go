@@ -152,7 +152,8 @@ var _ = BeforeSuite(func() {
 		DefaultJolokiaImage:   "jolokia/image",
 		DefaultReaperImage:    "reaper/image",
 	}
-	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
+	sch := scheme.Scheme
+	k8sClient, err = client.New(cfg, client.Options{Scheme: sch})
 	Expect(err).ToNot(HaveOccurred())
 	Expect(k8sClient).ToNot(BeNil())
 
@@ -172,12 +173,11 @@ var _ = BeforeSuite(func() {
 
 	err = (&v1alpha1.CassandraCluster{}).SetupWebhookWithManager(mgr)
 	Expect(err).ToNot(HaveOccurred())
-
 	Expect(mgr).ToNot(BeNil())
 
 	cassandraCtrl := &controllers.CassandraClusterReconciler{
 		Log:    logr.Sugar(),
-		Scheme: scheme.Scheme,
+		Scheme: sch,
 		Client: k8sClient,
 		Cfg:    operatorConfig,
 		Events: events.NewEventRecorder(&record.FakeRecorder{}),
@@ -288,10 +288,16 @@ func createOperatorConfigMaps() {
 			Namespace: operatorConfig.Namespace,
 		},
 	}
-
+	collectdCM := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      names.OperatorCollectdCM(),
+			Namespace: operatorConfig.Namespace,
+		},
+	}
 	Expect(k8sClient.Create(ctx, cassConfigCM)).To(Succeed())
 	Expect(k8sClient.Create(ctx, shiroConfigCM)).To(Succeed())
 	Expect(k8sClient.Create(ctx, prometheusCM)).To(Succeed())
+	Expect(k8sClient.Create(ctx, collectdCM)).To(Succeed())
 }
 
 // As the test control plane doesn't support garbage collection, this function is used to clean up resources
@@ -333,6 +339,7 @@ func CleanUpCreatedResources(ccName, ccNamespace string) {
 		{name: names.ActiveAdminSecret(cc.Name), objType: &v1.Secret{}},
 		{name: names.AdminAuthConfigSecret(cc.Name), objType: &v1.Secret{}},
 		{name: names.PodsConfigConfigmap(cc.Name), objType: &v1.ConfigMap{}},
+		{name: names.CollectdConfigMap(cc.Name), objType: &v1.ConfigMap{}},
 		{name: cc.Spec.AdminRoleSecretName, objType: &v1.Secret{}},
 	}
 
@@ -429,6 +436,15 @@ func getVolumeByName(volumes []v1.Volume, volumeName string) (v1.Volume, bool) {
 	return v1.Volume{}, false
 }
 
+func getServicePortByName(ports []v1.ServicePort, portName string) (v1.ServicePort, bool) {
+	for _, port := range ports {
+		if port.Name == portName {
+			return port, true
+		}
+	}
+	return v1.ServicePort{}, false
+}
+
 func markDeploymentAsReady(namespacedName types.NamespacedName) *apps.Deployment {
 	deployment := &apps.Deployment{}
 
@@ -486,7 +502,7 @@ func createCassandraPods(cc *v1alpha1.CassandraCluster) {
 					NodeName: nodeIPs[replicaID],
 				},
 			}
-			err := k8sClient.Create(ctx, pod)
+			err = k8sClient.Create(ctx, pod)
 			Expect(err).ShouldNot(HaveOccurred())
 			logr.Debug(fmt.Sprintf("created pod %s", pod.Name))
 			Eventually(func() error {

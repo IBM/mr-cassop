@@ -3,7 +3,7 @@ title: Reaper
 slug: /reaper
 ---
 
-Automated repairs can be scheduled with [cassandra-reaper](http://cassandra-reaper.io/). It supports full and incremental repairs, controlled via a simple web based UI.
+Automated repairs can be scheduled with [cassandra-reaper](http://cassandra-reaper.io/). It supports full and incremental repairs, controlled via a simple web-based UI.
 
 Additional reaper settings are configurable from the `reaper` section in the `config/samples/cassandracluster.yaml` file. 
 
@@ -13,7 +13,7 @@ The reaper object contains an optional `scheduleRepairs` field. This field defin
 
 More information can be found through reaper's [API](http://cassandra-reaper.io/docs/api/) and [reaper specific](http://cassandra-reaper.io/docs/configuration/reaper_specific/) documentation.
 
-It's also important to consider whether or not you want to repair TWCS or DTCS tables. It is **strongly** advised not to repair these tables, so they are blacklisted by default. If you want to enable repairs on these types of tables, you can specify `reaper.blacklistTWCS: false` and `REAPER_BLACKLIST_TWCS` will be set accordingly.
+It's also important to consider whether you want to repair TWCS or DTCS tables. It is **strongly** advised not to repair these tables, so they are blacklisted by default. If you want to enable repairs on these types of tables, you can specify `reaper.blacklistTWCS: false` and `REAPER_BLACKLIST_TWCS` will be set accordingly.
 
 See [Reaper Repairs Configuration](reaper-repairs-configuration.md) for a list of fields that can be configured. This is lifted directly from Reaper's [API](http://cassandra-reaper.io/docs/api/) documentation with the options the chart doesn't support removed.
 
@@ -40,3 +40,7 @@ Here's another example of a repair that occurs weekly but will repair all the ta
       repairThreadCount: 4
       repairParallelism: "PARALLEL"
 ```
+
+### Monitoring
+
+Reaper metrics are reported by default via the Dropwizard Metrics interface. These metrics are accessible on reaper's admin port under the `/prometheusMetrics` route. If you would like Prometheus to scrape these metrics, you can enable the reaper service monitor by setting `reaper.serviceMonitor.enabled` to `true`. This will create a service monitor for reaper in the same namespace as your Cassandra cluster. You may also specify additional properties for the reaper service monitor, such as `namespace`, `labels`, and `scrapeInterval`. See the [CassandraCluster field specification reference](cassandracluster-configuration.md) for more information on these fields.

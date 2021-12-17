@@ -49,6 +49,9 @@ const (
 	JolokiaContainerPort = 8080
 	ProberContainerPort  = 8888
 
+	ReaperAppPort   = 8080
+	ReaperAdminPort = 8081
+
 	IntraPort       = 7000
 	TlsPort         = 7001
 	JmxPort         = 7199
@@ -142,7 +145,7 @@ type Monitoring struct {
 
 type ServiceMonitor struct {
 	Enabled        bool              `json:"enabled"`
-	Namespace      string            `json:"namespace"`
+	Namespace      string            `json:"namespace,omitempty"`
 	Labels         map[string]string `json:"labels,omitempty"`
 	ScrapeInterval string            `json:"scrapeInterval,omitempty"`
 }

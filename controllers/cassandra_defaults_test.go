@@ -33,17 +33,26 @@ func TestDefaultingFunction(t *testing.T) {
 	g.Expect(cc.Spec.Prober.Jolokia.Image).To(Equal("jolokia/image"))
 	g.Expect(cc.Spec.Prober.Jolokia.ImagePullPolicy).To(Equal(v1.PullIfNotPresent))
 	g.Expect(cc.Spec.Reaper).ToNot(BeNil())
-	g.Expect(cc.Spec.Reaper.Keyspace).To(Equal("reaper"))
 	g.Expect(cc.Spec.Reaper.Image).To(Equal("reaper/image"))
 	g.Expect(cc.Spec.Reaper.ImagePullPolicy).To(Equal(v1.PullIfNotPresent))
-	g.Expect(cc.Spec.Reaper.RepairIntensity).To(Equal("1.0"))
+	g.Expect(cc.Spec.Reaper.Keyspace).To(Equal("reaper"))
 	g.Expect(cc.Spec.Reaper.Tolerations).To(BeNil())
 	g.Expect(cc.Spec.Reaper.NodeSelector).To(BeNil())
+	g.Expect(cc.Spec.Reaper.RepairIntensity).To(Equal("1.0"))
+	g.Expect(cc.Spec.Reaper.ServiceMonitor.Enabled).To(BeFalse())
+	g.Expect(cc.Spec.Reaper.ServiceMonitor.Namespace).To(BeEmpty())
+	g.Expect(cc.Spec.Reaper.ServiceMonitor.Labels).To(BeEmpty())
+	g.Expect(cc.Spec.Reaper.ServiceMonitor.ScrapeInterval).To(BeEmpty())
 	g.Expect(cc.Spec.Maintenance).To(BeNil())
 	g.Expect(cc.Status.MaintenanceState).To(BeNil())
 	g.Expect(cc.Spec.Encryption.Server.InternodeEncryption).To(Equal(internodeEncryptionNone))
 	g.Expect(cc.Spec.Encryption.Client.Enabled).To(BeFalse())
-
+	g.Expect(cc.Spec.Monitoring.Enabled).To(BeFalse())
+	g.Expect(cc.Spec.Monitoring.Agent).To(BeEmpty())
+	g.Expect(cc.Spec.Monitoring.ServiceMonitor.Enabled).To(BeFalse())
+	g.Expect(cc.Spec.Monitoring.ServiceMonitor.Namespace).To(BeEmpty())
+	g.Expect(cc.Spec.Monitoring.ServiceMonitor.Labels).To(BeEmpty())
+	g.Expect(cc.Spec.Monitoring.ServiceMonitor.ScrapeInterval).To(BeEmpty())
 	cc = &v1alpha1.CassandraCluster{
 		Spec: v1alpha1.CassandraClusterSpec{
 			DCs: []v1alpha1.DC{
@@ -59,6 +68,10 @@ func TestDefaultingFunction(t *testing.T) {
 							Keyspace: "system_auth",
 						},
 					},
+				},
+				ServiceMonitor: v1alpha1.ServiceMonitor{
+					Enabled:   true,
+					Namespace: "",
 				},
 			},
 			Maintenance: []v1alpha1.Maintenance{
@@ -105,19 +118,34 @@ func TestDefaultingFunction(t *testing.T) {
 					CipherSuites:      []string{tlsRsaAes256},
 				},
 			},
+			Monitoring: v1alpha1.Monitoring{
+				Enabled: true,
+				ServiceMonitor: v1alpha1.ServiceMonitor{
+					Enabled:   true,
+					Namespace: "",
+				},
+			},
 		},
 	}
 	reconciler.defaultCassandraCluster(cc)
 	g.Expect(cc.Spec.DCs[0].Tolerations).To(BeNil())
 	g.Expect(cc.Spec.DCs[0].Affinity).To(BeNil())
 	g.Expect(cc.Spec.SystemKeyspaces.DCs).To(BeNil())
+	// Reaper
 	g.Expect(cc.Spec.Reaper.RepairSchedules.Repairs[0].Keyspace).To(Equal("system_auth"))
 	g.Expect(cc.Spec.Reaper.RepairSchedules.Repairs[0].RepairParallelism).To(Equal("DATACENTER_AWARE"))
 	g.Expect(cc.Spec.Reaper.RepairSchedules.Repairs[0].ScheduleDaysBetween).To(Equal(int32(7)))
 	g.Expect(cc.Spec.Reaper.RepairSchedules.Repairs[0].Datacenters).To(Equal([]string{"dc1"}))
 	g.Expect(cc.Spec.Reaper.RepairSchedules.Repairs[0].RepairThreadCount).To(Equal(int32(2)))
+	g.Expect(cc.Spec.Reaper.ServiceMonitor.Enabled).To(BeTrue())
+	g.Expect(cc.Spec.Reaper.ServiceMonitor.Labels).To(BeEmpty())
+	g.Expect(cc.Spec.Reaper.ServiceMonitor.ScrapeInterval).To(BeEquivalentTo("60s"))
+
+	// Maintenance mode
 	g.Expect(cc.Spec.Maintenance[0].DC).To(Equal("dc1"))
 	g.Expect(cc.Spec.Maintenance[0].Pods).ToNot(BeEmpty())
+
+	// Server encryption
 	g.Expect(cc.Spec.Encryption.Server.InternodeEncryption).To(Equal("dc"))
 	g.Expect(cc.Spec.Encryption.Server.TLSSecret.Name).To(Equal("server-tls-secret"))
 	g.Expect(cc.Spec.Encryption.Server.TLSSecret.KeystoreFileKey).To(Equal("test.jks"))
@@ -131,6 +159,7 @@ func TestDefaultingFunction(t *testing.T) {
 	g.Expect(cc.Spec.Encryption.Server.RequireClientAuth).To(BeEquivalentTo(proto.Bool(false)))
 	g.Expect(cc.Spec.Encryption.Server.RequireEndpointVerification).To(BeTrue())
 
+	// Client encryption
 	g.Expect(cc.Spec.Encryption.Client.Enabled).To(BeTrue())
 	g.Expect(cc.Spec.Encryption.Client.TLSSecret.Name).To(Equal("client-tls-secret"))
 	g.Expect(cc.Spec.Encryption.Client.TLSSecret.KeystoreFileKey).To(Equal("test.jks"))
@@ -142,4 +171,11 @@ func TestDefaultingFunction(t *testing.T) {
 	g.Expect(cc.Spec.Encryption.Client.StoreType).To(BeEquivalentTo("PKCS12"))
 	g.Expect(cc.Spec.Encryption.Client.CipherSuites).To(BeEquivalentTo([]string{tlsRsaAes256}))
 	g.Expect(cc.Spec.Encryption.Client.RequireClientAuth).To(BeEquivalentTo(proto.Bool(false)))
+
+	// Monitoring
+	g.Expect(cc.Spec.Monitoring.Enabled).To(BeTrue())
+	g.Expect(cc.Spec.Monitoring.Agent).To(BeEquivalentTo("tlp"))
+	g.Expect(cc.Spec.Monitoring.ServiceMonitor.Enabled).To(BeTrue())
+	g.Expect(cc.Spec.Monitoring.ServiceMonitor.Labels).To(BeEmpty())
+	g.Expect(cc.Spec.Monitoring.ServiceMonitor.ScrapeInterval).To(BeEquivalentTo("30s"))
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -64,7 +63,7 @@ func (r *reaperClient) createRepairRun(ctx context.Context, keyspace, cause stri
 		return RepairRun{}, err
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return RepairRun{}, err
 	}
@@ -99,7 +98,7 @@ func (r *reaperClient) getRepairRuns(ctx context.Context, keyspace string) ([]Re
 		return nil, err
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}

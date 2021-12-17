@@ -750,6 +750,33 @@ var _ = Describe("cassandracluster validation", func() {
 		})
 	})
 
+	Context(".spec.monitoring.agent", func() {
+		It("can only be one of (instaclustr;datastax;tlp)", func() {
+			cc := &v1alpha1.CassandraCluster{
+				ObjectMeta: cassandraObjectMeta,
+				Spec: v1alpha1.CassandraClusterSpec{
+					DCs: []v1alpha1.DC{
+						{
+							Name:     "dc1",
+							Replicas: proto.Int32(3),
+						},
+					},
+					ImagePullSecretName: "pullSecretName",
+					Cassandra: &v1alpha1.Cassandra{
+						NumSeeds:        3,
+						ImagePullPolicy: v1.PullAlways,
+					},
+					Monitoring: v1alpha1.Monitoring{
+						Enabled: true,
+						Agent:   "agent",
+					},
+				},
+			}
+			err := k8sClient.Create(ctx, cc)
+			expectToBeInvalidError(err)
+		})
+	})
+
 	Context("with invalid reaper parameters", func() {
 		It("Should fail the validation", func() {
 			cc := &v1alpha1.CassandraCluster{

@@ -27,11 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-const (
-	reaperAppPort   = 8080
-	reaperAdminPort = 8081
-)
-
 func (r *CassandraClusterReconciler) reconcileReaperPrerequisites(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cqlClient cql.CqlClient, allDCs []dbv1alpha1.DC) error {
 	if err := r.reconcileShiroConfigMap(ctx, cc); err != nil {
 		return errors.Wrap(err, "Error reconciling shiro configmap")
@@ -184,14 +179,14 @@ func (r *CassandraClusterReconciler) reconcileReaperService(ctx context.Context,
 				{
 					Name:       "app",
 					Protocol:   v1.ProtocolTCP,
-					Port:       reaperAppPort,
-					TargetPort: intstr.FromInt(reaperAppPort),
+					Port:       dbv1alpha1.ReaperAppPort,
+					TargetPort: intstr.FromInt(dbv1alpha1.ReaperAppPort),
 				},
 				{
 					Name:       "admin",
 					Protocol:   v1.ProtocolTCP,
-					Port:       reaperAdminPort,
-					TargetPort: intstr.FromInt(reaperAdminPort),
+					Port:       dbv1alpha1.ReaperAdminPort,
+					TargetPort: intstr.FromInt(dbv1alpha1.ReaperAdminPort),
 				},
 			},
 			ClusterIP:                v1.ClusterIPNone,
@@ -247,12 +242,12 @@ func reaperContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, adminSec
 		Ports: []v1.ContainerPort{
 			{
 				Name:          "app",
-				ContainerPort: reaperAppPort,
+				ContainerPort: dbv1alpha1.ReaperAppPort,
 				Protocol:      v1.ProtocolTCP,
 			},
 			{
 				Name:          "admin",
-				ContainerPort: reaperAdminPort,
+				ContainerPort: dbv1alpha1.ReaperAdminPort,
 				Protocol:      v1.ProtocolTCP,
 			},
 		},

@@ -1585,7 +1585,6 @@ spec:
                         type: string
                     required:
                     - enabled
-                    - namespace
                     type: object
                 type: object
               podManagementPolicy:
@@ -1853,7 +1852,6 @@ spec:
                         type: string
                     required:
                     - enabled
-                    - namespace
                     type: object
                   tolerations:
                     items:

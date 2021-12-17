@@ -15,6 +15,8 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"net/url"
 	"time"
 
@@ -245,7 +247,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return res, err
 	}
 
-	reaperServiceUrl, err := url.Parse(fmt.Sprintf("http://%s.%s.svc.cluster.local:8080", names.ReaperService(cc.Name), cc.Namespace))
+	reaperServiceUrl, err := url.Parse(fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", names.ReaperService(cc.Name), cc.Namespace, v1alpha1.ReaperAppPort))
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error parsing reaper service url")
 	}
@@ -453,7 +455,7 @@ func (r *CassandraClusterReconciler) removeDefaultUserIfExists(ctx context.Conte
 }
 
 func SetupCassandraReconciler(r reconcile.Reconciler, mgr manager.Manager, logr *zap.SugaredLogger) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	builder := ctrl.NewControllerManagedBy(mgr).
 		Named("cassandracluster").
 		For(&v1alpha1.CassandraCluster{}).
 		Owns(&appsv1.Deployment{}).
@@ -464,9 +466,24 @@ func SetupCassandraReconciler(r reconcile.Reconciler, mgr manager.Manager, logr 
 		Owns(&rbac.Role{}).
 		Owns(&rbac.RoleBinding{}).
 		Owns(&v1.ServiceAccount{}).
-		Watches(&source.Kind{Type: &v1.Secret{}}, eventhandler.NewAnnotationEventHandler()).
-		//WithEventFilter(predicate.NewPredicate(logr)). //uncomment to see kubernetes events in the logs, e.g. ConfigMap updates
-		Complete(r)
+		Watches(&source.Kind{Type: &v1.Secret{}}, eventhandler.NewAnnotationEventHandler())
+		// WithEventFilter(predicate.NewPredicate(logr)) // uncomment to see kubernetes events in the logs, e.g. ConfigMap updates
+
+	serviceMonitorList := &unstructured.UnstructuredList{}
+	serviceMonitorList.SetGroupVersionKind(serviceMonitorListGVK)
+	if err := mgr.GetClient().List(context.Background(), serviceMonitorList); err != nil {
+		if _, ok := errors.Cause(err).(*meta.NoKindMatchError); ok {
+			logr.Warn("Can't watch ServiceMonitor. ServiceMonitor Kind is not found. Prometheus operator needs to be installed first.", err)
+		} else {
+			logr.Errorf("Can't watch ServiceMonitor: %s", err)
+			// Return is intentionally omitted. Better work without the watch than not at all
+		}
+	} else {
+		serviceMonitor := &unstructured.Unstructured{}
+		serviceMonitor.SetGroupVersionKind(serviceMonitorGVK)
+		builder.Owns(serviceMonitor)
+	}
+	return builder.Complete(r)
 }
 
 func (r *CassandraClusterReconciler) reconcileAnnotations(ctx context.Context, object client.Object, annotations map[string]string) error {

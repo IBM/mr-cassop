@@ -81,7 +81,7 @@ var _ = Describe("Cassandra TLS encryption", func() {
 			Expect(encryptionOptions["protocol"]).To(BeEquivalentTo("TLS"))
 			Expect(encryptionOptions["store_type"]).To(BeEquivalentTo("JKS"))
 
-			checkTLSVolume("server-keystore")
+			checkVolume("server-keystore", "dc1")
 		})
 	})
 
@@ -137,7 +137,7 @@ var _ = Describe("Cassandra TLS encryption", func() {
 			Expect(encryptionOptions["protocol"]).To(BeEquivalentTo("TLS"))
 			Expect(encryptionOptions["store_type"]).To(BeEquivalentTo("JKS"))
 
-			checkTLSVolume("client-keystore")
+			checkVolume("client-keystore", "dc1")
 		})
 	})
 
@@ -146,9 +146,9 @@ var _ = Describe("Cassandra TLS encryption", func() {
 	})
 })
 
-func checkTLSVolume(volumeName string) {
+func checkVolume(volumeName string, dc string) {
 	sts := &appsv1.StatefulSet{}
-	Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.DC(cassandraObjectMeta.Name, "dc1"), Namespace: cassandraObjectMeta.Namespace}, sts)).To(Succeed())
+	Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.DC(cassandraObjectMeta.Name, dc), Namespace: cassandraObjectMeta.Namespace}, sts)).To(Succeed())
 
 	cassandraContainer, found := getContainerByName(sts.Spec.Template.Spec, "cassandra")
 	Expect(found).To(BeTrue())

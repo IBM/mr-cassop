@@ -13,6 +13,8 @@ require (
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.15.0
 	github.com/pkg/errors v0.9.1
+	github.com/prometheus/client_model v0.2.0
+	github.com/prometheus/common v0.26.0
 	go.uber.org/zap v1.19.0
 	k8s.io/api v0.22.2
 	k8s.io/apiextensions-apiserver v0.22.2
