@@ -160,7 +160,7 @@ You may set only the `domain` field, or both the `seeds` + `dcs` fields for one 
 ## Treat Zones as Racks
 
 In a multi-zone cluster, you typically want to treat zones as racks because Cassandra will try to put replicas in different racks. This helps keep Cassandra highly available and is generally regarded as a best practice. 
-In order to accomplish this, set the `treatZonesAsRacks` flag to `true` in your CassandraCluster spec.
+In order to accomplish this, set the `zonesAsRacks` flag to `true` in your CassandraCluster spec.
 
 :::note
 

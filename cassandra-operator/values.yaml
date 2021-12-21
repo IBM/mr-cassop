@@ -2,7 +2,7 @@ replicas: 1
 container:
   image: us.icr.io/cassandra-operator/cassandra-operator:0.1.1
   # imagePullSecret: container-registry-secret
-  imagePullPolicy: Always
+  imagePullPolicy: IfNotPresent
   restartPolicy: Always
   resources:
     limits:

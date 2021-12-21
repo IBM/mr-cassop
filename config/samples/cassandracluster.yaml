@@ -6,7 +6,7 @@ spec:
   imagePullSecretName: icm-coreeng-pull-secret
   adminRoleSecretName: admin-role
   cassandra:
-    imagePullPolicy: Always
+    imagePullPolicy: IfNotPresent
     numSeeds: 2
     logLevel: debug
     purgeGossip: false
@@ -44,7 +44,7 @@ spec:
       "ingress.bluemix.net/redirect-to-https": "True"
   prober:
     logLevel: debug
-    imagePullPolicy: Always
+    imagePullPolicy: IfNotPresent
     resources:
       requests:
         cpu: 200m
