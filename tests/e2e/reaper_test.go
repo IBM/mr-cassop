@@ -40,53 +40,18 @@ var _ = Describe("Cassandra cluster", func() {
 				repairParallelism              = "PARALLEL"
 				segmentCount                   = 10
 				repairThreadCount        int32 = 4
-				reaperRepairSchedules    []v1alpha1.RepairSchedule
-				respBody                 []byte
-				responseData             map[string]interface{}
-				responsesData            []map[string]interface{}
-				releaseVersion           string
-				dcs                      []string
+
+				reaperRepairSchedules []v1alpha1.RepairSchedule
+				respBody              []byte
+				responseData          map[string]interface{}
+				responsesData         []map[string]interface{}
+				releaseVersion        string
+				dcs                   []string
 			)
 
 			for _, dc := range cassandraDCs {
 				dcs = append(dcs, dc.Name)
 			}
-
-			// Generate repair schedules
-			reaperRepairSchedules = append(reaperRepairSchedules,
-				v1alpha1.RepairSchedule{
-					Keyspace:            testRepairReaperKeyspace,
-					Tables:              []string{"test_table1", "test_table2"},
-					ScheduleDaysBetween: 7,
-					ScheduleTriggerTime: currentTime.AddDate(0, 0, 5).Format(reaperRequestTimeLayout),
-					Datacenters:         dcs,
-					IncrementalRepair:   false,
-					RepairThreadCount:   repairThreadCount,
-					Intensity:           intensity,
-					RepairParallelism:   repairParallelism,
-				},
-				v1alpha1.RepairSchedule{
-					Keyspace:            testRepairReaperKeyspace,
-					Tables:              []string{"test_table3"},
-					ScheduleDaysBetween: 7,
-					ScheduleTriggerTime: currentTime.AddDate(0, 0, -5).Format(reaperRequestTimeLayout),
-					Datacenters:         dcs,
-					IncrementalRepair:   false,
-					RepairThreadCount:   repairThreadCount,
-					Intensity:           intensity,
-					RepairParallelism:   repairParallelism,
-				},
-				v1alpha1.RepairSchedule{
-					Keyspace:            testRepairReaperKeyspace,
-					Tables:              []string{"test_table4", "test_table5"},
-					ScheduleDaysBetween: 7,
-					ScheduleTriggerTime: currentTime.Add(time.Hour * 2).Format(reaperRequestTimeLayout),
-					Datacenters:         dcs,
-					IncrementalRepair:   false,
-					RepairThreadCount:   repairThreadCount,
-					Intensity:           intensity,
-					RepairParallelism:   repairParallelism,
-				})
 
 			newCassandraCluster := cassandraCluster.DeepCopy()
 			newCassandraCluster.Spec.Reaper = &v1alpha1.Reaper{
@@ -110,8 +75,8 @@ var _ = Describe("Cassandra cluster", func() {
 				waitForPodsReadiness(cassandraNamespace, labels.WithDCLabel(reaperPodLabels, dc.Name), 1)
 			}
 
-			By("Port forwarding cql and jmx ports of cassandra pod...")
-			casPf := portForwardPod(cassandraNamespace, cassandraClusterPodLabels, []string{fmt.Sprintf("%d:%d", v1alpha1.CqlPort, v1alpha1.CqlPort), fmt.Sprintf("%d:%d", v1alpha1.JmxPort, v1alpha1.JmxPort)})
+			By("Port forwarding cql ports of cassandra pod...")
+			casPf := portForwardPod(cassandraNamespace, cassandraClusterPodLabels, []string{fmt.Sprintf("%d:%d", v1alpha1.CqlPort, v1alpha1.CqlPort)})
 			defer casPf.Close()
 
 			By("Obtaining auth credentials from Secret")
@@ -155,18 +120,83 @@ var _ = Describe("Cassandra cluster", func() {
 			}
 
 			By("Updating CR: adding reaper schedules...")
-			deployedCassandraCluster := &v1alpha1.CassandraCluster{}
+			actualCassandraCluster := &v1alpha1.CassandraCluster{}
 			err = restClient.Get(context.Background(), types.NamespacedName{
 				Namespace: cassandraNamespace,
 				Name:      cassandraRelease,
-			}, deployedCassandraCluster)
+			}, actualCassandraCluster)
 			Expect(err).ToNot(HaveOccurred())
 
-			deployedCassandraCluster.Spec.Reaper.RepairSchedules = v1alpha1.RepairSchedules{
+			// Generate invalid repair schedule
+			reaperRepairSchedules = []v1alpha1.RepairSchedule{
+				{
+					Keyspace:          testRepairReaperKeyspace,
+					Tables:            []string{"test_table1"},
+					Datacenters:       dcs,
+					IncrementalRepair: true,
+					RepairThreadCount: repairThreadCount,
+					Intensity:         intensity,
+					RepairParallelism: "DATACENTER_AWARE"},
+			}
+
+			actualCassandraCluster.Spec.Reaper.RepairSchedules = v1alpha1.RepairSchedules{
 				Enabled: true,
 				Repairs: reaperRepairSchedules,
 			}
-			Expect(restClient.Update(context.Background(), deployedCassandraCluster)).To(Succeed())
+
+			By("Validating Webhooks should fail on CR update")
+			Expect(restClient.Update(context.Background(), actualCassandraCluster)).ToNot(Succeed())
+
+			// Generate valid repair schedules
+			reaperRepairSchedules = []v1alpha1.RepairSchedule{
+				{
+					Keyspace:            testRepairReaperKeyspace,
+					Tables:              []string{"test_table1", "test_table2"},
+					ScheduleDaysBetween: 7,
+					ScheduleTriggerTime: currentTime.AddDate(0, 0, 5).Format(reaperRequestTimeLayout),
+					Datacenters:         dcs,
+					IncrementalRepair:   false,
+					RepairThreadCount:   repairThreadCount,
+					Intensity:           intensity,
+					RepairParallelism:   repairParallelism,
+				},
+				{
+					Keyspace:            testRepairReaperKeyspace,
+					Tables:              []string{"test_table3"},
+					ScheduleDaysBetween: 7,
+					ScheduleTriggerTime: currentTime.AddDate(0, 0, -5).Format(reaperRequestTimeLayout),
+					Datacenters:         dcs,
+					IncrementalRepair:   false,
+					RepairThreadCount:   repairThreadCount,
+					Intensity:           intensity,
+					RepairParallelism:   repairParallelism,
+				},
+				{
+					Keyspace:            testRepairReaperKeyspace,
+					Tables:              []string{"test_table4", "test_table5"},
+					ScheduleDaysBetween: 7,
+					ScheduleTriggerTime: currentTime.Add(time.Hour * 2).Format(reaperRequestTimeLayout),
+					Datacenters:         dcs,
+					IncrementalRepair:   false,
+					RepairThreadCount:   repairThreadCount,
+					Intensity:           intensity,
+					RepairParallelism:   repairParallelism,
+				},
+			}
+
+			err = restClient.Get(context.Background(), types.NamespacedName{
+				Namespace: cassandraNamespace,
+				Name:      cassandraRelease,
+			}, actualCassandraCluster)
+			Expect(err).ToNot(HaveOccurred())
+
+			actualCassandraCluster.Spec.Reaper.RepairSchedules = v1alpha1.RepairSchedules{
+				Enabled: true,
+				Repairs: reaperRepairSchedules,
+			}
+
+			By("Validating Webhooks should succeed on CR update")
+			Expect(restClient.Update(context.Background(), actualCassandraCluster)).To(Succeed())
 
 			By("Port forwarding reaper API pod port...")
 			reaperPf := portForwardPod(cassandraNamespace, reaperPodLabels, []string{"9999:8080"})
@@ -179,6 +209,50 @@ var _ = Describe("Cassandra cluster", func() {
 			err = json.Unmarshal(respBody, &responseData)
 			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to parse body %s", string(respBody)))
 			Expect(responseData["name"]).To(Equal(cassandraRelease))
+
+			By("Checking reaper repair job rescheduling logic...")
+			// Get response with array of maps with reaper repairs
+			Eventually(func() bool {
+				respBody, statusCode, err = doHTTPRequest("GET", "http://localhost:9999/repair_schedule?clusterName="+cassandraRelease+"&keyspace="+testRepairReaperKeyspace)
+
+				if statusCode != 200 || err != nil {
+					fmt.Fprintf(GinkgoWriter, "/repair_schedule request failed (%d): %s", statusCode, string(respBody))
+					return false
+				}
+
+				err = json.Unmarshal(respBody, &responsesData)
+				Expect(err).ToNot(HaveOccurred())
+
+				if len(responsesData) == 0 {
+					fmt.Fprintf(GinkgoWriter, "empty response data, raw body: %s", string(respBody))
+					return false
+				}
+
+				for _, repairSchedule := range reaperRepairSchedules {
+					parsedRepairScheduleTime, err := time.Parse(reaperRequestTimeLayout, repairSchedule.ScheduleTriggerTime)
+					Expect(err).ToNot(HaveOccurred())
+
+					scheduledRepairsResponse := findFirstMapByKV(responsesData, "column_families", repairSchedule.Tables)
+					if scheduledRepairsResponse == nil {
+						fmt.Fprintf(GinkgoWriter, "couldn't find scheduled repair with column_families=%v. Raw body: %s", repairSchedule.Tables, string(respBody))
+						return false
+					}
+
+					nextActivation, ok := scheduledRepairsResponse["next_activation"].(string)
+					if !ok {
+						fmt.Fprintf(GinkgoWriter, "next activation is not string: %#v", scheduledRepairsResponse["next_activation"])
+						return false
+					}
+
+					parsedReaperRespTime, err := time.Parse(reaperResponseTimeLayout, nextActivation)
+					Expect(err).ToNot(HaveOccurred())
+
+					fmt.Fprintf(GinkgoWriter, "Processing schedule for tables: %v", scheduledRepairsResponse["column_families"])
+					testReaperRescheduleTime(parsedRepairScheduleTime, parsedReaperRespTime, currentTime)
+				}
+
+				return true
+			}, time.Minute*2, time.Second*5).Should(BeTrue(), "All repair schedules from spec should be present in Reaper")
 
 			By("Creating reaper repair job...")
 			// Do retry bc tables are not become accessible immediately, error occurs: "Request failed with status code 404. Response body: keyspace doesn't contain a table named test_table1".
@@ -228,61 +302,22 @@ var _ = Describe("Cassandra cluster", func() {
 
 			}, time.Minute*2, time.Second*5).Should(BeTrue(), "Reaper repair job should be running")
 
-			By("Checking reaper repair job rescheduling logic...")
-			// Get response with array of maps with reaper repairs
-			Eventually(func() bool {
-				respBody, statusCode, err = doHTTPRequest("GET", "http://localhost:9999/repair_schedule?clusterName="+cassandraRelease+"&keyspace="+testRepairReaperKeyspace)
-				if statusCode != 200 || err != nil {
-					fmt.Fprintf(GinkgoWriter, "/repair_schedule request failed (%d): %s", statusCode, string(respBody))
-					return false
-				}
-
-				err = json.Unmarshal(respBody, &responsesData)
-				Expect(err).ToNot(HaveOccurred())
-
-				if len(responsesData) == 0 {
-					fmt.Fprintf(GinkgoWriter, "empty response data, raw body: %s", string(respBody))
-					return false
-				}
-
-				for _, repairSchedule := range reaperRepairSchedules {
-					parsedRepairScheduleTime, err := time.Parse(reaperRequestTimeLayout, repairSchedule.ScheduleTriggerTime)
-					Expect(err).ToNot(HaveOccurred())
-
-					scheduledRepairsResponse := findFirstMapByKV(responsesData, "column_families", repairSchedule.Tables)
-					if scheduledRepairsResponse == nil {
-						fmt.Fprintf(GinkgoWriter, "couldn't find scheduled repair with column_families=%v. Raw body: %s", repairSchedule.Tables, string(respBody))
-						return false
-					}
-
-					nextActivation, ok := scheduledRepairsResponse["next_activation"].(string)
-					if !ok {
-						fmt.Fprintf(GinkgoWriter, "next activation is not string: %#v", scheduledRepairsResponse["next_activation"])
-						return false
-					}
-
-					parsedReaperRespTime, err := time.Parse(reaperResponseTimeLayout, nextActivation)
-					Expect(err).ToNot(HaveOccurred())
-
-					fmt.Fprintf(GinkgoWriter, "Processing schedule for tables: %v", scheduledRepairsResponse["column_families"])
-					testReaperRescheduleTime(parsedRepairScheduleTime, parsedReaperRespTime, currentTime)
-				}
-
-				return true
-			}, time.Minute*2, time.Second*5).Should(BeTrue(), "All repair schedules from spec should be present in Reaper")
 		})
 	})
 })
 
-func testReaperRescheduleTime(reqTime time.Time, respTime time.Time, nowTime time.Time) {
-	Expect(respTime.Weekday()).To(BeEquivalentTo(reqTime.Weekday()), "Week day should match.")
+func testReaperRescheduleTime(repairScheduleTime time.Time, reaperRespTime time.Time, nowTime time.Time) {
+	Expect(reaperRespTime.Weekday()).To(BeEquivalentTo(repairScheduleTime.Weekday()), "Week day should match.")
 
-	if respTime.Year() == reqTime.Year() { // There is a case when schedules set with previous year
-		Expect(respTime.YearDay()).To(BeNumerically(">=", reqTime.YearDay()), "Year day should be equal or greater than scheduled.")
-		Expect(respTime.YearDay()).To(BeNumerically(">=", nowTime.YearDay()), "Year day should be equal or greater than current.")
+	if reaperRespTime.Year() == repairScheduleTime.Year() {
+		Expect(reaperRespTime.YearDay()).To(BeNumerically(">=", repairScheduleTime.YearDay()), "Year day should be equal or greater than scheduled.")
 	}
 
-	Expect(respTime.Unix()).To(BeNumerically(">=", respTime.Unix()), "Unix timestamp should be greater or equal scheduled.")
-	Expect(respTime.Unix()).To(BeNumerically(">=", nowTime.Unix()), "Unix timestamp should be greater or equal current.")
-	Expect(respTime.YearDay()-reqTime.YearDay()).To(BeNumerically("<=", 7), "Year day difference should be less or equal 7.")
+	if reaperRespTime.Year() == nowTime.Year() {
+		Expect(reaperRespTime.YearDay()).To(BeNumerically(">=", nowTime.YearDay()), "Year day should be equal or greater than current.")
+	}
+
+	Expect(reaperRespTime.Unix()).To(BeNumerically(">=", reaperRespTime.Unix()), "Unix timestamp should be greater or equal to scheduled.")
+	Expect(reaperRespTime.Unix()).To(BeNumerically(">=", nowTime.Unix()), "Unix timestamp should be greater or equal to current.")
+	Expect(reaperRespTime.YearDay()-repairScheduleTime.YearDay()).To(BeNumerically("<=", 7), "Year day difference should be less or equal 7.")
 }
