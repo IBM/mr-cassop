@@ -75,7 +75,7 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Inject slug/short variables
-      uses: rlespinasse/github-slug-action@3.6.0
+      uses: rlespinasse/github-slug-action@4.0.0
 
     - name: Modify GITHUB_REF_SLUG
       run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
@@ -115,7 +115,7 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Inject slug/short variables
-      uses: rlespinasse/github-slug-action@3.6.0
+      uses: rlespinasse/github-slug-action@4.0.0
 
     - name: Modify GITHUB_REF_SLUG
       run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
@@ -155,7 +155,7 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Inject slug/short variables
-      uses: rlespinasse/github-slug-action@3.6.0
+      uses: rlespinasse/github-slug-action@4.0.0
 
     - name: Modify GITHUB_REF_SLUG
       run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
@@ -196,7 +196,7 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Inject slug/short variables
-      uses: rlespinasse/github-slug-action@3.6.0
+      uses: rlespinasse/github-slug-action@4.0.0
 
     - name: Modify GITHUB_REF_SLUG
       run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
@@ -284,7 +284,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Inject slug/short variables
-      uses: rlespinasse/github-slug-action@3.6.0
+      uses: rlespinasse/github-slug-action@4.0.0
 
     # We have below variable value replacement to prevent re-push of the image within branch during parallel workflows run
     - name: Modify GITHUB_REF_SLUG
@@ -356,7 +356,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Inject slug/short variables
-      uses: rlespinasse/github-slug-action@3.6.0
+      uses: rlespinasse/github-slug-action@4.0.0
     - name: Modify GITHUB_REF_SLUG
       run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
     - name: Install IBM Cloud CLI
