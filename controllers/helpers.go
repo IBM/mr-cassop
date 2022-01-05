@@ -2,6 +2,12 @@ package controllers
 
 import (
 	"context"
+	"time"
+
+	"github.com/ibm/cassandra-operator/api/v1alpha1"
+	"github.com/ibm/cassandra-operator/controllers/names"
+	"github.com/ibm/cassandra-operator/controllers/prober"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/ibm/cassandra-operator/controllers/compare"
 	"github.com/ibm/cassandra-operator/controllers/util"
@@ -89,4 +95,70 @@ func (r *CassandraClusterReconciler) reconcileSecret(ctx context.Context, desire
 		}
 	}
 	return nil
+}
+
+func (r *CassandraClusterReconciler) reconcileAnnotations(ctx context.Context, object client.Object, annotations map[string]string) error {
+	currentAnnotations := object.GetAnnotations()
+
+	if currentAnnotations == nil {
+		object.SetAnnotations(annotations)
+	} else {
+		util.MergeMap(currentAnnotations, annotations)
+		object.SetAnnotations(currentAnnotations)
+	}
+
+	err := r.Update(ctx, object)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *CassandraClusterReconciler) doWithRetry(retryFunc func() error) error {
+	var err error
+	for currentAttempt := 1; currentAttempt <= retryAttempts; currentAttempt++ {
+		err = retryFunc()
+		if err != nil {
+			delay := initialRetryDelaySeconds * time.Second * time.Duration(currentAttempt)
+			r.Log.Warnf("Attempt %d of %d failed. Error: %s. Trying again in %s.", currentAttempt, retryAttempts, err.Error(), delay.String())
+			time.Sleep(delay)
+			continue
+		}
+		break
+	}
+
+	return err
+}
+
+func (r *CassandraClusterReconciler) getAllDCs(ctx context.Context, cc *v1alpha1.CassandraCluster, proberClient prober.ProberClient) ([]v1alpha1.DC, error) {
+	allDCs := make([]v1alpha1.DC, 0)
+	allDCs = append(allDCs, cc.Spec.DCs...)
+
+	if len(cc.Spec.ExternalRegions) == 0 {
+		return allDCs, nil
+	}
+
+	for _, externalRegion := range cc.Spec.ExternalRegions {
+		if len(externalRegion.Domain) != 0 {
+			externalDCs, err := proberClient.GetDCs(ctx, names.ProberIngressDomain(cc.Name, externalRegion.Domain, cc.Namespace))
+			if err != nil {
+				return nil, errors.Wrapf(err, "can't get dcs list from dc %q", externalRegion.Domain)
+			}
+
+			allDCs = append(allDCs, externalDCs...)
+		} else {
+			if len(externalRegion.Seeds) > 0 && len(externalRegion.DCs) > 0 {
+				for _, dc := range externalRegion.DCs {
+					rf := int32(defaultRF)
+					if dc.RF < 3 {
+						rf = dc.RF
+					}
+					allDCs = append(allDCs, v1alpha1.DC{Name: dc.Name, Replicas: &rf})
+				}
+			}
+		}
+	}
+
+	return allDCs, nil
 }

@@ -107,7 +107,7 @@ func TestIsRunning(t *testing.T) {
 		reaperUrl, err := url.Parse(ts.URL)
 		asserts.Expect(err).To(BeNil())
 		rc := NewReaperClient(reaperUrl, "testCluster", &http.Client{
-			Timeout: 100 * time.Microsecond,
+			Timeout: 1 * time.Microsecond,
 		}, 1)
 		result, err := rc.IsRunning(tc.context)
 		asserts.Expect(result).To(Equal(tc.expectedResult))
@@ -173,7 +173,7 @@ func TestClusterExists(t *testing.T) {
 		reaperUrl, err := url.Parse(ts.URL)
 		asserts.Expect(err).To(BeNil())
 		rc := NewReaperClient(reaperUrl, clusterName, &http.Client{
-			Timeout: 100 * time.Microsecond,
+			Timeout: 1 * time.Microsecond,
 		}, 1)
 		result, err := rc.ClusterExists(tc.context)
 		asserts.Expect(result).To(Equal(tc.expectedResult))
@@ -234,7 +234,7 @@ func TestAddCluster(t *testing.T) {
 		reaperUrl, err := url.Parse(ts.URL)
 		asserts.Expect(err).ToNot(HaveOccurred())
 		rc := NewReaperClient(reaperUrl, clusterName, &http.Client{
-			Timeout: 100 * time.Microsecond,
+			Timeout: 1 * time.Microsecond,
 		}, 1)
 		err = rc.AddCluster(tc.context, seed)
 		asserts.Expect(err.Error()).To(tc.errorMatcher)

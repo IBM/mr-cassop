@@ -310,3 +310,48 @@ func (r *CassandraClusterReconciler) getPodBroadcastAddress(ctx context.Context,
 
 	return util.GetNodeIP(v1.NodeInternalIP, node.Status.Addresses), nil
 }
+
+func getLocalSeedsHostnames(cc *v1alpha1.CassandraCluster, broadcastAddresses map[string]string) []string {
+	seedsList := make([]string, 0)
+	for _, dc := range cc.Spec.DCs {
+		numSeeds := dcNumberOfSeeds(cc, dc)
+		for i := int32(0); i < numSeeds; i++ {
+			seed := getSeedHostname(cc, dc.Name, i, !cc.Spec.HostPort.Enabled)
+			if cc.Spec.HostPort.Enabled {
+				seed = broadcastAddresses[seed]
+			}
+			seedsList = append(seedsList, seed)
+		}
+	}
+
+	return seedsList
+}
+
+func isSeedPod(pod v1.Pod) bool {
+	if pod.Labels == nil {
+		return false
+	}
+
+	_, labelExists := pod.Labels[v1alpha1.CassandraClusterSeed]
+	return labelExists
+}
+
+func dcNumberOfSeeds(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC) int32 {
+	numSeeds := cc.Spec.Cassandra.NumSeeds
+	if numSeeds >= *dc.Replicas { // don't configure all dc's nodes as seeds
+		numSeeds = *dc.Replicas - 1 // minimum of 1 non-seed node
+		if *dc.Replicas <= 1 {      // unless dc.Replicas only has 1 or 0 nodes
+			numSeeds = *dc.Replicas
+		}
+	}
+
+	return numSeeds
+}
+
+func getSeedHostname(cc *v1alpha1.CassandraCluster, dcName string, podSuffix int32, isFQDN bool) string {
+	svc := names.DC(cc.Name, dcName)
+	if isFQDN {
+		return fmt.Sprintf("%s-%d.%s.%s.svc.cluster.local", svc, podSuffix, svc, cc.Namespace)
+	}
+	return fmt.Sprintf("%s-%d", svc, podSuffix)
+}

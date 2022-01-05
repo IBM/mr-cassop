@@ -16,6 +16,10 @@ func (r *CassandraClusterReconciler) reconcileCassandraPodLabels(ctx context.Con
 		return err
 	}
 
+	if len(pods.Items) == 0 {
+		return nil
+	}
+
 	seedPodNames := make([]string, 0)
 	for _, dc := range cc.Spec.DCs {
 		numSeeds := dcNumberOfSeeds(cc, dc)

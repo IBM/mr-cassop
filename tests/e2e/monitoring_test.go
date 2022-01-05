@@ -2,14 +2,15 @@ package e2e
 
 import (
 	"fmt"
+	"net/http"
+	"time"
+
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/labels"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/prometheus/common/expfmt"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
-	"net/http"
-	"time"
 )
 
 var _ = Describe("Cassandra cluster", func() {
@@ -73,19 +74,29 @@ var _ = Describe("Cassandra cluster", func() {
 			pf = portForwardPod(cassandraNamespace, reaperPodLabels, []string{fmt.Sprintf("%d:%d", dbv1alpha1.ReaperAdminPort, dbv1alpha1.ReaperAdminPort)})
 			defer pf.Close()
 			resp = &http.Response{}
-			Eventually(func() (int, error) {
+			Eventually(func() (bool, error) {
 				var err error
 				resp, err = http.Get(fmt.Sprintf("http://localhost:%d/prometheusMetrics", dbv1alpha1.ReaperAdminPort))
 				if err != nil {
-					return 0, err
+					return false, err
 				}
-				return resp.StatusCode, nil
-			}, time.Second*20, time.Second*2).Should(Equal(200))
 
-			By("read metrics from reaper pod metrics exporter")
-			parser = expfmt.TextParser{}
-			metricFamilies, err = parser.TextToMetricFamilies(resp.Body)
-			Expect(err).ToNot(HaveOccurred())
+				By("read metrics from reaper pod metrics exporter")
+				parser = expfmt.TextParser{}
+				metricFamilies, err = parser.TextToMetricFamilies(resp.Body)
+				if err != nil {
+					return false, err
+				}
+
+				// Get the first metrics with retries to not fail if the metrics returned no error but not yet appeared
+				By("SegmentRunner Renew Lead metric")
+				metric, found = getMetric(metricFamilies, "io_cassandrareaper_service_SegmentRunner_renewLead")
+				if !found {
+					return false, nil
+				}
+
+				return true, nil
+			}, time.Second*20, time.Second*2).Should(BeTrue(), "should have returned non empty metrics")
 
 			By("SegmentRunner Renew Lead metric")
 			metric, found = getMetric(metricFamilies, "io_cassandrareaper_service_SegmentRunner_renewLead")

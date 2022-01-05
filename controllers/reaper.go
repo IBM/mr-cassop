@@ -3,10 +3,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"math"
-	"strings"
-	"time"
-
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/gogo/protobuf/proto"
@@ -374,67 +370,4 @@ func (r CassandraClusterReconciler) reaperInitialization(ctx context.Context, cc
 		}
 	}
 	return nil
-}
-
-/*
-	Reschedules the ScheduleTriggerTime field of the repair job if the timestamp is in the past.
-	The ScheduleTriggerTime field will be set to the next occurrence of the day of week (DOW) in the future,
-	based on the current system time. The hour, minute, and second will remain the same. If the timestamp is
-	already in the future, this function has no affect.
-
-	Examples:
-	Assume system time is 2020-11-18T12:00:00
-
-	input: 2020-11-15T14:00:00
-	output: 2020-11-22T14:00:00
-
-	input: 2019-01-01T02:00:00
-	output: 2020-11-24T02:00:00
-
-	input: 2020-11-29T02:00:00
-	output: 2020-11-29T02:00:00
-*/
-func rescheduleTimestamp(repair *dbv1alpha1.RepairSchedule) error {
-	hms := "15:04:05"
-	isoFormat := "2006-01-02T" + hms // YYYY-MM-DDThh:mm:ss format (reaper API dates do not include timezone)
-	now := time.Now()
-	unixToday := now.Unix()
-	if len(repair.ScheduleTriggerTime) == 0 {
-		return nil
-	}
-	scheduleTriggerTime, err := time.Parse(isoFormat, repair.ScheduleTriggerTime)
-	if err != nil {
-		return err
-	}
-	unixScheduler := scheduleTriggerTime.Unix()
-	timestampScheduler := scheduleTriggerTime.Format(hms)
-	timestampActual := now.Format(hms)
-	dateShift := 0
-	if unixToday > unixScheduler {
-		dowNow := checkSunday(int(now.Weekday())) // Weekday specifies a day of the week (Sunday = 0, ...)
-		dowScheduler := checkSunday(int(scheduleTriggerTime.Weekday()))
-		dowDiff := dowNow - dowScheduler
-		if dowDiff > 0 {
-			dateShift = 7 - dowDiff
-		} else if dowDiff < 0 {
-			dateShift = int(math.Abs(float64(dowDiff)))
-		} else if timestampScheduler > timestampActual {
-			// DOW matches but scheduleTriggerTime timestamp is ahead of actual. It is possible to set scheduler for today
-			dateShift = 0
-		} else if timestampScheduler < timestampActual {
-			// DOW matches but scheduleTriggerTime timestamp is behind of actual. It isn't possible to set scheduler for today
-			dateShift = 7 - dowDiff
-		}
-		shiftedDate := now.AddDate(0, 0, dateShift)
-		formattedDate := shiftedDate.Format("2006-01-02T" + hms)
-		repair.ScheduleTriggerTime = fmt.Sprintf("%sT%s", strings.Split(formattedDate, "T")[0], timestampScheduler)
-	}
-	return nil
-}
-
-func checkSunday(day int) int {
-	if day == 0 {
-		return 7
-	}
-	return day
 }
