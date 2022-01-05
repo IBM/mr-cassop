@@ -262,7 +262,7 @@ func proberContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 			},
 		},
 		ReadinessProbe: &v1.Probe{
-			Handler: v1.Handler{
+			ProbeHandler: v1.ProbeHandler{
 				HTTPGet: &v1.HTTPGetAction{
 					Port:   intstr.FromString("prober-server"),
 					Path:   "/ping",
@@ -293,7 +293,7 @@ func jolokiaContainer(cc *dbv1alpha1.CassandraCluster, clientTLSSecret *v1.Secre
 		},
 		Resources: cc.Spec.Prober.Jolokia.Resources,
 		ReadinessProbe: &v1.Probe{
-			Handler: v1.Handler{
+			ProbeHandler: v1.ProbeHandler{
 				HTTPGet: &v1.HTTPGetAction{
 					Port:   intstr.FromString("jolokia"),
 					Path:   "/jolokia",

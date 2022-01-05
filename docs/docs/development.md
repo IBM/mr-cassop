@@ -5,14 +5,14 @@ slug: /development
 
 ### Requirements:
 
-* Kubernetes 1.16 or newer. You can use [minikube](https://kubernetes.io/docs/setup/minikube/) or [kind](https://github.com/kubernetes-sigs/kind) for local development.
-* Go 1.12+ with enabled go modules
-* [OperatorSDK](https://github.com/operator-framework/operator-sdk) v1.5.0+
-* [kustomize](https://github.com/kubernetes-sigs/kustomize) 3.1.0+
-* [helm](https://helm.sh/) v2.14.3+
+* Kubernetes 1.19 or newer. You can use [minikube](https://kubernetes.io/docs/setup/minikube/) or [kind](https://github.com/kubernetes-sigs/kind) for local development.
+* Go 1.17+ with enabled go modules
+* [OperatorSDK](https://github.com/operator-framework/operator-sdk) v1.15.0+
+* [kustomize](https://github.com/kubernetes-sigs/kustomize) 4.4.1+
+* [helm](https://helm.sh/) v3.7.02+
 * [docker](https://docs.docker.com/install/)
 * [goimports](https://godoc.org/golang.org/x/tools/cmd/goimports)
-* [GolangCI-Lint](https://github.com/golangci/golangci-lint) 1.19.1+
+* [GolangCI-Lint](https://github.com/golangci/golangci-lint) 1.43.0+
 * [kubebuilder](https://github.com/kubernetes-sigs/kubebuilder) to setup test environment
 * [gomock](https://github.com/golang/mock)
 

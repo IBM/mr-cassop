@@ -1,5 +1,5 @@
 ARG DOCKER_PROXY_REGISTRY=""
-FROM ${DOCKER_PROXY_REGISTRY}golang:1.16 as builder
+FROM ${DOCKER_PROXY_REGISTRY}golang:1.17 as builder
 
 WORKDIR /workspace
 

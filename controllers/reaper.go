@@ -252,7 +252,7 @@ func reaperContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, adminSec
 			},
 		},
 		ReadinessProbe: &v1.Probe{
-			Handler: v1.Handler{
+			ProbeHandler: v1.ProbeHandler{
 				HTTPGet: &v1.HTTPGetAction{
 					Port:   intstr.FromString("admin"),
 					Path:   "/ping",
@@ -266,7 +266,7 @@ func reaperContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, adminSec
 			InitialDelaySeconds: 60,
 		},
 		LivenessProbe: &v1.Probe{
-			Handler: v1.Handler{
+			ProbeHandler: v1.ProbeHandler{
 				HTTPGet: &v1.HTTPGetAction{
 					Port:   intstr.FromString("admin"),
 					Path:   "/ping",

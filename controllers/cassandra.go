@@ -285,7 +285,7 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, resta
 		},
 		Resources: cc.Spec.Cassandra.Resources,
 		LivenessProbe: &v1.Probe{
-			Handler: v1.Handler{
+			ProbeHandler: v1.ProbeHandler{
 				TCPSocket: &v1.TCPSocketAction{
 					Port: intstr.FromString("cql"),
 				},
@@ -297,7 +297,7 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, resta
 			FailureThreshold:    3,
 		},
 		ReadinessProbe: &v1.Probe{
-			Handler: v1.Handler{
+			ProbeHandler: v1.ProbeHandler{
 				Exec: &v1.ExecAction{
 					Command: []string{
 						"bash",
@@ -314,7 +314,7 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, resta
 			InitialDelaySeconds: 40,
 		},
 		Lifecycle: &v1.Lifecycle{
-			PreStop: &v1.Handler{
+			PreStop: &v1.LifecycleHandler{
 				Exec: &v1.ExecAction{
 					Command: []string{
 						"bash",

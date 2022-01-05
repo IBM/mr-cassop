@@ -107,6 +107,11 @@ func init() {
 	flag.BoolVar(&enableOperatorLogs, "enableOperatorLogs", false, "set to true to print operator logs during tests")
 }
 
+func createValidatingWebhookConf(namespace string, clusterRole *rbac.ClusterRole) *admissionv1.ValidatingWebhookConfiguration {
+	conf := webhooks.CreateValidatingWebhookConf(namespace, clusterRole, []byte{})
+	return &conf
+}
+
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 
@@ -126,12 +131,11 @@ var _ = BeforeSuite(func() {
 	clusterRole := &rbac.ClusterRole{}
 	clusterRole.Name = "cassandra-operator"
 	clusterRole.UID = "1"
-
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
 		WebhookInstallOptions: envtest.WebhookInstallOptions{
-			ValidatingWebhooks: []admissionv1.ValidatingWebhookConfiguration{
-				webhooks.CreateValidatingWebhookConf(operatorConfig.Namespace, clusterRole, []byte{}),
+			ValidatingWebhooks: []*admissionv1.ValidatingWebhookConfiguration{
+				createValidatingWebhookConf(operatorConfig.Namespace, clusterRole),
 			},
 		},
 		ErrorIfCRDPathMissing: false,

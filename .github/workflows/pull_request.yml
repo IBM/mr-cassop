@@ -6,8 +6,8 @@ on:
     - main
 
 env:
-  GO_VERSION: 1.16
-  HELM_VERSION: v3.7.0
+  GO_VERSION: 1.17
+  HELM_VERSION: v3.7.2
   PYTHON_VERSION: 3.7 # required for helm tester
   IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
   IBM_CLOUD_REGION: us-south
@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        k8s: [1.19.0, 1.20.2, 1.21.2, 1.22.1]
+        k8s: [1.19.2, 1.20.2, 1.21.2, 1.22.1]
 
     steps:
     - name: Checkout
@@ -406,7 +406,7 @@ jobs:
     - name: Set up Go with latest minor version 1.x
       uses: actions/setup-go@v2
       with:
-        go-version: ^1.16
+        go-version: ^1.17
     - name: Get go dependencies
       run: go mod download
     - name: Run e2e tests

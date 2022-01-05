@@ -5,7 +5,7 @@ slug: /quickstart
 
 ## Prerequisites
 
-* Kubernetes 1.16+
+* Kubernetes 1.19+
 * Helm
 * kubectl configured to communicate with your cluster
 
