@@ -42,7 +42,7 @@ func (r *CassandraClusterReconciler) reconcileCQLConfigMaps(ctx context.Context,
 
 		keyspaceToRepair := cm.Annotations["cql-repairKeyspace"]
 		if len(keyspaceToRepair) > 0 {
-			r.Log.Infof("Starting a repair for %q keyspace", keyspaceToRepair)
+			r.Log.Infof("Starting repair for %q keyspace", keyspaceToRepair)
 			err := reaperClient.RunRepair(ctx, keyspaceToRepair, repairCauseCQLConfigMap)
 			if err != nil {
 				return errors.Wrapf(err, "failed to run repair on %q keyspace", keyspaceToRepair)
@@ -52,7 +52,11 @@ func (r *CassandraClusterReconciler) reconcileCQLConfigMaps(ctx context.Context,
 		}
 
 		r.Log.Debugf("Updating checksum for ConfigMap %q", cm.Name)
+		if len(cm.Annotations["cql-checksum"]) == 0 {
+			cm.Annotations = make(map[string]string)
+		}
 		cm.Annotations["cql-checksum"] = checksum
+
 		if err := r.Update(ctx, &cm); err != nil {
 			return errors.Wrapf(err, "Failed to update CM %q", cm.Name)
 		}

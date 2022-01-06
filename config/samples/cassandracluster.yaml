@@ -87,15 +87,6 @@ spec:
       namespace: ""
       labels: {}
       scrapeInterval: 60s
-  systemKeyspaces:
-    dcs:
-    - name: dc1
-      rf: 2
-    - name: dc2
-      rf: 2
-    names:
-    - system_distributed
-    - system_traces
   hostPort:
     enabled: false
     useExternalHostIP: false # If set to false host internal ip will be used
@@ -122,4 +113,3 @@ spec:
       enabled: false
       tlsSecret:
         name: cassandra-client-tls
-      requireClientAuth: false
