@@ -306,21 +306,15 @@ unregister
 `, jmxUsername))
 	}
 
-	cqlshConfig := fmt.Sprintf(`
-[connection]
-hostname = %s
-port = %d
-[authentication]
-username = %s
-password = %s
-`, dbv1alpha1.CassandraLocalhost, dbv1alpha1.CqlPort, cassandraAdminRole, cassandraAdminPassword)
-
 	if cc.Spec.Encryption.Client.Enabled {
-		cqlshConfig += fmt.Sprintf(`
+		cqlshConfig := fmt.Sprintf(`[connection]
+factory = cqlshlib.ssl.ssl_transport_factory
+ssl = true
 [ssl]
 certfile = %s/%s
 ;; Optional, true by default
 validate = true
+version = SSLv23
 `, cassandraClientTLSDir, cc.Spec.Encryption.Client.TLSSecret.CAFileKey)
 
 		if *cc.Spec.Encryption.Client.RequireClientAuth {
@@ -337,14 +331,11 @@ usercert = %s/%s
 			return err
 		}
 
-		data["nodetool-ssl.properties"] = []byte(fmt.Sprintf(`
--Dcom.sun.management.jmxremote.ssl=true
--Dcom.sun.management.jmxremote.ssl.need.client.auth=%v
--Dcom.sun.management.jmxremote.registry.ssl=true
-`, *cc.Spec.Encryption.Client.RequireClientAuth) + tlsJVMArgs(cc, clientTLSSecret))
-	}
+		data["nodetool-ssl.properties"] = []byte(fmt.Sprintf("-Dcom.sun.management.jmxremote.ssl=true -Dcom.sun.management.jmxremote.ssl.need.client.auth=%v -Dcom.sun.management.jmxremote.registry.ssl=true ",
+			*cc.Spec.Encryption.Client.RequireClientAuth) + tlsJVMArgs(cc, clientTLSSecret))
 
-	data["cqlshrc"] = []byte(cqlshConfig)
+		data["cqlshrc"] = []byte(cqlshConfig)
+	}
 
 	data[dbv1alpha1.CassandraOperatorAdminRole] = []byte(cassandraAdminRole)
 	data[dbv1alpha1.CassandraOperatorAdminPassword] = []byte(cassandraAdminPassword)

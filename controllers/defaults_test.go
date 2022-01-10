@@ -94,7 +94,7 @@ func TestDefaultingFunction(t *testing.T) {
 					Protocol:                    "TLS",
 					Algorithm:                   "SunX509",
 					StoreType:                   "PKCS12",
-					CipherSuites:                []string{tlsRsaAes256},
+					CipherSuites:                []string{tlsEcdheRsaAes128GcmSha256},
 				},
 				Client: v1alpha1.ClientEncryption{
 					Enabled:  true,
@@ -115,7 +115,7 @@ func TestDefaultingFunction(t *testing.T) {
 					Protocol:          "TLS",
 					Algorithm:         "SunX509",
 					StoreType:         "PKCS12",
-					CipherSuites:      []string{tlsRsaAes256},
+					CipherSuites:      []string{tlsEcdheRsaAes128GcmSha256},
 				},
 			},
 			Monitoring: v1alpha1.Monitoring{
@@ -155,7 +155,7 @@ func TestDefaultingFunction(t *testing.T) {
 	g.Expect(cc.Spec.Encryption.Server.Protocol).To(BeEquivalentTo("TLS"))
 	g.Expect(cc.Spec.Encryption.Server.Algorithm).To(BeEquivalentTo("SunX509"))
 	g.Expect(cc.Spec.Encryption.Server.StoreType).To(BeEquivalentTo("PKCS12"))
-	g.Expect(cc.Spec.Encryption.Server.CipherSuites).To(BeEquivalentTo([]string{tlsRsaAes256}))
+	g.Expect(cc.Spec.Encryption.Server.CipherSuites).To(BeEquivalentTo([]string{tlsEcdheRsaAes128GcmSha256}))
 	g.Expect(cc.Spec.Encryption.Server.RequireClientAuth).To(BeEquivalentTo(proto.Bool(false)))
 	g.Expect(cc.Spec.Encryption.Server.RequireEndpointVerification).To(BeTrue())
 
@@ -169,7 +169,7 @@ func TestDefaultingFunction(t *testing.T) {
 	g.Expect(cc.Spec.Encryption.Client.Protocol).To(BeEquivalentTo("TLS"))
 	g.Expect(cc.Spec.Encryption.Client.Algorithm).To(BeEquivalentTo("SunX509"))
 	g.Expect(cc.Spec.Encryption.Client.StoreType).To(BeEquivalentTo("PKCS12"))
-	g.Expect(cc.Spec.Encryption.Client.CipherSuites).To(BeEquivalentTo([]string{tlsRsaAes256}))
+	g.Expect(cc.Spec.Encryption.Client.CipherSuites).To(BeEquivalentTo([]string{tlsEcdheRsaAes128GcmSha256}))
 	g.Expect(cc.Spec.Encryption.Client.RequireClientAuth).To(BeEquivalentTo(proto.Bool(false)))
 
 	// Monitoring

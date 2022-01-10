@@ -57,7 +57,7 @@ var _ = Describe("user provided roles", func() {
 				stdout = execResult.stdout
 				return err
 			}, 30*time.Second, 5*time.Second).Should(Succeed())
-			Expect(stdout).To(ContainSubstring(fmt.Sprintf("Connected to %s at %s:%d.", cassandraRelease, dbv1alpha1.CassandraLocalhost, dbv1alpha1.CqlPort)))
+			Expect(stdout).To(ContainSubstring(fmt.Sprintf("Connected to %s at %s:%d.", cassandraRelease, "127.0.0.1", dbv1alpha1.CqlPort)))
 
 			Expect(restClient.Get(context.Background(), types.NamespacedName{
 				Name: rolesSecret.Name, Namespace: rolesSecret.Namespace,

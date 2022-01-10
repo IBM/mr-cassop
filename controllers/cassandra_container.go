@@ -238,7 +238,8 @@ fi`,
 	if cc.Spec.Encryption.Client.Enabled {
 		args = append(args,
 			"mkdir -p /home/cassandra/.cassandra/",
-			"cp /etc/cassandra-auth-config/nodetool-ssl.properties /home/cassandra/.cassandra/")
+			"cp /etc/cassandra-auth-config/nodetool-ssl.properties /home/cassandra/.cassandra/",
+			"cp /etc/cassandra-auth-config/cqlshrc /home/cassandra/.cassandra/")
 	}
 
 	cassandraRunCommand := []string{

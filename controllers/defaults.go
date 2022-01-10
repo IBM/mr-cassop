@@ -219,7 +219,7 @@ func (r *CassandraClusterReconciler) defaultServerTLS(cc *dbv1alpha1.CassandraCl
 	}
 
 	if len(cc.Spec.Encryption.Server.CipherSuites) == 0 {
-		cc.Spec.Encryption.Server.CipherSuites = []string{tlsRsaAes128, tlsRsaAes256}
+		cc.Spec.Encryption.Server.CipherSuites = []string{tlsEcdheRsaAes256GcmSha384, tlsEcdheRsaAes128GcmSha256}
 	}
 }
 
@@ -243,7 +243,7 @@ func (r *CassandraClusterReconciler) defaultClientTLS(cc *dbv1alpha1.CassandraCl
 	}
 
 	if len(cc.Spec.Encryption.Client.CipherSuites) == 0 {
-		cc.Spec.Encryption.Client.CipherSuites = []string{tlsRsaAes128, tlsRsaAes256}
+		cc.Spec.Encryption.Client.CipherSuites = []string{tlsEcdheRsaAes256GcmSha384, tlsEcdheRsaAes128GcmSha256}
 	}
 
 	if cc.Spec.Encryption.Client.TLSSecret.CAFileKey == "" {

@@ -23,19 +23,12 @@ RUN set -eux; \
   wget https://github.com/datastax/metric-collector-for-apache-cassandra/releases/download/v$DATASTAX_CASSANDRA_EXPORTER_VERSION/datastax-mcac-agent-$DATASTAX_CASSANDRA_EXPORTER_VERSION.tar.gz -O /tmp/datastax-mcac-agent.tgz; \
   tar zxf /tmp/datastax-mcac-agent.tgz -C /prometheus; \
   mv /prometheus/datastax-mcac-agent-* /prometheus/datastax-mcac-agent; \
-  rm -rf /var/lib/apt/lists/* /tmp/datastax-mcac-agent.tgz /prometheus/datastax-mcac-agent/config
-
-RUN mkdir /home/cassandra && \
-    chown cassandra:cassandra /home/cassandra && \
-    usermod -d /home/cassandra cassandra
+  rm -rf /var/lib/apt/lists/* /tmp/datastax-mcac-agent.tgz /prometheus/datastax-mcac-agent/config; \
+  mkdir /home/cassandra; \
+  chown cassandra:cassandra /home/cassandra /opt/cassandra /prometheus
 
 WORKDIR /home/cassandra
 
-COPY .bashrc openssl_fix.sh ./
-
-RUN ./openssl_fix.sh && \
-    rm openssl_fix.sh && \
-    chown cassandra:cassandra /home/cassandra/.bashrc
-
-RUN chown cassandra:cassandra /opt/cassandra /prometheus
 USER cassandra
+
+COPY .bashrc ./

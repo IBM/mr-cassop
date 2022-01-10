@@ -1,11 +1,8 @@
 package integration
 
 import (
-	"fmt"
-
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
-	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/ibm/cassandra-operator/controllers/names"
 	. "github.com/onsi/ginkgo"
@@ -52,14 +49,6 @@ var _ = Describe("secure admin account", func() {
 			Expect(authConfigSecret.Data).To(And(
 				HaveKeyWithValue("admin-role", []byte("cassandra")),
 				HaveKeyWithValue("admin-password", []byte("cassandra")),
-				HaveKeyWithValue("cqlshrc", []byte(fmt.Sprintf(`
-[connection]
-hostname = %s
-port = %d
-[authentication]
-username = cassandra
-password = cassandra
-`, dbv1alpha1.CassandraLocalhost, dbv1alpha1.CqlPort))),
 			))
 
 			markMocksAsReady(cc)
@@ -76,15 +65,6 @@ password = cassandra
 			}, mediumTimeout, mediumRetry).Should(And(
 				HaveKeyWithValue("admin-role", authRoleSecret.Data["admin-role"]),
 				HaveKeyWithValue("admin-password", authRoleSecret.Data["admin-password"]),
-				HaveKeyWithValue("cqlshrc", []byte(fmt.Sprintf(`
-[connection]
-hostname = %s
-port = %d
-[authentication]
-username = %s
-password = %s
-`, dbv1alpha1.CassandraLocalhost, dbv1alpha1.CqlPort,
-					string(authRoleSecret.Data["admin-role"]), string(authRoleSecret.Data["admin-password"])))),
 			))
 
 			roles, err := mockCQLClient.GetRoles()
@@ -107,14 +87,6 @@ password = %s
 			}, mediumTimeout, mediumRetry).Should(And(
 				HaveKeyWithValue("admin-role", authRoleSecret.Data["admin-role"]),
 				HaveKeyWithValue("admin-password", []byte("new-password")),
-				HaveKeyWithValue("cqlshrc", []byte(fmt.Sprintf(`
-[connection]
-hostname = %s
-port = %d
-[authentication]
-username = %s
-password = %s
-`, dbv1alpha1.CassandraLocalhost, dbv1alpha1.CqlPort, string(authRoleSecret.Data["admin-role"]), "new-password"))),
 			))
 
 			Eventually(func() map[string][]byte {
@@ -146,14 +118,6 @@ password = %s
 			}, mediumTimeout, mediumRetry).Should(And(
 				HaveKeyWithValue("admin-role", []byte("new-role")),
 				HaveKeyWithValue("admin-password", []byte("new-password")),
-				HaveKeyWithValue("cqlshrc", []byte(fmt.Sprintf(`
-[connection]
-hostname = %s
-port = %d
-[authentication]
-username = %s
-password = %s
-`, dbv1alpha1.CassandraLocalhost, dbv1alpha1.CqlPort, "new-role", "new-password"))),
 			))
 
 			Eventually(func() map[string][]byte {

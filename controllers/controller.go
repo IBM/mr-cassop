@@ -64,8 +64,8 @@ const (
 	jmxAuthenticationInternal   = "internal"
 	jmxAuthenticationLocalFiles = "local_files"
 
-	tlsRsaAes128 = "TLS_RSA_WITH_AES_128_CBC_SHA"
-	tlsRsaAes256 = "TLS_RSA_WITH_AES_256_CBC_SHA"
+	tlsEcdheRsaAes256GcmSha384 = "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+	tlsEcdheRsaAes128GcmSha256 = "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
 )
 
 // CassandraClusterReconciler reconciles a CassandraCluster object

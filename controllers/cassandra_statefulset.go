@@ -279,10 +279,6 @@ func podsConfigVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
 func authVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
 	items := []v1.KeyToPath{
 		{
-			Key:  "cqlshrc",
-			Path: "cqlshrc",
-		},
-		{
 			Key:  dbv1alpha1.CassandraOperatorAdminRole,
 			Path: dbv1alpha1.CassandraOperatorAdminRole,
 		},
@@ -293,10 +289,16 @@ func authVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
 	}
 
 	if cc.Spec.Encryption.Client.Enabled {
-		items = append(items, v1.KeyToPath{
-			Key:  "nodetool-ssl.properties",
-			Path: "nodetool-ssl.properties",
-		})
+		items = append(items,
+			v1.KeyToPath{
+				Key:  "nodetool-ssl.properties",
+				Path: "nodetool-ssl.properties",
+			},
+			v1.KeyToPath{
+				Key:  "cqlshrc",
+				Path: "cqlshrc",
+			},
+		)
 	}
 
 	volume := v1.Volume{

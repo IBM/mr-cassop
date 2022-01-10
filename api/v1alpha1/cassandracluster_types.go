@@ -43,7 +43,6 @@ const (
 	CassandraOperatorAdminPassword = "admin-password"
 	CassandraOperatorJmxUsername   = "jmx-username"
 	CassandraOperatorJmxPassword   = "jmx-password"
-	CassandraLocalhost             = "127.0.0.1"
 
 	ProberServicePort    = 80
 	JolokiaContainerPort = 8080
