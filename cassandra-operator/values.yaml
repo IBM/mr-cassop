@@ -22,5 +22,19 @@ clusterDashboards:
   namespace: ""
   labels:
     grafana_dashboard: "1"
+monitoring:
+  enabled: false
+  grafanaDashboard:
+    enabled: false
+    namespace: ""
+    labels:
+      grafana_dashboard: "1"
+    datasourceName: ""
+  serviceMonitor:
+    enabled: false
+    namespace: ""
+    labels:
+      operator: cassandra-operator
+    scrapeInterval: 30s
 admissionWebhooks:
   enabled: true

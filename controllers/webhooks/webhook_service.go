@@ -56,29 +56,29 @@ func setupWebhookService(kubeClient *kubernetes.Clientset, operatorConfig *confi
 		},
 	}
 
-	// If container crashes or restarted Service preserves in namespace
+	// if container crashes or is restarted, service is preserved in namespace
 	serviceAPI := kubeClient.CoreV1().Services(operatorConfig.Namespace)
 	actualWebhookService, err := serviceAPI.Get(ctx, names.WebhooksServiceName(), metav1.GetOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			_, err = serviceAPI.Create(ctx, desiredWebhookService, metav1.CreateOptions{})
 			if err != nil {
-				return errors.Wrapf(err, "failed to create Webhooks Service: %s", desiredWebhookService.Name)
+				return errors.Wrapf(err, "failed to create webhooks service: %s", desiredWebhookService.Name)
 			}
 			return nil
 		}
 
-		return errors.Wrapf(err, "failed to get Webhooks Service: %s", names.WebhooksServiceName())
+		return errors.Wrapf(err, "failed to get webhooks service: %s", names.WebhooksServiceName())
 	}
 
-	// Update existing Service
+	// update existing service
 	actualWebhookService.Labels = util.MergeMap(actualWebhookService.Labels, desiredWebhookService.Labels)
 	actualWebhookService.Annotations = util.MergeMap(actualWebhookService.Annotations, desiredWebhookService.Annotations)
 	actualWebhookService.Spec = desiredWebhookService.Spec
 	actualWebhookService.OwnerReferences = desiredWebhookService.OwnerReferences
 	_, err = serviceAPI.Update(ctx, actualWebhookService, metav1.UpdateOptions{})
 	if err != nil {
-		return errors.Wrapf(err, "failed to update Webhooks Service: %s", actualWebhookService.Name)
+		return errors.Wrapf(err, "failed to update webhooks service: %s", actualWebhookService.Name)
 	}
 
 	return nil
@@ -87,8 +87,7 @@ func setupWebhookService(kubeClient *kubernetes.Clientset, operatorConfig *confi
 func deleteWebhookService(kubeClient *kubernetes.Clientset, operatorConfig *config.Config) error {
 	var ctx = context.Background()
 	serviceAPI := kubeClient.CoreV1().Services(operatorConfig.Namespace)
-	err := serviceAPI.Delete(ctx, names.WebhooksServiceName(), metav1.DeleteOptions{})
-	if err != nil {
+	if err := serviceAPI.Delete(ctx, names.WebhooksServiceName(), metav1.DeleteOptions{}); err != nil {
 		if kerrors.IsNotFound(err) {
 			return nil
 		}

@@ -143,14 +143,13 @@ func main() {
 	}
 
 	if operatorConfig.WebhooksEnabled {
-		logr.Infof("Creating Webhooks Assets...")
-		err = webhooks.CreateWebhookAssets(kubeClient, operatorConfig)
-		if err != nil {
+		logr.Infof("creating webhooks assets...")
+		if err = webhooks.CreateWebhookAssets(kubeClient, operatorConfig); err != nil {
 			logr.With(zap.Error(err)).Fatal("failed to create webhooks assets")
 			os.Exit(1)
 		}
 
-		logr.Infof("Admission webhooks container port: %d", int(operatorConfig.WebhooksPort))
+		logr.Infof("admission webhooks container port: %d", int(operatorConfig.WebhooksPort))
 		mgr.GetWebhookServer().Port = int(operatorConfig.WebhooksPort)
 		mgr.GetWebhookServer().CertDir = names.OperatorWebhookTLSDir()
 		if err = (&dbv1alpha1.CassandraCluster{}).SetupWebhookWithManager(mgr); err != nil {
@@ -159,16 +158,15 @@ func main() {
 		}
 		dbv1alpha1.SetWebhookLogger(logr)
 	} else {
-		logr.Infof("Deleting Webhooks Assests if exist")
-		err = webhooks.DeleteWebhookAssets(kubeClient, operatorConfig)
-		if err != nil {
+		logr.Infof("deleting webhooks assests if they exist")
+		if err = webhooks.DeleteWebhookAssets(kubeClient, operatorConfig); err != nil {
 			logr.With(zap.Error(err)).Fatal("failed to delete webhooks assets")
 			os.Exit(1)
 		}
 	}
 
 	logr.Info("Starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err = mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		logr.With(zap.Error(err)).Error("problem running manager")
 		os.Exit(1)
 	}

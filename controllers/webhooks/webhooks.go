@@ -12,13 +12,11 @@ func CreateWebhookAssets(kubeClient *kubernetes.Clientset, operatorConfig *confi
 		return errors.Wrapf(err, "failed to setup TLS for Admission Webhooks")
 	}
 
-	err = setupValidatingWebhookConfig(kubeClient, operatorConfig, caKeypair)
-	if err != nil {
+	if err = setupValidatingWebhookConfig(kubeClient, operatorConfig, caKeypair); err != nil {
 		return errors.Wrapf(err, "failed to setup ValidatingWebhookConfiguration")
 	}
 
-	err = setupWebhookService(kubeClient, operatorConfig)
-	if err != nil {
+	if err = setupWebhookService(kubeClient, operatorConfig); err != nil {
 		return errors.Wrapf(err, "failed to setup Webhooks Service")
 	}
 
