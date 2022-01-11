@@ -79,6 +79,8 @@ func (r *CassandraClusterReconciler) podsConfigMapData(ctx context.Context, cc *
 	}
 
 	cmData := make(map[string]string)
+	seedNodesReady := dcSeedPodsReady(podList.Items, nextDCToInit)
+	nextNonSeedPodName := nextNonSeedPodToInit(podList.Items, nextDCToInit)
 	for _, pod := range podList.Items {
 		entryName := pod.Name + "_" + string(pod.UID) + ".sh"
 
@@ -115,9 +117,19 @@ func (r *CassandraClusterReconciler) podsConfigMapData(ctx context.Context, cc *
 		} else if nextDCToInit == "" { // should not pause any pod if all DCs are ready
 			pausePodInit = false
 		} else { // start pod if it's in the next selected DC
-			pausePodInit = nextDCToInit != pod.Labels[v1alpha1.CassandraClusterDC]
-			if !dcSeedPodsReady(podList.Items, nextDCToInit) && !isSeedPod(pod) {
+			pausePodInit = nextDCToInit != pod.Labels[v1alpha1.CassandraClusterDC] //start the node if it's in the next DC to init
+			if !seedNodesReady && !isSeedPod(pod) {                                //pause non-seed nodes until seed nodes are up and running
 				pausePodInit = true
+			}
+
+			if seedNodesReady && !isSeedPod(pod) { //start non-seed nodes one by one
+				if len(nextNonSeedPodName) != 0 { // if not all seed nodes are ready
+					if nextNonSeedPodName == pod.Name || podReady(pod) { // don't pause if that's the next pod to init or an already initialized one
+						pausePodInit = false
+					} else {
+						pausePodInit = true
+					}
+				}
 			}
 		}
 
@@ -309,6 +321,29 @@ func (r *CassandraClusterReconciler) getPodBroadcastAddress(ctx context.Context,
 	}
 
 	return util.GetNodeIP(v1.NodeInternalIP, node.Status.Addresses), nil
+}
+
+func nextNonSeedPodToInit(existingPods []v1.Pod, nextDCToInit string) string {
+	var podNames []string
+	nextDCPods := make(map[string]v1.Pod)
+
+	for _, existingPod := range existingPods {
+		if nextDCToInit != "" && existingPod.Labels[v1alpha1.CassandraClusterDC] != nextDCToInit {
+			continue // skip pods from DC that is not initializing yet
+		}
+
+		podNames = append(podNames, existingPod.Name)
+		nextDCPods[existingPod.Name] = existingPod
+	}
+
+	sort.Strings(podNames)
+	for _, existingPod := range podNames {
+		if !isSeedPod(nextDCPods[existingPod]) && !podReady(nextDCPods[existingPod]) {
+			return nextDCPods[existingPod].Name
+		}
+	}
+
+	return ""
 }
 
 func getLocalSeedsHostnames(cc *v1alpha1.CassandraCluster, broadcastAddresses map[string]string) []string {

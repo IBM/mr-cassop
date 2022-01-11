@@ -5,6 +5,10 @@ import (
 	"net/url"
 	"testing"
 
+	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/ibm/cassandra-operator/controllers/events"
 	"k8s.io/client-go/tools/record"
 
@@ -25,17 +29,39 @@ import (
 )
 
 func TestPodsConfigMapData(t *testing.T) {
+	ccName := "test-cluster"
+	ccNamespace := "default"
+	ccObjMeta := metav1.ObjectMeta{
+		Name:      ccName,
+		Namespace: ccNamespace,
+	}
+
+	cLabels := func(ccName, dc string, isSeed bool) map[string]string {
+		l := map[string]string{
+			v1alpha1.CassandraClusterInstance:  ccName,
+			v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
+			v1alpha1.CassandraClusterDC:        dc,
+		}
+
+		if isSeed {
+			l[v1alpha1.CassandraClusterSeed] = "seed"
+		}
+
+		return l
+	}
+
+	stsObjectMeta := metav1.ObjectMeta{
+		Name:      "test-cluster-cassandra-dc1",
+		Namespace: "default",
+	}
 	readyStatefulSet := &appsv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-cluster-cassandra-dc1",
-			Namespace: "default",
-		},
+		ObjectMeta: stsObjectMeta,
 		Spec: appsv1.StatefulSetSpec{
-			Replicas: proto.Int32(3),
+			Replicas: proto.Int32(6),
 		},
 		Status: appsv1.StatefulSetStatus{
-			Replicas:      3,
-			ReadyReplicas: 3,
+			Replicas:      6,
+			ReadyReplicas: 2,
 		},
 	}
 
@@ -54,10 +80,7 @@ func TestPodsConfigMapData(t *testing.T) {
 		{
 			name: "simple case with hostport disabled",
 			cc: &v1alpha1.CassandraCluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-cluster",
-					Namespace: "default",
-				},
+				ObjectMeta: ccObjMeta,
 				Spec: v1alpha1.CassandraClusterSpec{
 					DCs: []v1alpha1.DC{
 						{
@@ -70,52 +93,81 @@ func TestPodsConfigMapData(t *testing.T) {
 			k8sLists: []client.ObjectList{
 				&v1.PodList{
 					Items: []v1.Pod{
+						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", false, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", false, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", false, cLabels(ccName, "dc1", false)),
+					},
+				},
+			},
+			k8sObjects: []client.Object{&appsv1.StatefulSet{
+				ObjectMeta: stsObjectMeta,
+				Spec: appsv1.StatefulSetSpec{
+					Replicas: proto.Int32(3),
+				},
+				Status: appsv1.StatefulSetStatus{
+					Replicas:      3,
+					ReadyReplicas: 0,
+				},
+			},
+			},
+			expectedCMData: map[string]string{
+				"test-cluster-cassandra-dc1-0_uid1.sh": `export CASSANDRA_BROADCAST_ADDRESS=10.1.1.3
+export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.3
+export CASSANDRA_SEEDS=test-cluster-cassandra-dc1-0.test-cluster-cassandra-dc1.default.svc.cluster.local,test-cluster-cassandra-dc1-1.test-cluster-cassandra-dc1.default.svc.cluster.local
+export CASSANDRA_NODE_PREVIOUS_IP=
+export PAUSE_INIT=false
+`,
+				"test-cluster-cassandra-dc1-1_uid2.sh": `export CASSANDRA_BROADCAST_ADDRESS=10.1.1.4
+export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.4
+export CASSANDRA_SEEDS=test-cluster-cassandra-dc1-0.test-cluster-cassandra-dc1.default.svc.cluster.local,test-cluster-cassandra-dc1-1.test-cluster-cassandra-dc1.default.svc.cluster.local
+export CASSANDRA_NODE_PREVIOUS_IP=
+export PAUSE_INIT=false
+`,
+				"test-cluster-cassandra-dc1-2_uid3.sh": `export CASSANDRA_BROADCAST_ADDRESS=10.1.1.5
+export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.5
+export CASSANDRA_SEEDS=test-cluster-cassandra-dc1-0.test-cluster-cassandra-dc1.default.svc.cluster.local,test-cluster-cassandra-dc1-1.test-cluster-cassandra-dc1.default.svc.cluster.local
+export CASSANDRA_NODE_PREVIOUS_IP=
+export PAUSE_INIT=true
+`,
+			},
+			expectedError: nil,
+		},
+		{
+			name: "non seed nodes should boot one at a time",
+			cc: &v1alpha1.CassandraCluster{
+				ObjectMeta: ccObjMeta,
+				Spec: v1alpha1.CassandraClusterSpec{
+					DCs: []v1alpha1.DC{
 						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-0",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-								},
-								UID: "uid1",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.3",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-1",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-								},
-								UID: "uid2",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.4",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-2",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-								},
-								UID: "uid3",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.5",
-							},
+							Name:     "dc1",
+							Replicas: proto.Int(6),
 						},
 					},
 				},
 			},
-			k8sObjects: []client.Object{readyStatefulSet},
+			k8sLists: []client.ObjectList{
+				&v1.PodList{
+					Items: []v1.Pod{
+						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", true, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", true, cLabels(ccName, "dc1", false)),
+						createTestPod("test-cluster-cassandra-dc1-3", ccNamespace, "uid4", "10.1.1.6", "node4", false, cLabels(ccName, "dc1", false)),
+						createTestPod("test-cluster-cassandra-dc1-4", ccNamespace, "uid5", "10.1.1.7", "node5", false, cLabels(ccName, "dc1", false)),
+						createTestPod("test-cluster-cassandra-dc1-5", ccNamespace, "uid6", "10.1.1.8", "node6", false, cLabels(ccName, "dc1", false)),
+					},
+				},
+			},
+			k8sObjects: []client.Object{&appsv1.StatefulSet{
+				ObjectMeta: stsObjectMeta,
+				Spec: appsv1.StatefulSetSpec{
+					Replicas: proto.Int32(6),
+				},
+				Status: appsv1.StatefulSetStatus{
+					Replicas:      6,
+					ReadyReplicas: 2,
+				},
+			},
+			},
 			expectedCMData: map[string]string{
 				"test-cluster-cassandra-dc1-0_uid1.sh": `export CASSANDRA_BROADCAST_ADDRESS=10.1.1.3
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.3
@@ -135,16 +187,31 @@ export CASSANDRA_SEEDS=test-cluster-cassandra-dc1-0.test-cluster-cassandra-dc1.d
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
 `,
+				"test-cluster-cassandra-dc1-3_uid4.sh": `export CASSANDRA_BROADCAST_ADDRESS=10.1.1.6
+export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.6
+export CASSANDRA_SEEDS=test-cluster-cassandra-dc1-0.test-cluster-cassandra-dc1.default.svc.cluster.local,test-cluster-cassandra-dc1-1.test-cluster-cassandra-dc1.default.svc.cluster.local
+export CASSANDRA_NODE_PREVIOUS_IP=
+export PAUSE_INIT=false
+`,
+				"test-cluster-cassandra-dc1-4_uid5.sh": `export CASSANDRA_BROADCAST_ADDRESS=10.1.1.7
+export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.7
+export CASSANDRA_SEEDS=test-cluster-cassandra-dc1-0.test-cluster-cassandra-dc1.default.svc.cluster.local,test-cluster-cassandra-dc1-1.test-cluster-cassandra-dc1.default.svc.cluster.local
+export CASSANDRA_NODE_PREVIOUS_IP=
+export PAUSE_INIT=true
+`,
+				"test-cluster-cassandra-dc1-5_uid6.sh": `export CASSANDRA_BROADCAST_ADDRESS=10.1.1.8
+export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.8
+export CASSANDRA_SEEDS=test-cluster-cassandra-dc1-0.test-cluster-cassandra-dc1.default.svc.cluster.local,test-cluster-cassandra-dc1-1.test-cluster-cassandra-dc1.default.svc.cluster.local
+export CASSANDRA_NODE_PREVIOUS_IP=
+export PAUSE_INIT=true
+`,
 			},
 			expectedError: nil,
 		},
 		{
 			name: "with not found no error should be returned",
 			cc: &v1alpha1.CassandraCluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-cluster",
-					Namespace: "default",
-				},
+				ObjectMeta: ccObjMeta,
 			},
 			k8sLists:       []client.ObjectList{},
 			expectedCMData: nil,
@@ -153,10 +220,7 @@ export PAUSE_INIT=false
 		{
 			name: "hostport enabled, no external DC domains",
 			cc: &v1alpha1.CassandraCluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-cluster",
-					Namespace: "default",
-				},
+				ObjectMeta: ccObjMeta,
 				Spec: v1alpha1.CassandraClusterSpec{
 					DCs: []v1alpha1.DC{
 						{
@@ -169,104 +233,29 @@ export PAUSE_INIT=false
 					},
 				},
 			},
-			k8sObjects: []client.Object{readyStatefulSet},
+			k8sObjects: []client.Object{&appsv1.StatefulSet{
+				ObjectMeta: stsObjectMeta,
+				Spec: appsv1.StatefulSetSpec{
+					Replicas: proto.Int32(3),
+				},
+				Status: appsv1.StatefulSetStatus{
+					Replicas:      3,
+					ReadyReplicas: 3,
+				},
+			}},
 			k8sLists: []client.ObjectList{
 				&v1.PodList{
 					Items: []v1.Pod{
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-0",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-								},
-								UID: "uid1",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node1",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.3",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-1",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-								},
-								UID: "uid2",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node2",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.4",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-2",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-								},
-								UID: "uid3",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node3",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.5",
-							},
-						},
+						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", true, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", true, cLabels(ccName, "dc1", false)),
 					},
 				},
 				&v1.NodeList{
 					Items: []v1.Node{
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node1",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.143",
-									},
-								},
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node2",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.153",
-									},
-								},
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node3",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.142",
-									},
-								},
-							},
-						},
+						createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
+						createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
+						createTestNode("node3", "12.43.22.142", "54.32.141.233", nil),
 					},
 				},
 			},
@@ -295,10 +284,7 @@ export PAUSE_INIT=false
 		{
 			name: "hostport enabled, use external IP",
 			cc: &v1alpha1.CassandraCluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-cluster",
-					Namespace: "default",
-				},
+				ObjectMeta: ccObjMeta,
 				Spec: v1alpha1.CassandraClusterSpec{
 					DCs: []v1alpha1.DC{
 						{
@@ -312,116 +298,29 @@ export PAUSE_INIT=false
 					},
 				},
 			},
-			k8sObjects: []client.Object{readyStatefulSet},
+			k8sObjects: []client.Object{&appsv1.StatefulSet{
+				ObjectMeta: stsObjectMeta,
+				Spec: appsv1.StatefulSetSpec{
+					Replicas: proto.Int32(3),
+				},
+				Status: appsv1.StatefulSetStatus{
+					Replicas:      3,
+					ReadyReplicas: 3,
+				},
+			}},
 			k8sLists: []client.ObjectList{
 				&v1.PodList{
 					Items: []v1.Pod{
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-0",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-								},
-								UID: "uid1",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node1",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.3",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-1",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-								},
-								UID: "uid2",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node2",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.4",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-2",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-								},
-								UID: "uid3",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node3",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.5",
-							},
-						},
+						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", true, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", true, cLabels(ccName, "dc1", false)),
 					},
 				},
 				&v1.NodeList{
 					Items: []v1.Node{
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node1",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.143",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.231",
-									},
-								},
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node2",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.153",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.232",
-									},
-								},
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node3",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.142",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.233",
-									},
-								},
-							},
-						},
+						createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
+						createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
+						createTestNode("node3", "12.43.22.142", "54.32.141.233", nil),
 					},
 				},
 			},
@@ -450,10 +349,7 @@ export PAUSE_INIT=false
 		{
 			name: "ExternalRegions.Seeds should be added too",
 			cc: &v1alpha1.CassandraCluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-cluster",
-					Namespace: "default",
-				},
+				ObjectMeta: ccObjMeta,
 				Spec: v1alpha1.CassandraClusterSpec{
 					DCs: []v1alpha1.DC{
 						{
@@ -479,112 +375,16 @@ export PAUSE_INIT=false
 			k8sLists: []client.ObjectList{
 				&v1.PodList{
 					Items: []v1.Pod{
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-0",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-								},
-								UID: "uid1",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node1",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.3",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-1",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-								},
-								UID: "uid2",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node2",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.4",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-2",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-								},
-								UID: "uid3",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node3",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.5",
-							},
-						},
+						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", true, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", true, cLabels(ccName, "dc1", false)),
 					},
 				},
 				&v1.NodeList{
 					Items: []v1.Node{
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node1",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.143",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.231",
-									},
-								},
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node2",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.153",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.232",
-									},
-								},
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node3",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.142",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.233",
-									},
-								},
-							},
-						},
+						createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
+						createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
+						createTestNode("node3", "12.43.22.142", "54.32.141.233", nil),
 					},
 				},
 			},
@@ -613,10 +413,7 @@ export PAUSE_INIT=false
 		{
 			name: "ErrPodNotScheduled error if pod has nodename empty",
 			cc: &v1alpha1.CassandraCluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-cluster",
-					Namespace: "default",
-				},
+				ObjectMeta: ccObjMeta,
 				Spec: v1alpha1.CassandraClusterSpec{
 					DCs: []v1alpha1.DC{
 						{
@@ -633,112 +430,16 @@ export PAUSE_INIT=false
 			k8sLists: []client.ObjectList{
 				&v1.PodList{
 					Items: []v1.Pod{
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-0",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-								},
-								UID: "uid1",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node1",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.3",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-1",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-								},
-								UID: "uid2",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node2",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.4",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-2",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-								},
-								UID: "uid3",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.5",
-							},
-						},
+						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", true, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "", true, cLabels(ccName, "dc1", false)),
 					},
 				},
 				&v1.NodeList{
 					Items: []v1.Node{
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node1",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.143",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.231",
-									},
-								},
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node2",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.153",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.232",
-									},
-								},
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node3",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.142",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.233",
-									},
-								},
-							},
-						},
+						createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
+						createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
+						createTestNode("node3", "12.43.22.142", "54.32.141.233", nil),
 					},
 				},
 			},
@@ -767,57 +468,23 @@ export PAUSE_INIT=false
 			k8sLists: []client.ObjectList{
 				&v1.PodList{
 					Items: []v1.Pod{
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-0",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-								},
-								UID: "uid1",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node1",
-							},
-							Status: v1.PodStatus{
-								PodIP: "", // not scheduled yet
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-1",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-								},
-								UID: "uid2",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node2",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.4",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-2",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-								},
-								UID: "uid3",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node3",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.5",
-							},
-						},
+						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "", "node1", true, map[string]string{
+							v1alpha1.CassandraClusterInstance:  "test-cluster",
+							v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
+							v1alpha1.CassandraClusterSeed:      "test-cluster-cassandra-dc1-0",
+							v1alpha1.CassandraClusterDC:        "dc1",
+						}),
+						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, map[string]string{
+							v1alpha1.CassandraClusterInstance:  "test-cluster",
+							v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
+							v1alpha1.CassandraClusterSeed:      "test-cluster-cassandra-dc1-1",
+							v1alpha1.CassandraClusterDC:        "dc1",
+						}),
+						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", true, map[string]string{
+							v1alpha1.CassandraClusterInstance:  "test-cluster",
+							v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
+							v1alpha1.CassandraClusterDC:        "dc1",
+						}),
 					},
 				},
 				&v1.NodeList{
@@ -916,112 +583,16 @@ export PAUSE_INIT=false
 			k8sLists: []client.ObjectList{
 				&v1.PodList{
 					Items: []v1.Pod{
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-0",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-								},
-								UID: "uid1",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node1",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.3",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-1",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-								},
-								UID: "uid2",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node2",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.4",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-2",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-								},
-								UID: "uid3",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node3",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.5",
-							},
-						},
+						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", true, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", true, cLabels(ccName, "dc1", false)),
 					},
 				},
 				&v1.NodeList{
 					Items: []v1.Node{
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node1",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.143",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.231",
-									},
-								},
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node2",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.153",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.232",
-									},
-								},
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node3",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.142",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.233",
-									},
-								},
-							},
-						},
+						createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
+						createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
+						createTestNode("node3", "12.43.22.142", "54.32.141.233", nil),
 					},
 				},
 				&appsv1.StatefulSetList{
@@ -1104,169 +675,19 @@ export PAUSE_INIT=false
 			k8sLists: []client.ObjectList{
 				&v1.PodList{
 					Items: []v1.Pod{
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-0",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-									v1alpha1.CassandraClusterDC:        "dc1",
-								},
-								UID: "uid1",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node1",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.3",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-1",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-									v1alpha1.CassandraClusterDC:        "dc1",
-								},
-								UID: "uid2",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node2",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.4",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-2",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-									v1alpha1.CassandraClusterDC:        "dc1",
-								},
-								UID: "uid3",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node3",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.5",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc3-0",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-									v1alpha1.CassandraClusterDC:        "dc3",
-								},
-								UID: "uid1",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node1",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.2.3",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc3-1",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-									v1alpha1.CassandraClusterDC:        "dc3",
-								},
-								UID: "uid2",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node2",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.2.4",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc3-2",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-									v1alpha1.CassandraClusterDC:        "dc3",
-								},
-								UID: "uid3",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node3",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.2.5",
-							},
-						},
+						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", false, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", false, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", false, cLabels(ccName, "dc1", false)),
+						createTestPod("test-cluster-cassandra-dc3-0", ccNamespace, "uid1", "10.1.2.3", "node1", false, cLabels(ccName, "dc3", true)),
+						createTestPod("test-cluster-cassandra-dc3-1", ccNamespace, "uid2", "10.1.2.4", "node2", false, cLabels(ccName, "dc3", true)),
+						createTestPod("test-cluster-cassandra-dc3-2", ccNamespace, "uid3", "10.1.2.5", "node3", false, cLabels(ccName, "dc3", false)),
 					},
 				},
 				&v1.NodeList{
 					Items: []v1.Node{
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node1",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.143",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.231",
-									},
-								},
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node2",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.153",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.232",
-									},
-								},
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node3",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.142",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.233",
-									},
-								},
-							},
-						},
+						createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
+						createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
+						createTestNode("node3", "12.43.22.142", "54.32.141.233", nil),
 					},
 				},
 				&appsv1.StatefulSetList{
@@ -1299,11 +720,23 @@ export PAUSE_INIT=false
 				},
 			},
 			expectedCMData: map[string]string{
+				`test-cluster-cassandra-dc1-0_uid1.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.143
+export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.3
+export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
+export CASSANDRA_NODE_PREVIOUS_IP=
+export PAUSE_INIT=false
+`,
+				`test-cluster-cassandra-dc1-1_uid2.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.153
+export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.4
+export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
+export CASSANDRA_NODE_PREVIOUS_IP=
+export PAUSE_INIT=false
+`,
 				`test-cluster-cassandra-dc1-2_uid3.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.142
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.5
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
 export CASSANDRA_NODE_PREVIOUS_IP=
-export PAUSE_INIT=false
+export PAUSE_INIT=true
 `,
 				`test-cluster-cassandra-dc3-0_uid1.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.143
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.2.3
@@ -1322,18 +755,6 @@ export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.2.5
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=true
-`,
-				`test-cluster-cassandra-dc1-0_uid1.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.143
-export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.3
-export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
-export CASSANDRA_NODE_PREVIOUS_IP=
-export PAUSE_INIT=false
-`,
-				`test-cluster-cassandra-dc1-1_uid2.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.153
-export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.4
-export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
-export CASSANDRA_NODE_PREVIOUS_IP=
-export PAUSE_INIT=false
 `,
 			},
 			expectedError: nil,
@@ -1379,169 +800,19 @@ export PAUSE_INIT=false
 			k8sLists: []client.ObjectList{
 				&v1.PodList{
 					Items: []v1.Pod{
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-0",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-									v1alpha1.CassandraClusterDC:        "dc1",
-								},
-								UID: "uid1",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node1",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.3",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-1",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-									v1alpha1.CassandraClusterDC:        "dc1",
-								},
-								UID: "uid2",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node2",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.4",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-2",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-									v1alpha1.CassandraClusterDC:        "dc1",
-								},
-								UID: "uid3",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node3",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.5",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc3-0",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-									v1alpha1.CassandraClusterDC:        "dc3",
-								},
-								UID: "uid1",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node1",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.2.3",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc3-1",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-									v1alpha1.CassandraClusterDC:        "dc3",
-								},
-								UID: "uid2",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node2",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.2.4",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc3-2",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-									v1alpha1.CassandraClusterDC:        "dc3",
-								},
-								UID: "uid3",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node3",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.2.5",
-							},
-						},
+						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", true, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", true, cLabels(ccName, "dc1", false)),
+						createTestPod("test-cluster-cassandra-dc3-0", ccNamespace, "uid1", "10.1.2.3", "node1", true, cLabels(ccName, "dc3", true)),
+						createTestPod("test-cluster-cassandra-dc3-1", ccNamespace, "uid2", "10.1.2.4", "node2", true, cLabels(ccName, "dc3", true)),
+						createTestPod("test-cluster-cassandra-dc3-2", ccNamespace, "uid3", "10.1.2.5", "node3", true, cLabels(ccName, "dc3", false)),
 					},
 				},
 				&v1.NodeList{
 					Items: []v1.Node{
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node1",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.143",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.231",
-									},
-								},
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node2",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.153",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.232",
-									},
-								},
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node3",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.142",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.233",
-									},
-								},
-							},
-						},
+						createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
+						createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
+						createTestNode("node3", "12.43.22.142", "54.32.141.233", nil),
 					},
 				},
 				&appsv1.StatefulSetList{
@@ -1654,169 +925,19 @@ export PAUSE_INIT=false
 			k8sLists: []client.ObjectList{
 				&v1.PodList{
 					Items: []v1.Pod{
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-0",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-									v1alpha1.CassandraClusterDC:        "dc1",
-								},
-								UID: "uid1",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node1",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.3",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-1",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-									v1alpha1.CassandraClusterDC:        "dc1",
-								},
-								UID: "uid2",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node2",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.4",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-2",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-									v1alpha1.CassandraClusterDC:        "dc1",
-								},
-								UID: "uid3",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node3",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.5",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc3-0",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-									v1alpha1.CassandraClusterDC:        "dc3",
-								},
-								UID: "uid1",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node1",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.2.3",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc3-1",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-									v1alpha1.CassandraClusterDC:        "dc3",
-								},
-								UID: "uid2",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node2",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.2.4",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc3-2",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-									v1alpha1.CassandraClusterDC:        "dc3",
-								},
-								UID: "uid3",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node3",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.2.5",
-							},
-						},
+						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", false, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", false, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", false, cLabels(ccName, "dc1", false)),
+						createTestPod("test-cluster-cassandra-dc3-0", ccNamespace, "uid1", "10.1.2.3", "node1", false, cLabels(ccName, "dc3", true)),
+						createTestPod("test-cluster-cassandra-dc3-1", ccNamespace, "uid2", "10.1.2.4", "node2", false, cLabels(ccName, "dc3", true)),
+						createTestPod("test-cluster-cassandra-dc3-2", ccNamespace, "uid3", "10.1.2.5", "node3", false, cLabels(ccName, "dc3", false)),
 					},
 				},
 				&v1.NodeList{
 					Items: []v1.Node{
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node1",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.143",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.231",
-									},
-								},
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node2",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.153",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.232",
-									},
-								},
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node3",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.142",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.233",
-									},
-								},
-							},
-						},
+						createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
+						createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
+						createTestNode("node3", "12.43.22.142", "54.32.141.233", nil),
 					},
 				},
 				&appsv1.StatefulSetList{
@@ -1889,7 +1010,7 @@ export PAUSE_INIT=true
 			expectedError: nil,
 		},
 		{
-			name: "multi-region with current region on pause",
+			name: "fail to get node info",
 			cc: &v1alpha1.CassandraCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-cluster",
@@ -1923,152 +1044,18 @@ export PAUSE_INIT=true
 			k8sLists: []client.ObjectList{
 				&v1.PodList{
 					Items: []v1.Pod{
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-0",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-									v1alpha1.CassandraClusterDC:        "dc1",
-								},
-								UID: "uid1",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node1",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.3",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-1",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-									v1alpha1.CassandraClusterDC:        "dc1",
-								},
-								UID: "uid2",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node2",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.4",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-2",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-									v1alpha1.CassandraClusterDC:        "dc1",
-								},
-								UID: "uid3",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node3",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.5",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc3-0",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-									v1alpha1.CassandraClusterDC:        "dc3",
-								},
-								UID: "uid1",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node1",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.2.3",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc3-1",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-									v1alpha1.CassandraClusterDC:        "dc3",
-								},
-								UID: "uid2",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node2",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.2.4",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc3-2",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-									v1alpha1.CassandraClusterDC:        "dc3",
-								},
-								UID: "uid3",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node3",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.2.5",
-							},
-						},
+						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", false, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", false, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", false, cLabels(ccName, "dc1", false)),
+						createTestPod("test-cluster-cassandra-dc3-0", ccNamespace, "uid1", "10.1.2.3", "node1", false, cLabels(ccName, "dc3", true)),
+						createTestPod("test-cluster-cassandra-dc3-1", ccNamespace, "uid2", "10.1.2.4", "node2", false, cLabels(ccName, "dc3", true)),
+						createTestPod("test-cluster-cassandra-dc3-2", ccNamespace, "uid3", "10.1.2.5", "node3", false, cLabels(ccName, "dc3", false)),
 					},
 				},
 				&v1.NodeList{
 					Items: []v1.Node{
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node1",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.143",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.231",
-									},
-								},
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node2",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.153",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.232",
-									},
-								},
-							},
-						},
+						createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
+						createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
 						// node3 is missing
 					},
 				},
@@ -2104,7 +1091,6 @@ export PAUSE_INIT=true
 			expectedCMData: nil,
 			expectedError:  errors.New("Cannot get node: node3"),
 		},
-
 		{
 			name: "zone as racks enabled",
 			cc: &v1alpha1.CassandraCluster{
@@ -2131,109 +1117,16 @@ export PAUSE_INIT=true
 			k8sLists: []client.ObjectList{
 				&v1.PodList{
 					Items: []v1.Pod{
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-0",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-								},
-								UID: "uid1",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node1",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.3",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-1",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-								},
-								UID: "uid2",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node2",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.4",
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "test-cluster-cassandra-dc1-2",
-								Namespace: "default",
-								Labels: map[string]string{
-									v1alpha1.CassandraClusterInstance:  "test-cluster",
-									v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-								},
-								UID: "uid3",
-							},
-							Spec: v1.PodSpec{
-								NodeName: "node3",
-							},
-							Status: v1.PodStatus{
-								PodIP: "10.1.1.5",
-							},
-						},
+						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", true, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", true, cLabels(ccName, "dc1", false)),
 					},
 				},
 				&v1.NodeList{
 					Items: []v1.Node{
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node1",
-								Labels: map[string]string{
-									v1.LabelTopologyZone: "zone1",
-								},
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.143",
-									},
-								},
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node2",
-								Labels: map[string]string{
-									v1.LabelTopologyZone: "zone1",
-								},
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.153",
-									},
-								},
-							},
-						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node3",
-								Labels: map[string]string{
-									v1.LabelTopologyZone: "zone2",
-								},
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.142",
-									},
-								},
-							},
-						},
+						createTestNode("node1", "12.43.22.143", "54.32.141.231", map[string]string{v1.LabelTopologyZone: "zone1"}),
+						createTestNode("node2", "12.43.22.153", "54.32.141.232", map[string]string{v1.LabelTopologyZone: "zone1"}),
+						createTestNode("node3", "12.43.22.142", "54.32.141.233", map[string]string{v1.LabelTopologyZone: "zone2"}),
 					},
 				},
 			},
@@ -2268,6 +1161,7 @@ export PAUSE_INIT=false
 	}
 
 	for _, c := range cases {
+		t.Log(c.name)
 		clietnBuilder := fake.NewClientBuilder().WithScheme(baseScheme)
 		clietnBuilder.WithLists(c.k8sLists...)
 		clietnBuilder.WithObjects(c.k8sObjects...)
@@ -2297,11 +1191,60 @@ export PAUSE_INIT=false
 
 		cmData, err := reconciler.podsConfigMapData(context.Background(), c.cc, proberClient)
 		if c.expectedError == nil {
-			asserts.Expect(err).To(BeNil(), c.name)
+			asserts.Expect(err).To(BeNil())
 		} else {
-			asserts.Expect(err).To(MatchError(err), c.name)
+			asserts.Expect(err).To(MatchError(err))
 		}
-		asserts.Expect(cmData).To(BeEquivalentTo(c.expectedCMData), c.name)
+		asserts.Expect(cmData).To(BeEquivalentTo(c.expectedCMData), cmp.Diff(cmData, c.expectedCMData))
 	}
 
+}
+
+func createTestPod(name, namespace, uid, ip, nodeName string, ready bool, labels map[string]string) v1.Pod {
+	return v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels:    labels,
+			UID:       types.UID(uid),
+		},
+		Spec: v1.PodSpec{
+			NodeName: nodeName,
+		},
+		Status: v1.PodStatus{
+			PodIP: ip,
+			ContainerStatuses: []v1.ContainerStatus{
+				{
+					Name:  "cassandra",
+					Ready: ready,
+				},
+			},
+		},
+	}
+}
+
+func createTestNode(name, internalIP, externalIP string, labels map[string]string) v1.Node {
+	node := v1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Status: v1.NodeStatus{
+			Addresses: []v1.NodeAddress{
+				{
+					Type:    v1.NodeInternalIP,
+					Address: internalIP,
+				},
+			},
+		},
+	}
+
+	if len(externalIP) > 0 {
+		node.Status.Addresses = append(node.Status.Addresses, v1.NodeAddress{Address: externalIP, Type: v1.NodeExternalIP})
+	}
+
+	if len(labels) > 0 {
+		node.Labels = labels
+	}
+
+	return node
 }
