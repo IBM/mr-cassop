@@ -142,6 +142,11 @@ func (in *CassandraClusterSpec) DeepCopyInto(out *CassandraClusterSpec) {
 		*out = new(Cassandra)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.TopologySpreadByZone != nil {
+		in, out := &in.TopologySpreadByZone, &out.TopologySpreadByZone
+		*out = new(bool)
+		**out = **in
+	}
 	out.Roles = in.Roles
 	if in.Maintenance != nil {
 		in, out := &in.Maintenance, &out.Maintenance

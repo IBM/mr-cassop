@@ -24,6 +24,8 @@ func TestDefaultingFunction(t *testing.T) {
 	cc := &v1alpha1.CassandraCluster{}
 	reconciler.defaultCassandraCluster(cc)
 	g.Expect(cc.Spec.CQLConfigMapLabelKey).To(Equal(defaultCQLConfigMapLabelKey))
+	g.Expect(cc.Spec.TopologySpreadByZone).ToNot(BeNil())
+	g.Expect(*cc.Spec.TopologySpreadByZone).To(BeTrue())
 	g.Expect(cc.Spec.Cassandra).ToNot(BeNil())
 	g.Expect(cc.Spec.Cassandra.Image).To(Equal("cassandra/image"))
 	g.Expect(cc.Spec.Cassandra.ImagePullPolicy).To(Equal(v1.PullIfNotPresent))
@@ -125,12 +127,15 @@ func TestDefaultingFunction(t *testing.T) {
 					Namespace: "",
 				},
 			},
+			TopologySpreadByZone: proto.Bool(false),
 		},
 	}
 	reconciler.defaultCassandraCluster(cc)
 	g.Expect(cc.Spec.DCs[0].Tolerations).To(BeNil())
 	g.Expect(cc.Spec.DCs[0].Affinity).To(BeNil())
 	g.Expect(cc.Spec.SystemKeyspaces.DCs).To(BeNil())
+	g.Expect(cc.Spec.TopologySpreadByZone).ToNot(BeNil())
+	g.Expect(*cc.Spec.TopologySpreadByZone).To(BeFalse())
 	// Reaper
 	g.Expect(cc.Spec.Reaper.RepairSchedules.Repairs[0].Keyspace).To(Equal("system_auth"))
 	g.Expect(cc.Spec.Reaper.RepairSchedules.Repairs[0].RepairParallelism).To(Equal("DATACENTER_AWARE"))

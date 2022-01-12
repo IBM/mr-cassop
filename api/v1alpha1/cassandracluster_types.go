@@ -77,19 +77,20 @@ type CassandraClusterSpec struct {
 	PodManagementPolicy appsv1.PodManagementPolicyType `json:"podManagementPolicy,omitempty"`
 	Cassandra           *Cassandra                     `json:"cassandra,omitempty"`
 	// +kubebuilder:validation:MinLength:=1
-	AdminRoleSecretName string           `json:"adminRoleSecretName"`
-	Roles               Roles            `json:"roles,omitempty"`
-	Maintenance         []Maintenance    `json:"maintenance,omitempty" diff:"maintenance"`
-	SystemKeyspaces     SystemKeyspaces  `json:"systemKeyspaces,omitempty"`
-	Ingress             Ingress          `json:"ingress,omitempty"`
-	ExternalRegions     []ExternalRegion `json:"externalRegions,omitempty"`
-	Prober              Prober           `json:"prober,omitempty"`
-	Reaper              *Reaper          `json:"reaper,omitempty"`
-	HostPort            HostPort         `json:"hostPort,omitempty"`
-	JVM                 JVM              `json:"jvm,omitempty"`
-	JMX                 JMX              `json:"jmx,omitempty"`
-	Encryption          Encryption       `json:"encryption,omitempty"`
-	Monitoring          Monitoring       `json:"monitoring,omitempty"`
+	AdminRoleSecretName  string           `json:"adminRoleSecretName"`
+	TopologySpreadByZone *bool            `json:"topologySpreadByZone,omitempty"`
+	Roles                Roles            `json:"roles,omitempty"`
+	Maintenance          []Maintenance    `json:"maintenance,omitempty" diff:"maintenance"`
+	SystemKeyspaces      SystemKeyspaces  `json:"systemKeyspaces,omitempty"`
+	Ingress              Ingress          `json:"ingress,omitempty"`
+	ExternalRegions      []ExternalRegion `json:"externalRegions,omitempty"`
+	Prober               Prober           `json:"prober,omitempty"`
+	Reaper               *Reaper          `json:"reaper,omitempty"`
+	HostPort             HostPort         `json:"hostPort,omitempty"`
+	JVM                  JVM              `json:"jvm,omitempty"`
+	JMX                  JMX              `json:"jmx,omitempty"`
+	Encryption           Encryption       `json:"encryption,omitempty"`
+	Monitoring           Monitoring       `json:"monitoring,omitempty"`
 }
 
 type ExternalRegion struct {

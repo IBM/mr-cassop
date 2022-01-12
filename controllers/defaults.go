@@ -43,6 +43,10 @@ func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.Cass
 		cc.Spec.JMX.Authentication = jmxAuthenticationInternal
 	}
 
+	if cc.Spec.TopologySpreadByZone == nil {
+		cc.Spec.TopologySpreadByZone = proto.Bool(true)
+	}
+
 	if cc.Spec.Encryption.Server.InternodeEncryption != internodeEncryptionNone {
 		r.defaultServerTLS(cc)
 	}

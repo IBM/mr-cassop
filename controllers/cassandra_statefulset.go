@@ -191,6 +191,17 @@ func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, res
 		desiredSts.Spec.Template.Spec.Volumes = append(desiredSts.Spec.Template.Spec.Volumes, cassandraClientTLSVolume(cc))
 	}
 
+	if cc.Spec.TopologySpreadByZone != nil && *cc.Spec.TopologySpreadByZone {
+		desiredSts.Spec.Template.Spec.TopologySpreadConstraints = []v1.TopologySpreadConstraint{
+			{
+				MaxSkew:           1,
+				TopologyKey:       v1.LabelTopologyZone,
+				WhenUnsatisfiable: v1.ScheduleAnyway,
+				LabelSelector:     metav1.SetAsLabelSelector(labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra)),
+			},
+		}
+	}
+
 	return desiredSts
 }
 

@@ -4,6 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/ibm/cassandra-operator/controllers/labels"
+
 	"github.com/google/go-cmp/cmp"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -111,6 +115,14 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 						"-Dcassandra.jmx.remote.login.config=CassandraLogin " +
 						"-Djava.security.auth.login.config=$CASSANDRA_HOME/conf/cassandra-jaas.config " +
 						"-Dcassandra.jmx.authorizer=org.apache.cassandra.auth.jmx.AuthorizationProxy"),
+				}))
+				Expect(sts.Spec.Template.Spec.TopologySpreadConstraints).To(BeEquivalentTo([]v1.TopologySpreadConstraint{
+					{
+						TopologyKey:       v1.LabelTopologyZone,
+						MaxSkew:           1,
+						WhenUnsatisfiable: v1.ScheduleAnyway,
+						LabelSelector:     metav1.SetAsLabelSelector(labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra)),
+					},
 				}))
 			}
 
