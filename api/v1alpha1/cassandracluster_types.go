@@ -93,9 +93,10 @@ type CassandraClusterSpec struct {
 }
 
 type ExternalRegion struct {
-	Domain string             `json:"domain,omitempty"`
-	Seeds  []string           `json:"seeds,omitempty"`
-	DCs    []SystemKeyspaceDC `json:"dcs,omitempty"`
+	Domain    string             `json:"domain,omitempty"`
+	Namespace string             `json:"namespace,omitempty"`
+	Seeds     []string           `json:"seeds,omitempty"`
+	DCs       []SystemKeyspaceDC `json:"dcs,omitempty"`
 }
 
 type Reaper struct {
@@ -266,23 +267,13 @@ type Cassandra struct {
 	Resources       v1.ResourceRequirements `json:"resources,omitempty"`
 	// +kubebuilder:validation:Enum:=info;debug;trace
 	LogLevel string `json:"logLevel,omitempty"`
-
-	// RackName                       string   `json:"rackName,omitempty"`
-	// PreferLocal                    bool     `json:"preferLocal,omitempty"`
-
 	// +kubebuilder:validation:Minimum:=1
 	NumSeeds int32 `json:"numSeeds,omitempty"`
 	// +kubebuilder:validation:Minimum:=0
-	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
-	// TODO part of auth implementation
-	// internalAuth: (true|false), configures Cassandra to use internal authentication
-	// https://docs.datastax.com/en/archived/cassandra/2.1/cassandra/security/security_config_native_authenticate_t.html
-	// https://docs.datastax.com/en/cassandra/3.0/cassandra/configuration/secureConfigNativeAuth.html
-	// InternalAuth bool `json:"internalAuth,omitempty"`
-
-	PurgeGossip  bool        `json:"purgeGossip,omitempty"`
-	Persistence  Persistence `json:"persistence,omitempty"`
-	ZonesAsRacks bool        `json:"zonesAsRacks,omitempty"`
+	TerminationGracePeriodSeconds *int64      `json:"terminationGracePeriodSeconds,omitempty"`
+	PurgeGossip                   bool        `json:"purgeGossip,omitempty"`
+	Persistence                   Persistence `json:"persistence,omitempty"`
+	ZonesAsRacks                  bool        `json:"zonesAsRacks,omitempty"`
 }
 
 type Roles struct {

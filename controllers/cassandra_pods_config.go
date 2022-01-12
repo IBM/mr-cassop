@@ -179,7 +179,7 @@ func (r *CassandraClusterReconciler) getInitOrderInfo(ctx context.Context, cc *v
 		return false, "", err
 	}
 
-	currentRegionHost := names.ProberIngressDomain(cc.Name, cc.Spec.Ingress.Domain, cc.Namespace)
+	currentRegionHost := names.ProberIngressHost(cc.Name, cc.Namespace, cc.Spec.Ingress.Domain)
 	clusterRegionsStatuses[currentRegionHost] = len(unreadyLocalDCs) == 0
 
 	nextRegionToInit := getNextRegionToInit(cc, clusterRegionsStatuses)
@@ -211,7 +211,7 @@ func (r *CassandraClusterReconciler) getRemoteClusterRegionsStatuses(ctx context
 	clusterRegionsStatuses = make(map[string]bool)
 	for _, externalRegion := range cc.Spec.ExternalRegions {
 		if len(externalRegion.Domain) > 0 {
-			proberHost := names.ProberIngressDomain(cc.Name, externalRegion.Domain, cc.Namespace)
+			proberHost := names.ProberIngressDomain(cc, externalRegion)
 			regionsReady, err := proberClient.RegionReady(ctx, proberHost)
 			if err != nil {
 				r.Log.Warnf(fmt.Sprintf("Unable to get region readiness status from prober %q. Err: %#v", proberHost, err))
@@ -228,10 +228,10 @@ func getAllRegionsHosts(cc *v1alpha1.CassandraCluster) []string {
 	allRegionsHosts := make([]string, 0, len(cc.Spec.ExternalRegions)+1)
 	for _, externalRegion := range cc.Spec.ExternalRegions {
 		if len(externalRegion.Domain) > 0 {
-			allRegionsHosts = append(allRegionsHosts, names.ProberIngressDomain(cc.Name, externalRegion.Domain, cc.Namespace))
+			allRegionsHosts = append(allRegionsHosts, names.ProberIngressDomain(cc, externalRegion))
 		}
 	}
-	currentRegionHost := names.ProberIngressDomain(cc.Name, cc.Spec.Ingress.Domain, cc.Namespace)
+	currentRegionHost := names.ProberIngressHost(cc.Name, cc.Namespace, cc.Spec.Ingress.Domain)
 	allRegionsHosts = append(allRegionsHosts, currentRegionHost)
 	sort.Strings(allRegionsHosts)
 	return allRegionsHosts
@@ -267,7 +267,7 @@ func (r *CassandraClusterReconciler) getSeedsList(ctx context.Context, cc *v1alp
 		// GET /seeds of external regions
 		for _, externalRegion := range cc.Spec.ExternalRegions {
 			if len(externalRegion.Domain) > 0 {
-				regionsHost := names.ProberIngressDomain(cc.Name, externalRegion.Domain, cc.Namespace)
+				regionsHost := names.ProberIngressDomain(cc, externalRegion)
 				seeds, err := proberClient.GetSeeds(ctx, regionsHost)
 				if err != nil {
 					r.Log.Warnf("can't get seeds from region %s", regionsHost)

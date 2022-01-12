@@ -20,15 +20,17 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/ibm/cassandra-operator/controllers/webhooks"
-	admissionv1 "k8s.io/api/admissionregistration/v1"
-	"k8s.io/client-go/kubernetes/scheme"
 	"net/url"
 	"path/filepath"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/ibm/cassandra-operator/controllers/webhooks"
+	admissionv1 "k8s.io/api/admissionregistration/v1"
+	nwv1 "k8s.io/api/networking/v1"
+	"k8s.io/client-go/kubernetes/scheme"
 
 	"github.com/go-logr/zapr"
 	"github.com/gocql/gocql"
@@ -332,18 +334,16 @@ func CleanUpCreatedResources(ccName, ccNamespace string) {
 		{name: names.ProberServiceAccount(cc.Name), objType: &v1.ServiceAccount{}},
 		{name: names.ProberRole(cc.Name), objType: &rbac.Role{}},
 		{name: names.ProberRoleBinding(cc.Name), objType: &rbac.RoleBinding{}},
+		{name: names.ProberIngress(cc.Name), objType: &nwv1.Ingress{}},
 		{name: names.ReaperService(cc.Name), objType: &v1.Service{}},
-		{name: names.ReaperCqlConfigMap(cc.Name), objType: &v1.ConfigMap{}},
 		{name: names.ShiroConfigMap(cc.Name), objType: &v1.ConfigMap{}},
 		{name: names.PrometheusConfigMap(cc.Name), objType: &v1.ConfigMap{}},
 		{name: names.MaintenanceConfigMap(cc.Name), objType: &v1.ConfigMap{}},
-		{name: names.RepairsConfigMap(cc.Name), objType: &v1.ConfigMap{}},
-		{name: names.RolesSecret(cc.Name), objType: &v1.Secret{}},
-		{name: names.BaseAdminSecret(cc.Name), objType: &v1.Secret{}},
 		{name: names.ActiveAdminSecret(cc.Name), objType: &v1.Secret{}},
 		{name: names.AdminAuthConfigSecret(cc.Name), objType: &v1.Secret{}},
 		{name: names.PodsConfigConfigmap(cc.Name), objType: &v1.ConfigMap{}},
 		{name: names.CollectdConfigMap(cc.Name), objType: &v1.ConfigMap{}},
+		{name: names.PodIPsConfigMap(cc.Name), objType: &v1.ConfigMap{}},
 		{name: cc.Spec.AdminRoleSecretName, objType: &v1.Secret{}},
 	}
 

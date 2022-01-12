@@ -273,7 +273,7 @@ func reaperContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, adminSec
 			PeriodSeconds:       10,
 			SuccessThreshold:    1,
 			FailureThreshold:    3,
-			InitialDelaySeconds: 120,
+			InitialDelaySeconds: 600, //first init may take a long time because of the DB migration
 		},
 		Resources: cc.Spec.Reaper.Resources,
 		Env:       reaperEnvironment(cc, dc, adminSecretChecksum, clientTLSSecret),
@@ -290,7 +290,6 @@ func reaperContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, adminSec
 
 	if cc.Spec.Encryption.Client.Enabled {
 		container.VolumeMounts = append(container.VolumeMounts, v1.VolumeMount{
-
 			Name:      cassandraClientTLSVolumeName,
 			MountPath: cassandraClientTLSDir,
 		})

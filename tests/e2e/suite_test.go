@@ -37,8 +37,11 @@ var (
 	cassandraRelease    string
 	imagePullSecret     string
 	adminRoleSecretName string
+	adminRoleName       string
+	adminRolePassword   string
 	ingressDomain       string
 	ingressSecret       string
+	storageClassName    string
 	tailLines           int64 = 30
 	statusCode          int
 
@@ -80,6 +83,7 @@ func init() {
 	flag.StringVar(&imagePullSecret, "imagePullSecret", "all-icr-io", "Set the imagePullSecret.")
 	flag.StringVar(&ingressDomain, "ingressDomain", "", "Set the ingress domain.")
 	flag.StringVar(&ingressSecret, "ingressSecret", "", "Set the ingress secret name.")
+	flag.StringVar(&storageClassName, "storageClassName", "", "Set the storage class name.")
 }
 
 func TestCassandraCluster(t *testing.T) {
@@ -152,6 +156,8 @@ var _ = BeforeSuite(func() {
 	}
 
 	adminRoleSecret = &v1.Secret{}
+	adminRoleName = "cassandra-operator"
+	adminRolePassword = "password"
 	err = restClient.Get(context.Background(), types.NamespacedName{Namespace: cassandraCluster.Namespace, Name: adminRoleSecretName}, adminRoleSecret)
 	if err != nil && errors.IsNotFound(err) {
 		By("admin role secret doesn't exist. Creating it.")
@@ -161,8 +167,8 @@ var _ = BeforeSuite(func() {
 				Namespace: cassandraNamespace,
 			},
 			Data: map[string][]byte{
-				v1alpha1.CassandraOperatorAdminRole:     []byte("cassandra-operator"),
-				v1alpha1.CassandraOperatorAdminPassword: []byte("password"),
+				v1alpha1.CassandraOperatorAdminRole:     []byte(adminRoleName),
+				v1alpha1.CassandraOperatorAdminPassword: []byte(adminRolePassword),
 			},
 		}
 
@@ -203,7 +209,7 @@ var _ = AfterEach(func() {
 	Expect(restClient.DeleteAllOf(context.Background(), &v1alpha1.CassandraCluster{}, client.InNamespace(cassandraNamespace))).To(Succeed())
 
 	By("Wait until all pods are terminated...")
-	waitPodsTermination(cassandraNamespace, cassandraDeploymentLabel)
+	waitForPodsTermination(cassandraNamespace, cassandraDeploymentLabel)
 
 	By("Wait until CassandraCluster resource is deleted")
 	waitForCassandraClusterSchemaDeletion(cassandraNamespace, cassandraRelease)

@@ -43,12 +43,13 @@ integration-tests:
 e2e-tests:
 	go test ./tests/e2e/ \
 		-ginkgo.v -ginkgo.reportPassed -ginkgo.progress \
-		-test.v -test.timeout=1h30m -ginkgo.failFast \
+		-test.v -test.timeout=2h -ginkgo.failFast \
 		-cassandraNamespace=$(K8S_NAMESPACE) \
 		-cassandraRelease=$(CASSANDRA_RELEASE_NAME) \
 		-imagePullSecret=$(IMAGE_PULL_SECRET) \
 		-ingressDomain=$(INGRESS_DOMAIN) \
-		-ingressSecret=$(INGRESS_SECRET)
+		-ingressSecret=$(INGRESS_SECRET) \
+		-storageClassName=$(STORAGE_CLASS_NAME)
 
 # Run all tests
 all-tests: unit-tests integration-tests e2e-tests

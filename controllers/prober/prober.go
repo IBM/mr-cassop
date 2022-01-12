@@ -5,12 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
-
-	"github.com/ibm/cassandra-operator/api/v1alpha1"
 
 	"github.com/pkg/errors"
 )
@@ -23,6 +22,8 @@ type ProberClient interface {
 	UpdateDCs(ctx context.Context, dcs []v1alpha1.DC) error
 	UpdateRegionStatus(ctx context.Context, ready bool) error
 	RegionReady(ctx context.Context, host string) (bool, error)
+	ReaperReady(ctx context.Context, host string) (bool, error)
+	UpdateReaperStatus(ctx context.Context, ready bool) error
 }
 
 type proberClient struct {
@@ -156,6 +157,48 @@ func (p *proberClient) UpdateRegionStatus(ctx context.Context, ready bool) error
 
 func (p *proberClient) RegionReady(ctx context.Context, host string) (bool, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("https://%s/region-ready", host), nil)
+	if err != nil {
+		return false, errors.Wrap(err, "Can't create request")
+	}
+
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return false, errors.Wrap(err, "PUT Request to prober failed")
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return false, fmt.Errorf("response status %q (code %v) is not %q",
+			http.StatusText(resp.StatusCode), resp.StatusCode, http.StatusText(http.StatusOK))
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return false, err
+	}
+
+	ready, err := strconv.ParseBool(string(bytes.TrimSpace(body)))
+	if err != nil {
+		return false, errors.Wrapf(err, "Unexpected response from prober. Expect true or false")
+	}
+
+	return ready, nil
+}
+
+func (p *proberClient) UpdateReaperStatus(ctx context.Context, ready bool) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, p.url("/reaper-ready"), bytes.NewReader([]byte(strconv.FormatBool(ready))))
+	if err != nil {
+		return errors.Wrap(err, "Can't create request")
+	}
+
+	if _, err := p.client.Do(req); err != nil {
+		return errors.Wrap(err, "PUT Request to prober failed")
+	}
+
+	return nil
+}
+
+func (p *proberClient) ReaperReady(ctx context.Context, host string) (bool, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("https://%s/reaper-ready", host), nil)
 	if err != nil {
 		return false, errors.Wrap(err, "Can't create request")
 	}

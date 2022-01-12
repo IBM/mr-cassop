@@ -146,6 +146,37 @@ func TestHealthCheck(t *testing.T) {
 			expectedStatus: http.StatusOK,
 			expectedBody:   []byte(`{"/43.23.111.212":"UP","/43.23.111.213":"UP"}`),
 		},
+		{
+			name:          "none of the nodes are ready",
+			remoteAddr:    "10.134.3.5",
+			broadcastAddr: "43.23.111.213",
+			state: state{
+				nodes: map[string]nodeState{
+					"/43.23.111.212": {
+						SimpleStates:  map[string]string{"/43.23.111.212": "DOWN", "/43.23.111.213": "DOWN"},
+						EndpointState: endpointState("/43.23.111.212", "DOWN"),
+					},
+					"/43.23.111.213": {
+						SimpleStates:  map[string]string{"/43.23.111.212": "DOWN", "/43.23.111.213": "DOWN"},
+						EndpointState: endpointState("/43.23.111.213", "DOWN"),
+					},
+				},
+			},
+			expectedState: state{
+				nodes: map[string]nodeState{
+					"/43.23.111.212": {
+						SimpleStates:  map[string]string{"/43.23.111.212": "DOWN", "/43.23.111.213": "DOWN"},
+						EndpointState: endpointState("/43.23.111.212", "DOWN"),
+					},
+					"/43.23.111.213": {
+						SimpleStates:  map[string]string{"/43.23.111.212": "DOWN", "/43.23.111.213": "DOWN"},
+						EndpointState: endpointState("/43.23.111.213", "DOWN"),
+					},
+				},
+			},
+			expectedStatus: http.StatusNotFound,
+			expectedBody:   []byte(`{"/43.23.111.212":"DOWN","/43.23.111.213":"DOWN"}`),
+		},
 	}
 
 	for _, testCase := range testCases {

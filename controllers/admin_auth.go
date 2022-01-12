@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	"github.com/gogo/protobuf/proto"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/compare"
@@ -83,7 +85,6 @@ func (r *CassandraClusterReconciler) reconcileAdminAuth(ctx context.Context, cc 
 		return nil
 	}
 
-	r.Log.Debug("No updates in " + names.BaseAdminSecret(cc.Name))
 	return nil
 }
 
@@ -106,10 +107,22 @@ func (r *CassandraClusterReconciler) createClusterAdminSecrets(ctx context.Conte
 	desiredRolePassword := dbv1alpha1.CassandraDefaultPassword
 	desiredSecretData := baseAdminSecret.Data
 
-	cqlClient, err := r.CqlClient(newCassandraConfig(cc, secretRoleName, secretRolePassword))
-	if err == nil {
-		r.Log.Info("Admin role has already been initialized")
-		cqlClient.CloseSession()
+	storageExists := false
+	if cc.Spec.Cassandra.Persistence.Enabled {
+		pvcs := &v1.PersistentVolumeClaimList{}
+		err = r.List(ctx, pvcs, client.InNamespace(cc.Namespace), client.MatchingLabels(labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra)))
+		if err != nil {
+			return errors.Wrap(err, "can't get pvcs")
+		}
+
+		if len(pvcs.Items) > 0 { // cluster existed before. Use the credentials from the provided secret to recreate the cluster.
+			r.Log.Info("PVCs found. Assuming cluster existed before. Using credentials from secret %s", cc.Spec.AdminRoleSecretName)
+			storageExists = true
+		}
+	}
+
+	if storageExists || joinUnmanagedCluster(cc) {
+		//use the user provided credentials, not cassandra/cassandra
 		desiredRoleName = secretRoleName
 		desiredRolePassword = secretRolePassword
 	}

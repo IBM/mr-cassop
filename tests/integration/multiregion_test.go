@@ -72,9 +72,10 @@ var _ = Describe("multiple regions", func() {
 
 		for i, externalRegion := range cc.Spec.ExternalRegions {
 			if len(externalRegion.Domain) != 0 {
-				mockProberClient.readyClusters[names.ProberIngressDomain(cc.Name, externalRegion.Domain, cc.Namespace)] = false
-				mockProberClient.seeds[names.ProberIngressDomain(cc.Name, externalRegion.Domain, cc.Namespace)] = []string{"13.432.13" + strconv.Itoa(i) + ".3", "13.432.13" + strconv.Itoa(i) + ".4"}
-				mockProberClient.dcs[names.ProberIngressDomain(cc.Name, externalRegion.Domain, cc.Namespace)] = []v1alpha1.DC{
+				ingressHost := names.ProberIngressDomain(cc, externalRegion)
+				mockProberClient.readyClusters[ingressHost] = false
+				mockProberClient.seeds[ingressHost] = []string{"13.432.13" + strconv.Itoa(i) + ".3", "13.432.13" + strconv.Itoa(i) + ".4"}
+				mockProberClient.dcs[ingressHost] = []v1alpha1.DC{
 					{
 						Name:     "ext-dc" + "-" + strconv.Itoa(i),
 						Replicas: proto.Int32(3),
@@ -100,7 +101,6 @@ var _ = Describe("multiple regions", func() {
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.PodsConfigConfigmap(cc.Name), Namespace: cc.Namespace}, podsConfigCM)).To(Succeed())
 			return podsConfigCM.Data
 		}, mediumTimeout, mediumRetry).ShouldNot(BeEmpty())
-		//Expect(podsConfigCM.Data).ToNot(BeEmpty())
 		for _, value := range podsConfigCM.Data {
 			Expect(value).To(
 				ContainSubstring("CASSANDRA_SEEDS=10.3.23.41,10.3.23.42,10.3.23.41,10.3.23.42,13.432.130.3,13.432.130.4,13.432.131.3,13.432.131.4"),
@@ -117,7 +117,7 @@ var _ = Describe("multiple regions", func() {
 
 		for _, externalRegion := range cc.Spec.ExternalRegions {
 			if len(externalRegion.Domain) != 0 {
-				mockProberClient.readyClusters[names.ProberIngressDomain(cc.Name, externalRegion.Domain, cc.Namespace)] = true
+				mockProberClient.readyClusters[names.ProberIngressDomain(cc, externalRegion)] = true
 			}
 		}
 

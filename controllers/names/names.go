@@ -2,8 +2,9 @@ package names
 
 import (
 	"fmt"
-	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"os"
+
+	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 )
 
 const (
@@ -34,12 +35,20 @@ func ProberIngress(clusterName string) string {
 	return clusterName + "-cassandra-prober"
 }
 
-func ProberIngressSubdomain(clusterName, namespace string) string {
+func proberIngressSubdomain(clusterName, namespace string) string {
 	return fmt.Sprintf("%s-%s", namespace, ProberService(clusterName))
 }
 
-func ProberIngressDomain(clusterName, ingressDomain, namespace string) string {
-	return fmt.Sprintf("%s.%s", ProberIngressSubdomain(clusterName, namespace), ingressDomain)
+func ProberIngressHost(clusterName, namespace string, domain string) string {
+	return fmt.Sprintf("%s.%s", proberIngressSubdomain(clusterName, namespace), domain)
+}
+
+func ProberIngressDomain(cc *dbv1alpha1.CassandraCluster, externalRegion dbv1alpha1.ExternalRegion) string {
+	namespace := cc.Namespace
+	if len(externalRegion.Namespace) != 0 {
+		namespace = externalRegion.Namespace
+	}
+	return ProberIngressHost(cc.Name, namespace, externalRegion.Domain)
 }
 
 func ReaperDeployment(clusterName, dcName string) string {
@@ -48,14 +57,6 @@ func ReaperDeployment(clusterName, dcName string) string {
 
 func ReaperService(clusterName string) string {
 	return clusterName + "-reaper"
-}
-
-func ReaperCqlConfigMap(clusterName string) string {
-	return ReaperService(clusterName) + "-cql-configmap"
-}
-
-func RepairsConfigMap(clusterName string) string {
-	return clusterName + "-repairs-configmap"
 }
 
 func ShiroConfigMap(clusterName string) string {
@@ -74,10 +75,6 @@ func MaintenanceConfigMap(clusterName string) string {
 	return clusterName + "-maintenance-configmap"
 }
 
-func RolesSecret(clusterName string) string {
-	return clusterName + "-roles-secret"
-}
-
 func DC(clusterName, dcName string) string {
 	return clusterName + "-cassandra-" + dcName
 }
@@ -92,10 +89,6 @@ func ConfigMap(clusterName string) string {
 
 func PodsConfigConfigmap(clusterName string) string {
 	return clusterName + "-pods-config"
-}
-
-func BaseAdminSecret(clusterName string) string {
-	return clusterName + "-auth-base-admin"
 }
 
 func ActiveAdminSecret(clusterName string) string {

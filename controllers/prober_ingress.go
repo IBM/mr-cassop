@@ -18,6 +18,7 @@ import (
 var pathType = nwv1.PathTypeImplementationSpecific
 
 func (r *CassandraClusterReconciler) reconcileProberIngress(ctx context.Context, cc *v1alpha1.CassandraCluster) error {
+	ingressHost := names.ProberIngressHost(cc.Name, cc.Namespace, cc.Spec.Ingress.Domain)
 	desiredIngress := &nwv1.Ingress{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
@@ -31,13 +32,13 @@ func (r *CassandraClusterReconciler) reconcileProberIngress(ctx context.Context,
 			DefaultBackend:   nil,
 			TLS: []nwv1.IngressTLS{
 				{
-					Hosts:      []string{names.ProberIngressDomain(cc.Name, cc.Spec.Ingress.Domain, cc.Namespace)},
+					Hosts:      []string{ingressHost},
 					SecretName: cc.Spec.Ingress.Secret,
 				},
 			},
 			Rules: []nwv1.IngressRule{
 				{
-					Host: names.ProberIngressDomain(cc.Name, cc.Spec.Ingress.Domain, cc.Namespace),
+					Host: ingressHost,
 					IngressRuleValue: nwv1.IngressRuleValue{
 						HTTP: &nwv1.HTTPIngressRuleValue{
 							Paths: []nwv1.HTTPIngressPath{

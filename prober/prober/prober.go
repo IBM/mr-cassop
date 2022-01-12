@@ -23,6 +23,7 @@ type Prober struct {
 type state struct {
 	seeds       []string
 	regionReady bool
+	reaperReady bool
 	dcs         []dc
 	nodes       map[string]nodeState
 }
@@ -68,6 +69,8 @@ func setupRoutes(router *httprouter.Router, prober *Prober) {
 	router.GET("/ping", prober.ping)
 	router.GET("/region-ready", prober.getRegionReady)
 	router.PUT("/region-ready", prober.putRegionReady)
+	router.GET("/reaper-ready", prober.getReaperReady)
+	router.PUT("/reaper-ready", prober.putReaperReady)
 	router.GET("/seeds", prober.getSeeds)
 	router.PUT("/seeds", prober.putSeeds)
 	router.GET("/dcs", prober.getDCs)

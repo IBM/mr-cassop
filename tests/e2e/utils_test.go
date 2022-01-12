@@ -41,27 +41,32 @@ type ExecResult struct {
 }
 
 func waitForPodsReadiness(namespace string, labels map[string]string, expectedNumberOfPods int32) {
-	Eventually(func() bool {
+	Eventually(func() (bool, error) {
 		podList := &v1.PodList{}
 		err = restClient.List(context.Background(), podList, client.InNamespace(namespace), client.MatchingLabels(labels))
-		Expect(err).To(Succeed())
+		if err != nil {
+			return false, err
+		}
 
 		if len(podList.Items) == 0 || (expectedNumberOfPods != 0 && int32(len(podList.Items)) != expectedNumberOfPods) {
-			return false
+			return false, nil
 		}
 
 		for _, pod := range podList.Items {
+			if len(pod.Status.ContainerStatuses) == 0 {
+				return false, nil
+			}
 			for _, container := range pod.Status.ContainerStatuses {
 				if !container.Ready {
-					return false
+					return false, nil
 				}
 			}
 		}
-		return true
-	}, time.Minute*10, time.Second*2).Should(BeTrue(), fmt.Sprintf("Pods should become ready: %s", labels[v1alpha1.CassandraClusterComponent]))
+		return true, nil
+	}, time.Minute*15, time.Second*2).Should(BeTrue(), fmt.Sprintf("Pods should become ready: %s", labels[v1alpha1.CassandraClusterComponent]))
 }
 
-func waitPodsTermination(namespace string, labels map[string]string) {
+func waitForPodsTermination(namespace string, labels map[string]string) {
 	Eventually(func() bool {
 		podList := &v1.PodList{}
 		err = restClient.List(context.Background(), podList, client.InNamespace(namespace), client.MatchingLabels(labels))
@@ -144,7 +149,7 @@ func doHTTPRequest(method string, url string) ([]byte, int, error) {
 	if err != nil {
 		return nil, 0, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Parse response
 	body, err := ioutil.ReadAll(resp.Body)
@@ -172,7 +177,7 @@ func getPodLogs(pod v1.Pod, podLogOpts v1.PodLogOptions) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer podLogs.Close()
+	defer func() { _ = podLogs.Close() }()
 
 	buff := new(bytes.Buffer)
 	_, err = io.Copy(buff, podLogs)
@@ -224,10 +229,10 @@ func deployCassandraCluster(cassandraCluster *v1alpha1.CassandraCluster) {
 	By("Cassandra cluster is starting...")
 	Expect(restClient.Create(context.Background(), cassandraCluster)).To(Succeed())
 
-	By("Checking prober pods readiness...")
+	By("Waiting for prober pods readiness...")
 	waitForPodsReadiness(cassandraCluster.Namespace, proberPodLabels, 1)
 
-	By("Checking cassandra cluster pods readiness...")
+	By("Waiting for cassandra cluster pods readiness...")
 	for _, dc := range cassandraCluster.Spec.DCs {
 		waitForPodsReadiness(cassandraCluster.Namespace, labels.WithDCLabel(cassandraClusterPodLabels, dc.Name), *dc.Replicas)
 	}
@@ -287,4 +292,71 @@ func getMetricByLabel(metricFamilies map[string]*prometheusClient.MetricFamily, 
 		}
 	}
 	return prometheusClient.Metric{}, false
+}
+
+func prepareNamespace(namespaceName string) {
+	ns := &v1.Namespace{}
+	err = restClient.Get(context.Background(), types.NamespacedName{Name: namespaceName}, ns)
+	if err != nil && errors.IsNotFound(err) {
+		ns = &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespaceName}}
+		Expect(restClient.Create(context.Background(), ns)).To(Succeed())
+	} else {
+		Expect(err).ToNot(HaveOccurred())
+	}
+
+	copySecret(cassandraNamespace, imagePullSecret, namespaceName)
+	copySecret(cassandraNamespace, imagePullSecret, namespaceName)
+	copySecret(cassandraNamespace, ingressSecret, namespaceName)
+	copySecret(cassandraNamespace, ingressSecret, namespaceName)
+}
+
+func copySecret(namespaceFrom, secretName, namespaceTo string) {
+	secret := &v1.Secret{}
+	err := restClient.Get(context.Background(), types.NamespacedName{Name: secretName, Namespace: namespaceTo}, secret)
+	if err == nil {
+		return
+	}
+
+	Expect(restClient.Get(context.Background(), types.NamespacedName{Namespace: namespaceFrom, Name: secretName}, secret)).To(Succeed())
+	newSecret := secret.DeepCopy()
+	newSecret.Namespace = namespaceTo
+	newSecret.ResourceVersion = ""
+	newSecret.UID = ""
+	delete(newSecret.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
+	Expect(restClient.Create(context.Background(), newSecret)).To(Succeed())
+}
+
+func createSecret(namespace, name string, data map[string][]byte) {
+	err := restClient.Get(context.Background(), types.NamespacedName{Name: name, Namespace: namespace}, &v1.Secret{})
+	if err == nil {
+		return
+	}
+
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+		},
+		Data: data,
+	}
+	Expect(restClient.Create(context.Background(), secret)).To(Succeed())
+}
+
+func removeNamespaces(namespaces ...string) {
+	for _, namespace := range namespaces {
+		ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
+		err := restClient.Get(context.Background(), types.NamespacedName{Name: namespace}, ns)
+		if err == nil {
+			Expect(restClient.Delete(context.Background(), ns)).To(Succeed())
+		}
+	}
+	By(fmt.Sprintf("Waiting for namespaces %v to be removed", namespaces))
+	start := time.Now()
+
+	for _, namespace := range namespaces {
+		Eventually(func() error {
+			return restClient.Get(context.Background(), types.NamespacedName{Name: namespace}, &v1.Namespace{})
+		}, 5*time.Minute, 10*time.Second).ShouldNot(Succeed())
+	}
+	By(fmt.Sprintf("Namespaces removed after %s", time.Since(start)))
 }

@@ -20,6 +20,7 @@ type proberMock struct {
 	seeds         map[string][]string
 	dcs           map[string][]dbv1alpha1.DC
 	readyClusters map[string]bool
+	readyReaper   map[string]bool
 	err           error
 }
 
@@ -70,6 +71,18 @@ func (r proberMock) RegionReady(ctx context.Context, host string) (bool, error) 
 		return false, errors.Errorf("Host %q not found", host)
 	}
 	return dcsReady, nil
+}
+
+func (r proberMock) UpdateReaperStatus(ctx context.Context, ready bool) error {
+	return r.err
+}
+
+func (r proberMock) ReaperReady(ctx context.Context, host string) (bool, error) {
+	reaperReady, found := r.readyReaper[host]
+	if !found {
+		return false, errors.Errorf("Host %q not found", host)
+	}
+	return reaperReady, nil
 }
 
 func (c *cqlMock) Query(stmt string, values ...interface{}) error {

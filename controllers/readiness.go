@@ -65,7 +65,7 @@ func (r *CassandraClusterReconciler) unreadyRegions(ctx context.Context, cc *v1a
 		if len(externalRegion.Domain) == 0 { //region not managed by an operator
 			continue
 		}
-		proberHost := names.ProberIngressDomain(cc.Name, externalRegion.Domain, cc.Namespace)
+		proberHost := names.ProberIngressDomain(cc, externalRegion)
 		regionReady, err := proberClient.RegionReady(ctx, proberHost)
 		if err != nil {
 			r.Log.Warnf(fmt.Sprintf("Unable to get DC's status from prober %q. Err: %#v", proberHost, err))

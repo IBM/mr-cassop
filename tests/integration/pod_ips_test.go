@@ -7,6 +7,7 @@ import (
 	"github.com/ibm/cassandra-operator/controllers/names"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	v12 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -34,13 +35,18 @@ var _ = Describe("pod IPs", func() {
 		Expect(k8sClient.List(ctx, currentPodsList, client.InNamespace(cc.Namespace), cassandraPodLabels)).To(Succeed())
 		currentIPsCM := &v1.ConfigMap{}
 
-		Eventually(func() error {
-			return k8sClient.Get(ctx, types.NamespacedName{Name: names.PodIPsConfigMap(cc.Name), Namespace: cc.Namespace}, currentIPsCM)
-		}, mediumTimeout, mediumRetry).Should(Succeed())
-
+		expectedCMData := make(map[string]string)
 		for _, pod := range currentPodsList.Items {
-			Expect(currentIPsCM.Data).To(HaveKeyWithValue(pod.Name, pod.Status.PodIP))
+			expectedCMData[pod.Name] = pod.Status.PodIP
 		}
+
+		Eventually(func() (map[string]string, error) {
+			err := k8sClient.Get(ctx, types.NamespacedName{Name: names.PodIPsConfigMap(cc.Name), Namespace: cc.Namespace}, currentIPsCM)
+			if err != nil {
+				return nil, err
+			}
+			return currentIPsCM.Data, nil
+		}, mediumTimeout, mediumRetry).Should(BeEquivalentTo(expectedCMData))
 
 		// emulate pod failure and coming back with a new IP but not ready yet
 		firstPod := currentPodsList.Items[0]
@@ -48,6 +54,11 @@ var _ = Describe("pod IPs", func() {
 		firstPod.Status.PodIP = newPodIP
 		firstPod.Status.ContainerStatuses[0].Ready = false
 		Expect(k8sClient.Status().Update(ctx, &firstPod)).To(Succeed())
+
+		sts := &v12.StatefulSet{}
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.DC(cc.Name, cc.Spec.DCs[0].Name), Namespace: cc.Namespace}, sts))
+		sts.Status.ReadyReplicas = sts.Status.Replicas - 1
+		Expect(k8sClient.Status().Update(ctx, sts))
 
 		Eventually(func() bool {
 			Expect(k8sClient.List(ctx, currentPodsList, client.InNamespace(cc.Namespace), client.MatchingLabels(labels.ComponentLabels(cc, v1alpha1.CassandraClusterComponentCassandra))))
@@ -72,6 +83,10 @@ var _ = Describe("pod IPs", func() {
 		firstPod.Status.ContainerStatuses[0].Ready = true
 		Expect(k8sClient.Status().Update(ctx, &firstPod)).To(Succeed())
 
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.DC(cc.Name, cc.Spec.DCs[0].Name), Namespace: cc.Namespace}, sts))
+		sts.Status.ReadyReplicas = sts.Status.Replicas
+		Expect(k8sClient.Status().Update(ctx, sts))
+
 		Eventually(func() bool {
 			Expect(k8sClient.List(ctx, currentPodsList, client.InNamespace(cc.Namespace), client.MatchingLabels(labels.ComponentLabels(cc, v1alpha1.CassandraClusterComponentCassandra))))
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.PodIPsConfigMap(cc.Name), Namespace: cc.Namespace}, currentIPsCM))
@@ -82,6 +97,6 @@ var _ = Describe("pod IPs", func() {
 				}
 			}
 			return true
-		}, mediumTimeout, mediumRetry).Should(BeTrue(), "configmap should be updated with the new IP since the pod is ready")
+		}, longTimeout, mediumRetry).Should(BeTrue(), "configmap should be updated with the new IP since the pod is ready")
 	})
 })

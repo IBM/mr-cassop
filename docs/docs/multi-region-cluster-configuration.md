@@ -47,7 +47,7 @@ ingress:
 There are a few prerequisites for deploying a cluster in multiple regions.
 
 * Each `CassandraCluster` resource (for each region) should have the same name as it is used as the [cluster name](https://cassandra.apache.org/doc/latest/cassandra/configuration/cass_yaml_file.html#cluster_name) in Cassandra configuration
-* Each `CassandraCluster` resource (for each region) should be deployed in the same namespace across Kubernetes clusters
+* Each `CassandraCluster` resource (for each region) should either be deployed in the same namespace across Kubernetes clusters, or it should be overridden by the `.spec.externalRegions[].namespace` field
 * The [admin role secret](admin-auth.md) should exist in each region (Kubernetes clusters) at the time of creation and each should have the same credentials
 * Datacenter names should be unique between regions (e.g. each region should have its own unique name via the datacenter name).
 * If server encryption is enabled, ensure the encryption keys are compatible between the regions.

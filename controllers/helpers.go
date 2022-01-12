@@ -141,7 +141,7 @@ func (r *CassandraClusterReconciler) getAllDCs(ctx context.Context, cc *v1alpha1
 
 	for _, externalRegion := range cc.Spec.ExternalRegions {
 		if len(externalRegion.Domain) != 0 {
-			externalDCs, err := proberClient.GetDCs(ctx, names.ProberIngressDomain(cc.Name, externalRegion.Domain, cc.Namespace))
+			externalDCs, err := proberClient.GetDCs(ctx, names.ProberIngressDomain(cc, externalRegion))
 			if err != nil {
 				return nil, errors.Wrapf(err, "can't get dcs list from dc %q", externalRegion.Domain)
 			}
@@ -161,4 +161,14 @@ func (r *CassandraClusterReconciler) getAllDCs(ctx context.Context, cc *v1alpha1
 	}
 
 	return allDCs, nil
+}
+
+func joinUnmanagedCluster(cc *v1alpha1.CassandraCluster) bool {
+	for _, region := range cc.Spec.ExternalRegions {
+		if len(region.Domain) == 0 {
+			return true
+		}
+	}
+
+	return false
 }

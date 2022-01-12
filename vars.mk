@@ -4,6 +4,7 @@ CLOUD_PROVIDER = ibm
 
 CASSANDRA_RELEASE_NAME ?= e2e-tests
 IMAGE_PULL_SECRET ?= icm-coreeng-pull-secret
+STORAGE_CLASS_NAME ?= ibmc-block-gold
 
 # Obtain k8s cluster name
 K8S_CLUSTER ?= $(shell kubectl config current-context | cut -f1 -d"/")

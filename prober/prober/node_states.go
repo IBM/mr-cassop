@@ -55,11 +55,16 @@ func (p *Prober) isNodeReady(ip string) (bool, map[string]string) {
 	}
 
 	if len(ignoredPeerNodes) > 0 {
-		p.log.Debugf("ignoring the following node(s) view as they are not ready: %v", ignoredPeerNodes)
+		p.log.Infof("ignoring the following node(s) view as they are not ready: %v", ignoredPeerNodes)
+	}
+
+	if len(ignoredPeerNodes) == len(p.state.nodes) {
+		p.log.Infof("no nodes are ready")
+		return false, nodeClusterView
 	}
 
 	if len(peersUnreadyView) > 0 {
-		p.log.Debugf("node %s not seen as ready by %v", ip, peersUnreadyView)
+		p.log.Infof("node %s not seen as ready by %v", ip, peersUnreadyView)
 		return false, nodeClusterView
 	}
 

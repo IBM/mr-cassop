@@ -45,6 +45,24 @@ func (p *Prober) putRegionReady(w http.ResponseWriter, r *http.Request, _ httpro
 	}
 }
 
+func (p *Prober) getReaperReady(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
+	p.write(w, []byte(strconv.FormatBool(p.state.reaperReady)))
+}
+
+func (p *Prober) putReaperReady(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	var ready bool
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		p.log.Error(err, "can't ready body")
+		w.WriteHeader(http.StatusInternalServerError)
+	} else if ready, err = strconv.ParseBool(string(body)); err != nil {
+		p.log.Error(err, "can't parse reaper readiness state")
+		w.WriteHeader(http.StatusBadRequest)
+	} else {
+		p.state.reaperReady = ready
+	}
+}
+
 func (p *Prober) getSeeds(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
 	response, _ := json.Marshal(p.state.seeds)
 	p.write(w, response)

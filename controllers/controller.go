@@ -15,9 +15,10 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"net/url"
+
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"net/url"
 
 	"github.com/gocql/gocql"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
@@ -233,6 +234,22 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, err
 	}
 
+	if len(managedExternalRegionsDomains(cc.Spec.ExternalRegions)) > 0 {
+		allRegionsHosts := getAllRegionsHosts(cc)
+		firstRegionsToInit := allRegionsHosts[0]
+		// pause reaper init if it's not the first region to init
+		if firstRegionsToInit != names.ProberIngressHost(cc.Name, cc.Namespace, cc.Spec.Ingress.Domain) {
+			reaperReady, err := proberClient.ReaperReady(ctx, firstRegionsToInit)
+			if err != nil {
+				return ctrl.Result{}, errors.Wrapf(err, "Can't get reaper status from region %s", firstRegionsToInit)
+			}
+			if !reaperReady {
+				r.Log.Infof("Reaper is not ready in regions %s. Trying again in %s...", firstRegionsToInit, r.Cfg.RetryDelay)
+				return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
+			}
+		}
+	}
+
 	if err = r.reconcileReaperPrerequisites(ctx, cc, cqlClient, allDCs); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling reaper")
 	}
@@ -248,16 +265,26 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	reaperClient := r.ReaperClient(reaperServiceUrl, cc.Name, cc.Spec.Reaper.RepairThreadCount)
 	isRunning, err := reaperClient.IsRunning(ctx)
 	if err != nil {
+		if err = proberClient.UpdateReaperStatus(ctx, false); err != nil {
+			return ctrl.Result{}, err
+		}
 		r.Log.Warnf("Reaper ping request failed: %s. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
 		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 	}
 	if !isRunning {
+		if err = proberClient.UpdateReaperStatus(ctx, false); err != nil {
+			return ctrl.Result{}, err
+		}
 		r.Log.Infof("Reaper is not ready. Trying again in %s...", r.Cfg.RetryDelay)
 		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 	}
 
 	if err = r.reaperInitialization(ctx, cc, reaperClient); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Failed to initialize reaper")
+	}
+
+	if err = proberClient.UpdateReaperStatus(ctx, true); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	if err = r.reconcileRepairSchedules(ctx, cc, reaperClient); err != nil {

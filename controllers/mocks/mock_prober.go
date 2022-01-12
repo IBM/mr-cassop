@@ -80,6 +80,21 @@ func (mr *MockProberClientMockRecorder) Ready(ctx interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ready", reflect.TypeOf((*MockProberClient)(nil).Ready), ctx)
 }
 
+// ReaperReady mocks base method.
+func (m *MockProberClient) ReaperReady(ctx context.Context, host string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReaperReady", ctx, host)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ReaperReady indicates an expected call of ReaperReady.
+func (mr *MockProberClientMockRecorder) ReaperReady(ctx, host interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReaperReady", reflect.TypeOf((*MockProberClient)(nil).ReaperReady), ctx, host)
+}
+
 // RegionReady mocks base method.
 func (m *MockProberClient) RegionReady(ctx context.Context, host string) (bool, error) {
 	m.ctrl.T.Helper()
@@ -107,6 +122,20 @@ func (m *MockProberClient) UpdateDCs(ctx context.Context, dcs []v1alpha1.DC) err
 func (mr *MockProberClientMockRecorder) UpdateDCs(ctx, dcs interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateDCs", reflect.TypeOf((*MockProberClient)(nil).UpdateDCs), ctx, dcs)
+}
+
+// UpdateReaperStatus mocks base method.
+func (m *MockProberClient) UpdateReaperStatus(ctx context.Context, ready bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateReaperStatus", ctx, ready)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateReaperStatus indicates an expected call of UpdateReaperStatus.
+func (mr *MockProberClientMockRecorder) UpdateReaperStatus(ctx, ready interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateReaperStatus", reflect.TypeOf((*MockProberClient)(nil).UpdateReaperStatus), ctx, ready)
 }
 
 // UpdateRegionStatus mocks base method.
