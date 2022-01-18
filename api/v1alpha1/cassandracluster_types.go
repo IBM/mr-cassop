@@ -271,10 +271,11 @@ type Cassandra struct {
 	// +kubebuilder:validation:Minimum:=1
 	NumSeeds int32 `json:"numSeeds,omitempty"`
 	// +kubebuilder:validation:Minimum:=0
-	TerminationGracePeriodSeconds *int64      `json:"terminationGracePeriodSeconds,omitempty"`
-	PurgeGossip                   bool        `json:"purgeGossip,omitempty"`
-	Persistence                   Persistence `json:"persistence,omitempty"`
-	ZonesAsRacks                  bool        `json:"zonesAsRacks,omitempty"`
+	TerminationGracePeriodSeconds *int64            `json:"terminationGracePeriodSeconds,omitempty"`
+	PurgeGossip                   bool              `json:"purgeGossip,omitempty"`
+	Persistence                   Persistence       `json:"persistence,omitempty"`
+	ZonesAsRacks                  bool              `json:"zonesAsRacks,omitempty"`
+	Sysctls                       map[string]string `json:"sysctls,omitempty"`
 }
 
 type Roles struct {

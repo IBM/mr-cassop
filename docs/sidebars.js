@@ -28,6 +28,7 @@ module.exports = {
     },
     'exposing-clusters',
     'multi-region-cluster-configuration',
+    'sysctl',
     'maintenance-mode',
     {
       type: 'category',

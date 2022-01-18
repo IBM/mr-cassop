@@ -440,6 +440,10 @@ spec:
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                         type: object
                     type: object
+                  sysctls:
+                    additionalProperties:
+                      type: string
+                    type: object
                   terminationGracePeriodSeconds:
                     format: int64
                     minimum: 0
@@ -1940,6 +1944,8 @@ spec:
                       type: string
                     type: array
                 type: object
+              topologySpreadByZone:
+                type: boolean
             required:
             - adminRoleSecretName
             - dcs

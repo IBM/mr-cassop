@@ -55,12 +55,33 @@ func TestDefaultingFunction(t *testing.T) {
 	g.Expect(cc.Spec.Monitoring.ServiceMonitor.Namespace).To(BeEmpty())
 	g.Expect(cc.Spec.Monitoring.ServiceMonitor.Labels).To(BeEmpty())
 	g.Expect(cc.Spec.Monitoring.ServiceMonitor.ScrapeInterval).To(BeEmpty())
+	g.Expect(cc.Spec.Cassandra.Sysctls).To(Equal(map[string]string{
+		"net.ipv4.ip_local_port_range": "1025 65535",
+		"net.ipv4.tcp_rmem":            "4096 87380 16777216",
+		"net.ipv4.tcp_wmem":            "4096 65536 16777216",
+		"net.core.somaxconn":           "65000",
+		"net.ipv4.tcp_ecn":             "0",
+		"net.ipv4.tcp_window_scaling":  "1",
+		"vm.dirty_background_bytes":    "10485760",
+		"vm.dirty_bytes":               "1073741824",
+		"vm.zone_reclaim_mode":         "0",
+		"fs.file-max":                  "1073741824",
+		"vm.max_map_count":             "1073741824",
+		"vm.swappiness":                "1",
+	}))
+
 	cc = &v1alpha1.CassandraCluster{
 		Spec: v1alpha1.CassandraClusterSpec{
 			DCs: []v1alpha1.DC{
 				{
 					Name:     "dc1",
 					Replicas: proto.Int32(3),
+				},
+			},
+			Cassandra: &v1alpha1.Cassandra{
+				Sysctls: map[string]string{
+					"fs.file-max":      "1000000000",
+					"vm.max_map_count": "1000000000",
 				},
 			},
 			Reaper: &v1alpha1.Reaper{
@@ -136,6 +157,21 @@ func TestDefaultingFunction(t *testing.T) {
 	g.Expect(cc.Spec.SystemKeyspaces.DCs).To(BeNil())
 	g.Expect(cc.Spec.TopologySpreadByZone).ToNot(BeNil())
 	g.Expect(*cc.Spec.TopologySpreadByZone).To(BeFalse())
+	g.Expect(cc.Spec.Cassandra.Sysctls).To(Equal(map[string]string{
+		"net.ipv4.ip_local_port_range": "1025 65535",
+		"net.ipv4.tcp_rmem":            "4096 87380 16777216",
+		"net.ipv4.tcp_wmem":            "4096 65536 16777216",
+		"net.core.somaxconn":           "65000",
+		"net.ipv4.tcp_ecn":             "0",
+		"net.ipv4.tcp_window_scaling":  "1",
+		"vm.dirty_background_bytes":    "10485760",
+		"vm.dirty_bytes":               "1073741824",
+		"vm.zone_reclaim_mode":         "0",
+		"fs.file-max":                  "1000000000",
+		"vm.max_map_count":             "1000000000",
+		"vm.swappiness":                "1",
+	}))
+
 	// Reaper
 	g.Expect(cc.Spec.Reaper.RepairSchedules.Repairs[0].Keyspace).To(Equal("system_auth"))
 	g.Expect(cc.Spec.Reaper.RepairSchedules.Repairs[0].RepairParallelism).To(Equal("DATACENTER_AWARE"))

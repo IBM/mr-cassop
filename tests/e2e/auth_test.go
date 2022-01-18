@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -53,6 +54,11 @@ var _ = Describe("auth logic", func() {
 	})
 	Context("with persistence enabled, internal auth", func() {
 		It("should be up to date with the secret", func() {
+			sysctls := map[string]string{
+				"net.core.somaxconn": "65000",
+				"vm.swappiness":      "1",
+				"fs.file-max":        "1073741824",
+			}
 			newCassandraCluster := cassandraCluster.DeepCopy()
 			newCassandraCluster.Spec.AdminRoleSecretName = testAdminRoleSecretName
 			newCassandraCluster.Spec.JMX.Authentication = "internal"
@@ -67,6 +73,7 @@ var _ = Describe("auth logic", func() {
 					},
 				},
 			}
+			newCassandraCluster.Spec.Cassandra.Sysctls = sysctls
 
 			deployCassandraCluster(newCassandraCluster)
 			waitForPodsReadiness(newCassandraCluster.Namespace, reaperPodLabels, int32(len(newCassandraCluster.Spec.DCs)))
@@ -174,6 +181,18 @@ var _ = Describe("auth logic", func() {
 			waitForPodsReadiness(newCassandraCluster.Namespace, reaperPodLabels, int32(len(newCassandraCluster.Spec.DCs)))
 
 			testCQLLogin(pod.Name, pod.Namespace, testAdminRole, testAdminPassword)
+
+			for key, value := range sysctls {
+				cmd := []string{
+					"sh",
+					"-c",
+					fmt.Sprintf("sysctl -n %s", key),
+				}
+				execResult, err := execPod(pod.Name, pod.Namespace, cmd)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(execResult.stderr).To(BeEmpty())
+				Expect(strings.TrimSpace(execResult.stdout)).To(Equal(value))
+			}
 		})
 
 	})

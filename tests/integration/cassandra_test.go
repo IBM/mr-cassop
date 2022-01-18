@@ -93,6 +93,17 @@ var _ = Describe("cassandra statefulset deployment", func() {
 				Expect(dataVolume.EmptyDir).To(Equal(&v1.EmptyDirVolumeSource{}), "default values")
 				_, found = getVolumeMountByName(cassandraContainer.VolumeMounts, "commitlog")
 				Expect(found).To(BeFalse())
+
+				privilegedInitContainer, found := getInitContainerByName(sts.Spec.Template.Spec, "privileged-init")
+				Expect(found).To(BeTrue())
+				Expect(privilegedInitContainer.Command).To(BeEquivalentTo(
+					[]string{
+						"bash",
+						"-c",
+						`chown cassandra:cassandra /var/lib/cassandra
+sysctl -w fs.file-max="1073741824" net.core.somaxconn="65000" net.ipv4.ip_local_port_range="1025 65535" net.ipv4.tcp_ecn="0" net.ipv4.tcp_rmem="4096 87380 16777216" net.ipv4.tcp_window_scaling="1" net.ipv4.tcp_wmem="4096 65536 16777216" vm.dirty_background_bytes="10485760" vm.dirty_bytes="1073741824" vm.max_map_count="1073741824" vm.swappiness="1" vm.zone_reclaim_mode="0"`,
+					},
+				))
 			}
 		})
 	})
@@ -272,6 +283,57 @@ var _ = Describe("cassandra statefulset", func() {
 				Expect(sts.Spec.VolumeClaimTemplates[0].Annotations).To(Equal(map[string]string{"storage-type": "Performance"}))
 				Expect(sts.Spec.VolumeClaimTemplates[0].Spec.AccessModes).To(Equal([]v1.PersistentVolumeAccessMode{v1.ReadWriteOnce}))
 				Expect(sts.Spec.VolumeClaimTemplates[0].Spec.Resources.Requests[v1.ResourceStorage]).To(Equal(resource.MustParse("20Gi")))
+			}
+		})
+	})
+})
+
+var _ = Describe("cassandra statefulset", func() {
+	cc := &v1alpha1.CassandraCluster{
+		ObjectMeta: cassandraObjectMeta,
+		Spec: v1alpha1.CassandraClusterSpec{
+			DCs: []v1alpha1.DC{
+				{
+					Name:     "dc1",
+					Replicas: proto.Int32(3),
+				},
+				{
+					Name:     "dc2",
+					Replicas: proto.Int32(6),
+				},
+			},
+			ImagePullSecretName: "pullSecretName",
+			AdminRoleSecretName: "admin-role",
+			Cassandra: &v1alpha1.Cassandra{
+				Sysctls: map[string]string{
+					"net.ipv4.ip_local_port_range": "1025 65535",
+					"net.ipv4.tcp_rmem":            "4096 87380 16777216",
+					"net.ipv4.tcp_wmem":            "4096 65536 16777216",
+				},
+			},
+		},
+	}
+
+	Context("with sysctls enabled", func() {
+		It("sysctl should be set in privileged container", func() {
+			createReadyCluster(cc)
+
+			for _, dc := range cc.Spec.DCs {
+				sts := &appsv1.StatefulSet{}
+				Eventually(func() error {
+					return k8sClient.Get(ctx, types.NamespacedName{Name: names.DC(cc.Name, dc.Name), Namespace: cc.Namespace}, sts)
+				}, time.Second*10, time.Millisecond*100).Should(Succeed())
+
+				initContainer, found := getInitContainerByName(sts.Spec.Template.Spec, "privileged-init")
+				Expect(found).To(BeTrue())
+				Expect(initContainer.Command).To(BeEquivalentTo(
+					[]string{
+						"bash",
+						"-c",
+						`chown cassandra:cassandra /var/lib/cassandra
+sysctl -w fs.file-max="1073741824" net.core.somaxconn="65000" net.ipv4.ip_local_port_range="1025 65535" net.ipv4.tcp_ecn="0" net.ipv4.tcp_rmem="4096 87380 16777216" net.ipv4.tcp_window_scaling="1" net.ipv4.tcp_wmem="4096 65536 16777216" vm.dirty_background_bytes="10485760" vm.dirty_bytes="1073741824" vm.max_map_count="1073741824" vm.swappiness="1" vm.zone_reclaim_mode="0"`},
+				),
+				)
 			}
 		})
 	})

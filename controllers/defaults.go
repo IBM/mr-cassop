@@ -54,6 +54,8 @@ func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.Cass
 	if cc.Spec.Encryption.Client.Enabled {
 		r.defaultClientTLS(cc)
 	}
+
+	r.defaultSysctls(cc)
 }
 
 func (r *CassandraClusterReconciler) defaultReaper(cc *dbv1alpha1.CassandraCluster) {
@@ -291,6 +293,34 @@ func (r *CassandraClusterReconciler) defaultMonitoring(cc *dbv1alpha1.CassandraC
 	if cc.Spec.Monitoring.ServiceMonitor.Enabled {
 		if _, err := time.ParseDuration(cc.Spec.Monitoring.ServiceMonitor.ScrapeInterval); err != nil {
 			cc.Spec.Monitoring.ServiceMonitor.ScrapeInterval = "30s"
+		}
+	}
+}
+
+func (r *CassandraClusterReconciler) defaultSysctls(cc *dbv1alpha1.CassandraCluster) {
+	defaultSysctls := map[string]string{
+		"net.ipv4.ip_local_port_range": "1025 65535",
+		"net.ipv4.tcp_rmem":            "4096 87380 16777216",
+		"net.ipv4.tcp_wmem":            "4096 65536 16777216",
+		"net.core.somaxconn":           "65000",
+		"net.ipv4.tcp_ecn":             "0",
+		"net.ipv4.tcp_window_scaling":  "1",
+		"vm.dirty_background_bytes":    "10485760",
+		"vm.dirty_bytes":               "1073741824",
+		"vm.zone_reclaim_mode":         "0",
+		"fs.file-max":                  "1073741824",
+		"vm.max_map_count":             "1073741824",
+		"vm.swappiness":                "1",
+	}
+
+	if cc.Spec.Cassandra.Sysctls == nil {
+		cc.Spec.Cassandra.Sysctls = defaultSysctls
+		return
+	}
+
+	for key, value := range defaultSysctls {
+		if _, exists := cc.Spec.Cassandra.Sysctls[key]; !exists {
+			cc.Spec.Cassandra.Sysctls[key] = value
 		}
 	}
 }

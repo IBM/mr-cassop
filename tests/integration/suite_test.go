@@ -394,6 +394,16 @@ func getContainerByName(pod v1.PodSpec, containerName string) (v1.Container, boo
 	return v1.Container{}, false
 }
 
+func getInitContainerByName(pod v1.PodSpec, containerName string) (v1.Container, bool) {
+	for _, container := range pod.InitContainers {
+		if container.Name == containerName {
+			return container, true
+		}
+	}
+
+	return v1.Container{}, false
+}
+
 func expectResourceIsDeleted(name types.NamespacedName, obj client.Object) {
 	Eventually(func() metav1.StatusReason {
 		err := k8sClient.Get(context.Background(), name, obj)

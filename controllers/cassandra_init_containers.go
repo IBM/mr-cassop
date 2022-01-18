@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/gogo/protobuf/proto"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
@@ -82,6 +84,15 @@ func privilegedInitContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 		"chown cassandra:cassandra /var/lib/cassandra",
 	}
 
+	if len(cc.Spec.Cassandra.Sysctls) > 0 {
+		var sysctlArgs []string
+		for key, value := range cc.Spec.Cassandra.Sysctls {
+			sysctlArgs = append(sysctlArgs, fmt.Sprintf("%s=\"%s\"", key, value))
+		}
+		sort.Strings(sysctlArgs)
+		args = append(args, "sysctl -w "+strings.Join(sysctlArgs, " "))
+	}
+
 	return v1.Container{
 		Name:            "privileged-init",
 		Image:           cc.Spec.Cassandra.Image,
@@ -107,8 +118,8 @@ func privilegedInitContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 		Command: []string{
 			"bash",
 			"-c",
+			strings.Join(args, "\n"),
 		},
-		Args:                     args,
 		TerminationMessagePath:   "/dev/termination-log",
 		TerminationMessagePolicy: v1.TerminationMessageReadFile,
 	}
