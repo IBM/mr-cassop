@@ -126,7 +126,7 @@ var _ = Describe("reaper deployment", func() {
 				By("reaper client should add C* cluster to reaper")
 				mockReaperClient.isRunning = true
 				mockReaperClient.err = nil
-				Eventually(mockReaperClient.clusterExists).Should(BeTrue())
+				Eventually(mockReaperClient.clusters).Should(BeEquivalentTo([]string{cc.Name}))
 				By("reaper client should schedule all repair jobs")
 				Eventually(mockReaperClient.repairSchedules).Should(HaveLen(len(cc.Spec.Reaper.RepairSchedules.Repairs)))
 			})

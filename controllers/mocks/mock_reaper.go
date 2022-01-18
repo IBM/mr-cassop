@@ -65,6 +65,21 @@ func (mr *MockReaperClientMockRecorder) ClusterExists(ctx interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClusterExists", reflect.TypeOf((*MockReaperClient)(nil).ClusterExists), ctx)
 }
 
+// Clusters mocks base method.
+func (m *MockReaperClient) Clusters(ctx context.Context) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Clusters", ctx)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Clusters indicates an expected call of Clusters.
+func (mr *MockReaperClientMockRecorder) Clusters(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Clusters", reflect.TypeOf((*MockReaperClient)(nil).Clusters), ctx)
+}
+
 // CreateRepairSchedule mocks base method.
 func (m *MockReaperClient) CreateRepairSchedule(ctx context.Context, repair v1alpha1.RepairSchedule) error {
 	m.ctrl.T.Helper()
@@ -77,6 +92,20 @@ func (m *MockReaperClient) CreateRepairSchedule(ctx context.Context, repair v1al
 func (mr *MockReaperClientMockRecorder) CreateRepairSchedule(ctx, repair interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateRepairSchedule", reflect.TypeOf((*MockReaperClient)(nil).CreateRepairSchedule), ctx, repair)
+}
+
+// DeleteCluster mocks base method.
+func (m *MockReaperClient) DeleteCluster(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteCluster", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteCluster indicates an expected call of DeleteCluster.
+func (mr *MockReaperClientMockRecorder) DeleteCluster(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteCluster", reflect.TypeOf((*MockReaperClient)(nil).DeleteCluster), ctx)
 }
 
 // DeleteRepairSchedule mocks base method.

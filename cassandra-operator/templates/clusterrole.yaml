@@ -69,6 +69,7 @@ rules:
   - pods
   verbs:
   - create
+  - deletecollection
   - get
   - list
   - patch

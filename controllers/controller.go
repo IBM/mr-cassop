@@ -86,7 +86,7 @@ type CassandraClusterReconciler struct {
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;delete;
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
-// +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;patch;create;update;
+// +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;patch;create;update;deletecollection;
 // +kubebuilder:rbac:groups="",resources=pods/status,verbs=get;patch;update
 // +kubebuilder:rbac:groups="",resources=pods/exec,verbs=create
 // +kubebuilder:rbac:groups=apps,resources=deployments;statefulsets,verbs=list;get;watch;create;update;delete

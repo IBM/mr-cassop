@@ -2,11 +2,13 @@ package reaper
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+
+	"github.com/pkg/errors"
 
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 )
@@ -27,6 +29,8 @@ type reaperClient struct {
 type ReaperClient interface {
 	IsRunning(ctx context.Context) (bool, error)
 	ClusterExists(ctx context.Context) (bool, error)
+	Clusters(ctx context.Context) ([]string, error)
+	DeleteCluster(ctx context.Context) error
 	AddCluster(ctx context.Context, seed string) error
 	CreateRepairSchedule(ctx context.Context, repair dbv1alpha1.RepairSchedule) error
 	RepairSchedules(ctx context.Context) ([]RepairSchedule, error)
@@ -122,5 +126,101 @@ func (r *reaperClient) AddCluster(ctx context.Context, seed string) error {
 		}
 		return &requestFailedWithStatus{code: resp.StatusCode, message: string(b)}
 	}
+	return nil
+}
+
+func (r *reaperClient) Clusters(ctx context.Context) ([]string, error) {
+	route := r.url("/cluster")
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, route, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/json")
+	req = req.WithContext(ctx)
+	resp, err := r.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	b, _ := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		return nil, &requestFailedWithStatus{code: resp.StatusCode, message: string(b)}
+	}
+
+	var clusters []string
+	err = json.Unmarshal(b, &clusters)
+	if err != nil {
+		return nil, err
+	}
+
+	return clusters, nil
+}
+
+func (r *reaperClient) DeleteCluster(ctx context.Context) error {
+	// ensure no repair are running
+	repairRuns, err := r.getRepairRuns(ctx, "")
+	if err != nil {
+		return err
+	}
+
+	for _, repairRun := range repairRuns {
+		err = r.deleteRepairRun(ctx, repairRun)
+		if err != nil {
+			return errors.Wrapf(err, "can't delete repair run %s for keyspace %s", repairRun.ID, repairRun.KeyspaceName)
+		}
+	}
+
+	// ensure no repair schedules exist
+	repairSchedules, err := r.RepairSchedules(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, repairSchedule := range repairSchedules {
+		err = r.DeleteRepairSchedule(ctx, repairSchedule.ID)
+		if err != nil {
+			return errors.Wrapf(err, "can't delete repair schedule %s for keyspace %s", repairSchedule.ID, repairSchedule.KeyspaceName)
+		}
+	}
+
+	route := r.url("/cluster/" + r.clusterName)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, route, nil)
+	if err != nil {
+		return err
+	}
+	req = req.WithContext(ctx)
+	resp, err := r.client.Do(req)
+	if err != nil {
+		return err
+	}
+	b, _ := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		return &requestFailedWithStatus{code: resp.StatusCode, message: string(b)}
+	}
+
+	return nil
+}
+
+func (r *reaperClient) deleteRepairRun(ctx context.Context, repairRun RepairRun) error {
+	route := r.url("/repair_run/" + repairRun.ID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, route, nil)
+	if err != nil {
+		return err
+	}
+	q := req.URL.Query()
+	q.Add("owner", repairRun.Owner)
+	req.URL.RawQuery = q.Encode()
+	req = req.WithContext(ctx)
+	resp, err := r.client.Do(req)
+	if err != nil {
+		return err
+	}
+	b, _ := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		return &requestFailedWithStatus{code: resp.StatusCode, message: string(b)}
+	}
+
 	return nil
 }

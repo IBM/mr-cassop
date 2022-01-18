@@ -208,6 +208,7 @@ var _ = BeforeSuite(func() {
 			return nil, errors.New("user not found")
 		},
 		ReaperClient: func(url *url.URL, clusterName string, defaultRepairThreadCount int32) reaper.ReaperClient {
+			mockReaperClient.clusterName = clusterName
 			return mockReaperClient
 		},
 	}

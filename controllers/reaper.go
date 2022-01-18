@@ -3,9 +3,8 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/url"
-
-	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
@@ -22,6 +21,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -120,8 +121,6 @@ func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Conte
 			},
 		},
 	}
-
-	r.Log.Debug("Reconciling Reaper Deployment")
 
 	desiredDeployment.Spec.Template.Spec.Volumes = append(desiredDeployment.Spec.Template.Spec.Volumes, cassandraConfigVolume(cc))
 	if err = controllerutil.SetControllerReference(cc, desiredDeployment, r.Scheme); err != nil {
@@ -341,6 +340,15 @@ func (r CassandraClusterReconciler) reaperInitialization(ctx context.Context, cc
 	seed := getSeedHostname(cc, cc.Spec.DCs[0].Name, 0, true)
 	clusterExists, err := reaperClient.ClusterExists(ctx)
 	if err != nil {
+		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+			r.Log.Infof("Timeout occured while checking if cluster exists")
+			reInitErr := r.reInitReaperIfNeeded(ctx, cc, reaperClient, seed)
+			if reInitErr != nil {
+				return errors.Wrapf(err, "failed to re-init reaper")
+			}
+
+			return nil
+		}
 		return err
 	}
 	if !clusterExists {
@@ -368,4 +376,62 @@ func (r CassandraClusterReconciler) reaperInitialization(ctx context.Context, cc
 func reaperServiceURL(cc *dbv1alpha1.CassandraCluster) *url.URL {
 	reaperURL, _ := url.Parse(fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", names.ReaperService(cc.Name), cc.Namespace, v1alpha1.ReaperAppPort))
 	return reaperURL
+}
+
+func (r *CassandraClusterReconciler) reInitReaperIfNeeded(ctx context.Context, cc *dbv1alpha1.CassandraCluster, reaperClient reaper.ReaperClient, seed string) error {
+	r.Log.Infof("Checking if cluster exists in the list of clusters")
+	clusters, err := reaperClient.Clusters(ctx)
+	if err != nil {
+		return errors.Wrap(err, "can't get list of clusters from reaper")
+	}
+
+	clusterFound := false
+	for _, clusterName := range clusters {
+		if clusterName == cc.Name {
+			clusterFound = true
+		}
+	}
+
+	if !clusterFound {
+		// should error out to restart reconcile loop
+		return errors.Errorf("cluster %s not found in the list of clusters", cc.Name)
+	}
+	r.Log.Infof("Cluster %s exists in reaper's cluster list but not in a working state. Re-initializing reaper", cc.Name)
+
+	r.Log.Infof("Removing cluster %s from reaper", cc.Name)
+	err = reaperClient.DeleteCluster(ctx)
+	if err != nil {
+		return errors.Wrapf(err, "can't delete cluster %s from reaper", cc.Name)
+	}
+
+	r.Log.Infof("Removed. Waiting for cluster %s to be deleted from reaper", cc.Name)
+	err = r.doWithRetry(func() error {
+		existingClusters, err := reaperClient.Clusters(ctx)
+		if err != nil {
+			return err
+		}
+
+		if util.Contains(existingClusters, cc.Name) {
+			return errors.New("cluster still exists")
+		}
+		return nil
+	})
+
+	if err != nil {
+		return errors.Wrapf(err, "failed to remove cluster from reaper")
+	}
+
+	r.Log.Info("Cluster is removed from reaper. Re-adding it.")
+	if err = reaperClient.AddCluster(ctx, seed); err != nil {
+		return err
+	}
+
+	r.Log.Infof("Reaper is re-initialized. Restarting reaper pods for changes to take effect.")
+	reaperPodLabels := labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterComponentReaper)
+	err = r.DeleteAllOf(ctx, &v1.Pod{}, client.InNamespace(cc.Namespace), client.MatchingLabels(reaperPodLabels))
+	if err != nil {
+		return errors.Wrapf(err, "couldn't restart reaper pods by deleting them")
+	}
+
+	return nil
 }

@@ -279,9 +279,9 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 			mockReaperClient.isRunning = true
 			mockReaperClient.err = nil
 
-			Eventually(func() bool {
-				return mockReaperClient.clusterExists
-			}, shortTimeout, shortRetry).Should(BeTrue())
+			Eventually(func() []string {
+				return mockReaperClient.clusters
+			}, shortTimeout, shortRetry).Should(BeEquivalentTo([]string{cc.Name}))
 		})
 	})
 })

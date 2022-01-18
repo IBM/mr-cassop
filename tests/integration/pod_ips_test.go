@@ -50,6 +50,7 @@ var _ = Describe("pod IPs", func() {
 
 		// emulate pod failure and coming back with a new IP but not ready yet
 		firstPod := currentPodsList.Items[0]
+		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: firstPod.Name, Namespace: firstPod.Namespace}, &firstPod)).To(Succeed())
 		newPodIP := "10.0.0.43"
 		firstPod.Status.PodIP = newPodIP
 		firstPod.Status.ContainerStatuses[0].Ready = false

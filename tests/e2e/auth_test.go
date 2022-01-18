@@ -2,24 +2,23 @@ package e2e
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/ibm/cassandra-operator/controllers/labels"
-
-	"github.com/gogo/protobuf/proto"
-	"k8s.io/apimachinery/pkg/api/resource"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
+	"github.com/ibm/cassandra-operator/controllers/labels"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/gogo/protobuf/proto"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/pkg/errors"
 )
 
 var _ = Describe("auth logic", func() {
@@ -61,10 +60,10 @@ var _ = Describe("auth logic", func() {
 				"vm.swappiness":      "1",
 				"fs.file-max":        "1073741824",
 			}
-			newCassandraCluster := cassandraCluster.DeepCopy()
-			newCassandraCluster.Spec.AdminRoleSecretName = testAdminRoleSecretName
-			newCassandraCluster.Spec.JMX.Authentication = "internal"
-			newCassandraCluster.Spec.Cassandra.Persistence = dbv1alpha1.Persistence{
+			cc := cassandraCluster.DeepCopy()
+			cc.Spec.AdminRoleSecretName = testAdminRoleSecretName
+			cc.Spec.JMX.Authentication = "internal"
+			cc.Spec.Cassandra.Persistence = dbv1alpha1.Persistence{
 				Enabled: true,
 				DataVolumeClaimSpec: v1.PersistentVolumeClaimSpec{
 					StorageClassName: proto.String(storageClassName),
@@ -75,16 +74,16 @@ var _ = Describe("auth logic", func() {
 					},
 				},
 			}
-			newCassandraCluster.Spec.Reaper = &dbv1alpha1.Reaper{
+			cc.Spec.Reaper = &dbv1alpha1.Reaper{
 				MaxParallelRepairs:  20,
 				RepairRunThreads:    4,
 				RepairThreadCount:   4,
 				SegmentCountPerNode: 1, // speeds up repairs
 			}
-			newCassandraCluster.Spec.Cassandra.Sysctls = sysctls
+			cc.Spec.Cassandra.Sysctls = sysctls
 
-			deployCassandraCluster(newCassandraCluster)
-			waitForPodsReadiness(newCassandraCluster.Namespace, reaperPodLabels, int32(len(newCassandraCluster.Spec.DCs)))
+			deployCassandraCluster(cc)
+			waitForPodsReadiness(cc.Namespace, reaperPodLabels, int32(len(cc.Spec.DCs)))
 
 			podList := &v1.PodList{}
 			err = restClient.List(context.Background(), podList, client.InNamespace(cassandraNamespace), client.MatchingLabels(cassandraClusterPodLabels))
@@ -97,22 +96,22 @@ var _ = Describe("auth logic", func() {
 			testCQLLogin(pod.Name, pod.Namespace, testAdminRole, testAdminPassword)
 
 			By("Add a new DC")
-			ccName := types.NamespacedName{Name: newCassandraCluster.Name, Namespace: newCassandraCluster.Namespace}
-			cassPodsLabels := labels.ComponentLabels(newCassandraCluster, dbv1alpha1.CassandraClusterComponentCassandra)
-			Expect(restClient.Get(context.Background(), ccName, newCassandraCluster)).To(Succeed())
+			ccName := types.NamespacedName{Name: cc.Name, Namespace: cc.Namespace}
+			cassPodsLabels := labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra)
+			Expect(restClient.Get(context.Background(), ccName, cc)).To(Succeed())
 
 			newDCName := "dc2"
-			newCassandraCluster.Spec.DCs = append(newCassandraCluster.Spec.DCs, dbv1alpha1.DC{Name: newDCName, Replicas: proto.Int32(3)})
-			Expect(restClient.Update(context.Background(), newCassandraCluster)).To(Succeed())
-			waitForPodsReadiness(newCassandraCluster.Namespace, cassPodsLabels, numberOfNodes(newCassandraCluster))
+			cc.Spec.DCs = append(cc.Spec.DCs, dbv1alpha1.DC{Name: newDCName, Replicas: proto.Int32(3)})
+			Expect(restClient.Update(context.Background(), cc)).To(Succeed())
+			waitForPodsReadiness(cc.Namespace, cassPodsLabels, numberOfNodes(cc))
 
 			newDCPods := &v1.PodList{}
 			newDCPodLabels := labels.WithDCLabel(cassPodsLabels, newDCName)
-			Expect(restClient.List(context.Background(), newDCPods, client.InNamespace(newCassandraCluster.Namespace), client.MatchingLabels(newDCPodLabels)))
+			Expect(restClient.List(context.Background(), newDCPods, client.InNamespace(cc.Namespace), client.MatchingLabels(newDCPodLabels)))
 			Expect(newDCPods.Items).ToNot(BeEmpty())
 
 			testCQLLogin(newDCPods.Items[0].Name, newDCPods.Items[0].Namespace, testAdminRole, testAdminPassword)
-			expectNumberOfNodes(newDCPods.Items[0].Name, newDCPods.Items[0].Namespace, testAdminRole, testAdminPassword, numberOfNodes(newCassandraCluster))
+			expectNumberOfNodes(newDCPods.Items[0].Name, newDCPods.Items[0].Namespace, testAdminRole, testAdminPassword, numberOfNodes(cc))
 
 			Expect(restClient.Get(context.Background(), types.NamespacedName{
 				Name: testAdminRoleSecret.Name, Namespace: testAdminRoleSecret.Namespace,
@@ -190,7 +189,7 @@ var _ = Describe("auth logic", func() {
 			}, 3*time.Minute, 15*time.Second).ShouldNot(Succeed())
 
 			By("Recreate cluster with created PVCs to check if the new password is picked up")
-			Expect(restClient.Delete(context.Background(), newCassandraCluster)).To(Succeed())
+			Expect(restClient.Delete(context.Background(), cc)).To(Succeed())
 
 			By("Removing cassandra cluster...")
 			Expect(restClient.DeleteAllOf(context.Background(), &dbv1alpha1.CassandraCluster{}, client.InNamespace(cassandraNamespace))).To(Succeed())
@@ -201,13 +200,13 @@ var _ = Describe("auth logic", func() {
 			By("Wait until CassandraCluster resource is deleted")
 			waitForCassandraClusterSchemaDeletion(cassandraNamespace, cassandraRelease)
 
-			newCassandraCluster = newCassandraCluster.DeepCopy()
-			newCassandraCluster.ResourceVersion = ""
-			deployCassandraCluster(newCassandraCluster)
-			waitForPodsReadiness(newCassandraCluster.Namespace, reaperPodLabels, int32(len(newCassandraCluster.Spec.DCs)))
-
+			cc = cc.DeepCopy()
+			cc.ResourceVersion = ""
+			deployCassandraCluster(cc)
+			waitForPodsReadiness(cc.Namespace, reaperPodLabels, int32(len(cc.Spec.DCs)))
 			testCQLLogin(pod.Name, pod.Namespace, testAdminRole, testAdminPassword)
 
+			By("Check overridden sysctl parameters")
 			for key, value := range sysctls {
 				cmd := []string{
 					"sh",
@@ -219,6 +218,31 @@ var _ = Describe("auth logic", func() {
 				Expect(execResult.stderr).To(BeEmpty())
 				Expect(strings.TrimSpace(execResult.stdout)).To(Equal(value))
 			}
+
+			By("Check if reaper works")
+			Eventually(func() (string, error) {
+				reaperPf := portForwardPod(cassandraNamespace, reaperPodLabels, []string{"8080"})
+				defer reaperPf.Close()
+				forwardedPorts, err := reaperPf.GetPorts()
+				Expect(err).ToNot(HaveOccurred())
+
+				respBody, _, err := doHTTPRequest("GET", fmt.Sprintf("http://localhost:%d/cluster/%s", forwardedPorts[0].Local, cc.Name))
+				if err != nil {
+					return "", err
+				}
+
+				responseData := make(map[string]interface{})
+				err = json.Unmarshal(respBody, &responseData)
+				if err != nil {
+					return "", errors.Errorf("json unmarshal error: %s", string(respBody))
+				}
+
+				name, ok := responseData["name"].(string)
+				if !ok {
+					return "", errors.Errorf("name is not string. Resp data: %#v", responseData)
+				}
+				return name, nil
+			}, 15*time.Minute, 30*time.Second).Should(Equal(cc.Name))
 		})
 	})
 })

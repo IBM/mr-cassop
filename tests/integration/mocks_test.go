@@ -12,6 +12,7 @@ import (
 	"github.com/gocql/gocql"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
+	"github.com/ibm/cassandra-operator/controllers/util"
 	"github.com/pkg/errors"
 )
 
@@ -37,7 +38,8 @@ type nodetoolMock struct {
 type reaperMock struct {
 	repairSchedules []reaper.RepairSchedule
 	isRunning       bool
-	clusterExists   bool
+	clusters        []string
+	clusterName     string
 	err             error
 }
 
@@ -174,12 +176,24 @@ func (r *reaperMock) IsRunning(ctx context.Context) (bool, error) {
 	return r.isRunning, r.err
 }
 func (r *reaperMock) ClusterExists(ctx context.Context) (bool, error) {
-	return r.clusterExists, r.err
+	for _, addedCluster := range r.clusters {
+		if addedCluster == r.clusterName {
+			return true, nil
+		}
+	}
+	return false, r.err
 }
 func (r *reaperMock) AddCluster(ctx context.Context, seed string) error {
-	if !r.clusterExists {
-		r.clusterExists = true
+	if !util.Contains(r.clusters, r.clusterName) {
+		r.clusters = append(r.clusters, r.clusterName)
 	}
+	return r.err
+}
+func (r *reaperMock) Clusters(ctx context.Context) ([]string, error) {
+	return r.clusters, r.err
+}
+func (r *reaperMock) DeleteCluster(ctx context.Context) error {
+	r.clusters = []string{}
 	return r.err
 }
 func (r *reaperMock) CreateRepairSchedule(ctx context.Context, repair dbv1alpha1.RepairSchedule) error {
@@ -265,7 +279,8 @@ func markMocksAsReady(cc *dbv1alpha1.CassandraCluster) {
 	mockNodetoolClient.err = nil
 	mockReaperClient.err = nil
 	mockReaperClient.isRunning = true
-	mockReaperClient.clusterExists = true
+	mockReaperClient.clusters = []string{cc.Name}
+	mockReaperClient.clusterName = cc.Name
 	mockCQLClient.err = nil
 	mockCQLClient.cassandraRoles = []cql.Role{{Role: "cassandra", Password: "cassandra", Login: true, Super: true}}
 	mockCQLClient.keyspaces = []cql.Keyspace{{
