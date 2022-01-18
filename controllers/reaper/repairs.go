@@ -28,7 +28,7 @@ func (r *reaperClient) RunRepair(ctx context.Context, keyspace, cause string) er
 
 	if len(existingRepairRuns) > 0 {
 		for _, run := range existingRepairRuns {
-			if run.State == "RUNNING" || run.State == "NOT_STARTED" {
+			if run.KeyspaceName == keyspace && (run.State == "RUNNING" || run.State == "NOT_STARTED") {
 				return nil // don't start a repair if there's one running or scheduled
 			}
 		}

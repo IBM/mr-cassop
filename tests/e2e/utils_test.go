@@ -63,7 +63,7 @@ func waitForPodsReadiness(namespace string, labels map[string]string, expectedNu
 			}
 		}
 		return true, nil
-	}, time.Minute*15, time.Second*2).Should(BeTrue(), fmt.Sprintf("Pods should become ready: %s", labels[v1alpha1.CassandraClusterComponent]))
+	}, time.Minute*20, time.Second*2).Should(BeTrue(), fmt.Sprintf("Pods should become ready: %s", labels[v1alpha1.CassandraClusterComponent]))
 }
 
 func waitForPodsTermination(namespace string, labels map[string]string) {
@@ -236,11 +236,12 @@ func deployCassandraCluster(cassandraCluster *v1alpha1.CassandraCluster) {
 	for _, dc := range cassandraCluster.Spec.DCs {
 		waitForPodsReadiness(cassandraCluster.Namespace, labels.WithDCLabel(cassandraClusterPodLabels, dc.Name), *dc.Replicas)
 	}
+	By("Cassandra cluster ready")
 }
 
-func showPodLogs(labels map[string]string) {
+func showPodLogs(labels map[string]string, namespace string) {
 	podList := &v1.PodList{}
-	err = restClient.List(context.Background(), podList, client.InNamespace(cassandraNamespace), client.MatchingLabels(labels))
+	err = restClient.List(context.Background(), podList, client.InNamespace(namespace), client.MatchingLabels(labels))
 	if err != nil {
 		fmt.Println("Unable to get pods. Error: ", err)
 	}
@@ -249,13 +250,53 @@ func showPodLogs(labels map[string]string) {
 		fmt.Println("Logs from pod: ", pod.Name)
 
 		for _, container := range pod.Spec.Containers {
+			logFileName := fmt.Sprintf("%s%s-%s-%s.txt", debugLogsDir, pod.Namespace, pod.Name, container.Name)
 			str, err := getPodLogs(pod, v1.PodLogOptions{TailLines: &tailLines, Container: container.Name})
 			if err != nil {
+				fileContent := []byte(fmt.Sprintf("couldn't get logs for pod %s/%s: %s", pod.Namespace, pod.Name, err.Error()))
+				Expect(ioutil.WriteFile(logFileName, fileContent, 0777)).To(Succeed())
 				continue
 			}
 			fmt.Println(str)
+			allLogs, err := getPodLogs(pod, v1.PodLogOptions{Container: container.Name})
+			if err != nil {
+				fileContent := []byte(fmt.Sprintf("couldn't get logs for pod %s/%s container %s: %s", pod.Namespace, pod.Name, container.Name, err.Error()))
+				Expect(ioutil.WriteFile(logFileName, fileContent, 0777)).To(Succeed())
+				continue
+			}
+
+			Expect(ioutil.WriteFile(logFileName, []byte(allLogs), 0777)).To(Succeed())
 		}
 	}
+}
+
+// showClusterEvents shows all events from the cluster. Helpful if the pods were not able to be schedule
+func showClusterEvents() {
+	eventsList := &v1.EventList{}
+	err = restClient.List(context.Background(), eventsList)
+	if err != nil {
+		fmt.Println("Unable to get events. Error: ", err)
+	}
+
+	var eventsOutput []string
+	for _, event := range eventsList.Items {
+		eventsOutput = append(eventsOutput, fmt.Sprintf("%s %s %s/%s %s/%s: %s - %s",
+			event.LastTimestamp.String(), event.Type,
+			event.InvolvedObject.APIVersion, event.InvolvedObject.Kind,
+			event.InvolvedObject.Namespace, event.InvolvedObject.Name,
+			event.Name, event.Message,
+		))
+	}
+
+	startIndex := len(eventsOutput) - int(tailLines)
+	if startIndex < 0 {
+		startIndex = 0
+	}
+
+	fmt.Println("Kubernetes events: ")
+	fmt.Print(strings.Join(eventsOutput[startIndex:], "\n"))
+	Expect(ioutil.WriteFile(debugLogsDir+"cluster-events.txt", []byte(strings.Join(eventsOutput, "\n")), 0777)).To(Succeed())
+
 }
 
 // getMetrics returns all metrics in the specified metric family with a given metric name
@@ -305,8 +346,6 @@ func prepareNamespace(namespaceName string) {
 	}
 
 	copySecret(cassandraNamespace, imagePullSecret, namespaceName)
-	copySecret(cassandraNamespace, imagePullSecret, namespaceName)
-	copySecret(cassandraNamespace, ingressSecret, namespaceName)
 	copySecret(cassandraNamespace, ingressSecret, namespaceName)
 }
 
@@ -323,7 +362,10 @@ func copySecret(namespaceFrom, secretName, namespaceTo string) {
 	newSecret.ResourceVersion = ""
 	newSecret.UID = ""
 	delete(newSecret.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
-	Expect(restClient.Create(context.Background(), newSecret)).To(Succeed())
+	err = restClient.Create(context.Background(), newSecret)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		Expect(err).ToNot(HaveOccurred())
+	}
 }
 
 func createSecret(namespace, name string, data map[string][]byte) {

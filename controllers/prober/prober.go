@@ -5,11 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
+
+	"github.com/ibm/cassandra-operator/api/v1alpha1"
 
 	"github.com/pkg/errors"
 )

@@ -126,6 +126,6 @@ var _ = Describe("unmanaged region", func() {
 		waitForPodsReadiness(unmanagedCC.Namespace, labels.ComponentLabels(unmanagedCC, dbv1alpha1.CassandraClusterComponentReaper), int32(len(unmanagedCC.Spec.DCs)))
 		waitForPodsReadiness(unmanagedCC.Namespace, labels.ComponentLabels(unmanagedCC, dbv1alpha1.CassandraClusterComponentCassandra), *unmanagedCC.Spec.DCs[0].Replicas)
 
-		expectNumberOfNodes(unmanagedCCPods.Items[0].Name, unmanagedCCPods.Items[0].Namespace, testAdminRole, testAdminPassword, 6)
+		expectNumberOfNodes(unmanagedCCPods.Items[0].Name, unmanagedCCPods.Items[0].Namespace, testAdminRole, testAdminPassword, numberOfNodes(managedCC)+numberOfNodes(unmanagedCC))
 	})
 })

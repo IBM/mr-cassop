@@ -3,15 +3,16 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"os"
+
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/ibm/cassandra-operator/controllers/events"
 	"github.com/ibm/cassandra-operator/controllers/names"
 	"github.com/pkg/errors"
-	"io/ioutil"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"os"
 )
 
 func (r *CassandraClusterReconciler) reconcileAdminRole(ctx context.Context, cc *dbv1alpha1.CassandraCluster, allDCs []dbv1alpha1.DC) (cql.CqlClient, error) {
@@ -44,7 +45,7 @@ func (r *CassandraClusterReconciler) reconcileAdminRole(ctx context.Context, cc 
 	r.Log.Debug("Establishing cql session with role " + cassandraOperatorAdminRole)
 	cqlClient, err := r.CqlClient(newCassandraConfig(cc, cassandraOperatorAdminRole, cassandraOperatorAdminPassword))
 	if err == nil { // operator admin role exists
-		if err = r.reconcileSystemAuthKeyspace(cc, cqlClient, allDCs); err != nil {
+		if err = r.reconcileSystemAuthKeyspace(ctx, cc, cqlClient, allDCs); err != nil {
 			return nil, err
 		}
 
@@ -63,7 +64,7 @@ func (r *CassandraClusterReconciler) reconcileAdminRole(ctx context.Context, cc 
 	defaultUserCQLClient.CloseSession()
 
 	r.Log.Info("The default admin role is in use. Going to create the secure role and delete the default...")
-	err = r.createAdminRoleInCassandra(cc, cassandraOperatorAdminRole, cassandraOperatorAdminPassword, allDCs)
+	err = r.createAdminRoleInCassandra(ctx, cc, cassandraOperatorAdminRole, cassandraOperatorAdminPassword, allDCs)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't create admin role")
 	}
@@ -86,7 +87,7 @@ func (r *CassandraClusterReconciler) reconcileAdminRole(ctx context.Context, cc 
 	return cqlClient, nil
 }
 
-func (r *CassandraClusterReconciler) createAdminRoleInCassandra(cc *dbv1alpha1.CassandraCluster, roleName, password string, allDCs []dbv1alpha1.DC) error {
+func (r *CassandraClusterReconciler) createAdminRoleInCassandra(ctx context.Context, cc *dbv1alpha1.CassandraCluster, roleName, password string, allDCs []dbv1alpha1.DC) error {
 	r.Log.Info("Establishing cql session with role " + dbv1alpha1.CassandraDefaultRole)
 	cqlClient, err := r.CqlClient(newCassandraConfig(cc, dbv1alpha1.CassandraDefaultRole, dbv1alpha1.CassandraDefaultPassword))
 	if err != nil {
@@ -97,7 +98,7 @@ func (r *CassandraClusterReconciler) createAdminRoleInCassandra(cc *dbv1alpha1.C
 	r.Log.Info("Session established with role " + dbv1alpha1.CassandraDefaultRole + ". " +
 		"Assuming it's the first cluster deployment.")
 
-	if err = r.reconcileSystemAuthKeyspace(cc, cqlClient, allDCs); err != nil {
+	if err = r.reconcileSystemAuthKeyspace(ctx, cc, cqlClient, allDCs); err != nil {
 		return err
 	}
 

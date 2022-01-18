@@ -121,7 +121,23 @@ func (r *CassandraClusterReconciler) createClusterAdminSecrets(ctx context.Conte
 		}
 	}
 
-	if storageExists || joinUnmanagedCluster(cc) {
+	joiningExistingManagedRegion := false
+	if len(managedExternalRegionsDomains(cc.Spec.ExternalRegions)) > 0 {
+		proberClient := r.ProberClient(proberURL(cc))
+		for _, externalRegion := range cc.Spec.ExternalRegions {
+			if len(externalRegion.Domain) != 0 {
+				regionHost := names.ProberIngressDomain(cc, externalRegion)
+				regionReady, err := proberClient.RegionReady(ctx, regionHost)
+				if err == nil && regionReady {
+					r.Log.Warnf("Region %s is ready. Using provided credentials to join an existing region.", regionHost)
+					joiningExistingManagedRegion = true
+					break
+				}
+			}
+		}
+	}
+
+	if storageExists || joinUnmanagedCluster(cc) || joiningExistingManagedRegion {
 		//use the user provided credentials, not cassandra/cassandra
 		desiredRoleName = secretRoleName
 		desiredRolePassword = secretRolePassword

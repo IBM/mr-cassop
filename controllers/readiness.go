@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/names"
 	"github.com/ibm/cassandra-operator/controllers/prober"
@@ -48,7 +50,12 @@ func (r *CassandraClusterReconciler) unreadyDCs(ctx context.Context, cc *v1alpha
 	unreadyDCs := make([]string, 0)
 	for _, dc := range cc.Spec.DCs {
 		sts := &appsv1.StatefulSet{}
-		if err := r.Get(ctx, types.NamespacedName{Name: names.DC(cc.Name, dc.Name), Namespace: cc.Namespace}, sts); err != nil {
+		err := r.Get(ctx, types.NamespacedName{Name: names.DC(cc.Name, dc.Name), Namespace: cc.Namespace}, sts)
+		if err != nil {
+			if apierrors.IsNotFound(err) { // happens when add a new DC and the statefulset is not created yet
+				unreadyDCs = append(unreadyDCs, dc.Name)
+				continue
+			}
 			return nil, errors.Wrap(err, "failed to get statefulset: "+sts.Name)
 		}
 
@@ -78,4 +85,29 @@ func (r *CassandraClusterReconciler) unreadyRegions(ctx context.Context, cc *v1a
 	}
 
 	return unreadyRegions, nil
+}
+
+func (r *CassandraClusterReconciler) waitForFirstRegionReaper(ctx context.Context, cc *v1alpha1.CassandraCluster, proberClient prober.ProberClient) (bool, error) {
+	if len(managedExternalRegionsDomains(cc.Spec.ExternalRegions)) == 0 {
+		return false, nil
+	}
+
+	allRegionsHosts := getAllRegionsHosts(cc)
+	firstRegionsToInit := allRegionsHosts[0]
+
+	// start reaper init if it's the first region to init
+	if firstRegionsToInit == names.ProberIngressHost(cc.Name, cc.Namespace, cc.Spec.Ingress.Domain) {
+		return false, nil
+	}
+
+	reaperReady, err := proberClient.ReaperReady(ctx, firstRegionsToInit)
+	if err != nil {
+		return false, errors.Wrapf(err, "Can't get reaper status from region %s", firstRegionsToInit)
+	}
+	if !reaperReady {
+		r.Log.Infof("Reaper is not ready in region %s", firstRegionsToInit)
+		return true, nil
+	}
+
+	return false, nil
 }

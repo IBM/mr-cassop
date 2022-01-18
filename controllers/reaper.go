@@ -3,12 +3,14 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"net/url"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/compare"
-	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/ibm/cassandra-operator/controllers/labels"
 	"github.com/ibm/cassandra-operator/controllers/names"
 	"github.com/ibm/cassandra-operator/controllers/reaper"
@@ -23,19 +25,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-func (r *CassandraClusterReconciler) reconcileReaperPrerequisites(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cqlClient cql.CqlClient, allDCs []dbv1alpha1.DC) error {
-	if err := r.reconcileShiroConfigMap(ctx, cc); err != nil {
-		return errors.Wrap(err, "Error reconciling shiro configmap")
-	}
-
-	if err := r.reconcileReaperKeyspace(cc, cqlClient, allDCs); err != nil {
-		return errors.Wrap(err, "Error reconciling reaper keyspace")
-	}
-
-	return nil
-}
-
 func (r *CassandraClusterReconciler) reconcileReaper(ctx context.Context, cc *dbv1alpha1.CassandraCluster) (ctrl.Result, error) {
+	if err := r.reconcileShiroConfigMap(ctx, cc); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error reconciling shiro configmap")
+	}
+
 	for index, dc := range cc.Spec.DCs {
 		if err := r.reconcileReaperDeployment(ctx, cc, dc); err != nil {
 			return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile reaper deployment")
@@ -369,4 +363,9 @@ func (r CassandraClusterReconciler) reaperInitialization(ctx context.Context, cc
 		}
 	}
 	return nil
+}
+
+func reaperServiceURL(cc *dbv1alpha1.CassandraCluster) *url.URL {
+	reaperURL, _ := url.Parse(fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", names.ReaperService(cc.Name), cc.Namespace, v1alpha1.ReaperAppPort))
+	return reaperURL
 }

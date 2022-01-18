@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"strconv"
 
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
+
 	"github.com/google/go-cmp/cmp"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
@@ -120,7 +123,7 @@ func keyspaceExists(keyspaces []dbv1alpha1.KeyspaceName, keyspaceName string) bo
 
 // reconcileSystemAuthKeyspace reconciles the keyspace without starting the repair.
 // Needed for initialization when the RF options need to be updated before reaper is available
-func (r *CassandraClusterReconciler) reconcileSystemAuthKeyspace(cc *dbv1alpha1.CassandraCluster, cqlClient cql.CqlClient, allDCs []dbv1alpha1.DC) error {
+func (r *CassandraClusterReconciler) reconcileSystemAuthKeyspace(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cqlClient cql.CqlClient, allDCs []dbv1alpha1.DC) error {
 	currentKeyspaces, err := cqlClient.GetKeyspacesInfo()
 	if err != nil {
 		return errors.Wrap(err, "can't get keyspace info")
@@ -137,6 +140,36 @@ func (r *CassandraClusterReconciler) reconcileSystemAuthKeyspace(cc *dbv1alpha1.
 		err = cqlClient.UpdateRF(keyspaceSystemAuth, desiredOptions)
 		if err != nil {
 			return errors.Wrapf(err, "failed to alter %s keyspace", keyspaceSystemAuth)
+		}
+
+		// reaper may be already running (in case of adding a new DC) so try to run a repair for the updated keyspace
+		reaperClient := r.ReaperClient(reaperServiceURL(cc), cc.Name, cc.Spec.Reaper.RepairThreadCount)
+		if isRunning, err := reaperClient.IsRunning(ctx); err == nil && isRunning {
+			r.Log.Infof("Running repair for keyspace system_auth")
+			err := reaperClient.RunRepair(ctx, keyspaceSystemAuth, repairCauseKeyspacesInit)
+			if err != nil {
+				return errors.Wrap(err, "Can't run repair for system_auth keyspace")
+			}
+		}
+	}
+
+	return nil
+}
+
+func (r CassandraClusterReconciler) reconcileSystemAuthIfReady(ctx context.Context, cc *dbv1alpha1.CassandraCluster, allDCs []dbv1alpha1.DC) error {
+	adminRoleSecret := &v1.Secret{}
+	err := r.Get(ctx, types.NamespacedName{Namespace: cc.Namespace, Name: cc.Spec.AdminRoleSecretName}, adminRoleSecret)
+	if err != nil {
+		return err
+	}
+	cassandraOperatorAdminRole := string(adminRoleSecret.Data[dbv1alpha1.CassandraOperatorAdminRole])
+	cassandraOperatorAdminPassword := string(adminRoleSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword])
+	cqlClient, err := r.CqlClient(newCassandraConfig(cc, cassandraOperatorAdminRole, cassandraOperatorAdminPassword))
+	if err == nil { // if the current region is the ready one it will succeed
+		defer cqlClient.CloseSession()
+		err = r.reconcileSystemAuthKeyspace(ctx, cc, cqlClient, allDCs)
+		if err != nil {
+			return err
 		}
 	}
 

@@ -101,14 +101,10 @@ var _ = Describe("managed multi region cluster", func() {
 		waitForPodsReadiness(cc1.Namespace, labels.ComponentLabels(cc1, dbv1alpha1.CassandraClusterComponentProber), 1)
 		waitForPodsReadiness(cc2.Namespace, labels.ComponentLabels(cc2, dbv1alpha1.CassandraClusterComponentProber), 1)
 		By("Waiting for the first region to become ready")
-		for _, dc := range cc1.Spec.DCs {
-			waitForPodsReadiness(cc1.Namespace, labels.WithDCLabel(labels.ComponentLabels(cc1, dbv1alpha1.CassandraClusterComponentCassandra), dc.Name), *dc.Replicas)
-		}
+		waitForPodsReadiness(cc1.Namespace, labels.ComponentLabels(cc1, dbv1alpha1.CassandraClusterComponentCassandra), numberOfNodes(cc1))
 
 		By("Waiting for the second region to become ready")
-		for _, dc := range cc2.Spec.DCs {
-			waitForPodsReadiness(cc2.Namespace, labels.WithDCLabel(labels.ComponentLabels(cc1, dbv1alpha1.CassandraClusterComponentCassandra), dc.Name), *dc.Replicas)
-		}
+		waitForPodsReadiness(cc2.Namespace, labels.ComponentLabels(cc1, dbv1alpha1.CassandraClusterComponentCassandra), numberOfNodes(cc2))
 
 		By("Waiting for reaper to become ready in both regions")
 		waitForPodsReadiness(cc1.Namespace, labels.ComponentLabels(cc1, dbv1alpha1.CassandraClusterComponentReaper), int32(len(cc1.Spec.DCs)))
@@ -118,11 +114,11 @@ var _ = Describe("managed multi region cluster", func() {
 		Expect(restClient.List(context.Background(), cc1Pods, client.InNamespace(cc1.Namespace), client.MatchingLabels(labels.ComponentLabels(cc1, dbv1alpha1.CassandraClusterComponentCassandra))))
 		Expect(cc1Pods.Items).ToNot(BeEmpty())
 
-		expectNumberOfNodes(cc1Pods.Items[0].Name, cc1Pods.Items[0].Namespace, testAdminRole, testAdminPassword, 6)
+		expectNumberOfNodes(cc1Pods.Items[0].Name, cc1Pods.Items[0].Namespace, testAdminRole, testAdminPassword, numberOfNodes(cc1)+numberOfNodes(cc2))
 	})
 })
 
-func expectNumberOfNodes(podName, podNamespace, roleName, rolePassword string, expectedNodes int) {
+func expectNumberOfNodes(podName, podNamespace, roleName, rolePassword string, expectedNodes int32) {
 	cmd := []string{
 		"sh",
 		"-c",
@@ -142,5 +138,14 @@ func expectNumberOfNodes(podName, podNamespace, roleName, rolePassword string, e
 		lines = append(lines, scanner.Text())
 	}
 	Expect(scanner.Err()).To(BeNil())
-	Expect(lines).To(HaveLen(expectedNodes), fmt.Sprintf("cluster should have %d nodes. stdout: %s, stderr: %s", expectedNodes, stdout, stderr))
+	Expect(lines).To(HaveLen(int(expectedNodes)), fmt.Sprintf("cluster should have %d nodes. stdout: %s, stderr: %s", expectedNodes, stdout, stderr))
+}
+
+func numberOfNodes(cc *dbv1alpha1.CassandraCluster) int32 {
+	var nodesNum int32
+	for _, dc := range cc.Spec.DCs {
+		nodesNum += *dc.Replicas
+	}
+
+	return nodesNum
 }

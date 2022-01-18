@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	"testing"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -24,6 +25,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const (
+	debugLogsDir = "/tmp/debug-logs/"
+)
+
 var (
 	restClient          client.Client
 	restClientConfig    *rest.Config
@@ -42,7 +47,7 @@ var (
 	ingressDomain       string
 	ingressSecret       string
 	storageClassName    string
-	tailLines           int64 = 30
+	tailLines           int64 = 60
 	statusCode          int
 
 	operatorPodLabel          map[string]string
@@ -188,19 +193,29 @@ var _ = JustAfterEach(func() {
 	if CurrentGinkgoTestDescription().Failed {
 		fmt.Printf("Test failed! Collecting diags just after failed test in %s\n", CurrentGinkgoTestDescription().TestText)
 
-		podList := &v1.PodList{}
-		err = restClient.List(context.Background(), podList, client.InNamespace(cassandraNamespace))
-		Expect(err).ToNot(HaveOccurred())
+		Expect(os.MkdirAll(debugLogsDir, 0777)).To(Succeed())
+		ccList := &v1alpha1.CassandraClusterList{}
+		Expect(restClient.List(context.Background(), ccList)).To(Succeed())
 
-		for _, pod := range podList.Items {
-			fmt.Println("Pod: ", pod.Name, " Status: ", pod.Status.Phase)
-			for _, container := range pod.Status.ContainerStatuses {
-				fmt.Println("Container: ", container.Name, " Ready: ", container.State)
+		fmt.Fprintf(GinkgoWriter, "Gathering log info for Cassandra Operator\n")
+		showPodLogs(operatorPodLabel, cassandraNamespace)
+
+		for _, cc := range ccList.Items {
+			fmt.Fprintf(GinkgoWriter, "Gathering log info for CassandraCluster %s/%s\n", cc.Namespace, cc.Name)
+			podList := &v1.PodList{}
+			Expect(restClient.List(context.Background(), podList, client.InNamespace(cc.Namespace))).To(Succeed())
+
+			for _, pod := range podList.Items {
+				fmt.Println("Pod: ", pod.Name, " Status: ", pod.Status.Phase)
+				for _, container := range pod.Status.ContainerStatuses {
+					fmt.Println("Container: ", container.Name, " Ready: ", container.State)
+				}
 			}
+
+			showPodLogs(map[string]string{v1alpha1.CassandraClusterInstance: cc.Name}, cc.Namespace)
 		}
 
-		showPodLogs(operatorPodLabel)
-		showPodLogs(cassandraDeploymentLabel)
+		showClusterEvents()
 	}
 })
 

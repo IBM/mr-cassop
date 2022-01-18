@@ -292,7 +292,7 @@ func (r *CassandraClusterReconciler) getBroadcastAddresses(ctx context.Context, 
 
 	for _, pod := range podList.Items {
 		addr, err := r.getPodBroadcastAddress(ctx, cc, pod)
-		if err != nil || len(addr) == 0 { // Error until pod is Running and ip is assigned
+		if err != nil { // Error until pod is scheduled and ip is assigned
 			return nil, errors.Wrap(err, "cannot get pod's broadcast address")
 		}
 		broadcastAddresses[pod.Name] = addr
@@ -303,6 +303,9 @@ func (r *CassandraClusterReconciler) getBroadcastAddresses(ctx context.Context, 
 
 func (r *CassandraClusterReconciler) getPodBroadcastAddress(ctx context.Context, cc *v1alpha1.CassandraCluster, pod v1.Pod) (string, error) {
 	if !cc.Spec.HostPort.Enabled {
+		if len(pod.Status.PodIP) == 0 {
+			return "", ErrPodNotScheduled
+		}
 		return pod.Status.PodIP, nil
 	}
 

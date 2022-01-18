@@ -14,7 +14,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"net/url"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -26,7 +25,6 @@ import (
 	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/ibm/cassandra-operator/controllers/eventhandler"
 	"github.com/ibm/cassandra-operator/controllers/events"
-	"github.com/ibm/cassandra-operator/controllers/names"
 	"github.com/ibm/cassandra-operator/controllers/prober"
 	"github.com/ibm/cassandra-operator/controllers/reaper"
 	"github.com/pkg/errors"
@@ -160,12 +158,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling prober")
 	}
 
-	proberUrl, err := url.Parse(fmt.Sprintf("http://%s.%s.svc.cluster.local", names.ProberService(cc.Name), cc.Namespace))
-	if err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Error parsing prober client url")
-	}
-	proberClient := r.ProberClient(proberUrl)
-
+	proberClient := r.ProberClient(proberURL(cc))
 	proberReady, err := proberClient.Ready(ctx)
 	if err != nil {
 		r.Log.Warnf("Prober ping request failed: %s. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
@@ -208,6 +201,22 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile maintenance")
 	}
 
+	allDCs, err := r.getAllDCs(ctx, cc, proberClient)
+	if err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "can't get all dcs across regions")
+	}
+
+	// Try to reconcile `system_auth` keyspace with current DCs config. Needed on new region init.
+	// The existing ready region should set the replication settings correctly for the new region to come up.
+	// We need to do it before the check if the whole cluster is ready because it never will be unless we
+	// set the correct replication settings and run a repair.
+	if len(managedExternalRegionsDomains(cc.Spec.ExternalRegions)) > 0 {
+		err = r.reconcileSystemAuthIfReady(ctx, cc, allDCs)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
 	ready, err := r.clusterReady(ctx, cc, proberClient)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -216,11 +225,6 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	if !ready {
 		r.Log.Infof("Cluster not ready. Trying again in %s...", r.Cfg.RetryDelay)
 		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
-	}
-
-	allDCs, err := r.getAllDCs(ctx, cc, proberClient)
-	if err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "can't get all dcs across regions")
 	}
 
 	cqlClient, err := r.reconcileAdminRole(ctx, cc, allDCs)
@@ -234,35 +238,25 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, err
 	}
 
-	if len(managedExternalRegionsDomains(cc.Spec.ExternalRegions)) > 0 {
-		allRegionsHosts := getAllRegionsHosts(cc)
-		firstRegionsToInit := allRegionsHosts[0]
-		// pause reaper init if it's not the first region to init
-		if firstRegionsToInit != names.ProberIngressHost(cc.Name, cc.Namespace, cc.Spec.Ingress.Domain) {
-			reaperReady, err := proberClient.ReaperReady(ctx, firstRegionsToInit)
-			if err != nil {
-				return ctrl.Result{}, errors.Wrapf(err, "Can't get reaper status from region %s", firstRegionsToInit)
-			}
-			if !reaperReady {
-				r.Log.Infof("Reaper is not ready in regions %s. Trying again in %s...", firstRegionsToInit, r.Cfg.RetryDelay)
-				return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
-			}
-		}
+	waitForFirstRegionReaper, err := r.waitForFirstRegionReaper(ctx, cc, proberClient)
+	if err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error checking for first region reaper readiness")
 	}
 
-	if err = r.reconcileReaperPrerequisites(ctx, cc, cqlClient, allDCs); err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Error reconciling reaper")
+	if waitForFirstRegionReaper {
+		r.Log.Infof("Reaper is not ready in the first region. Trying again in %s...", r.Cfg.RetryDelay)
+		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
+	}
+
+	if err := r.reconcileReaperKeyspace(cc, cqlClient, allDCs); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error reconciling reaper keyspace")
 	}
 
 	if res, err := r.reconcileReaper(ctx, cc); needsRequeue(res, err) {
 		return res, err
 	}
 
-	reaperServiceUrl, err := url.Parse(fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", names.ReaperService(cc.Name), cc.Namespace, v1alpha1.ReaperAppPort))
-	if err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Error parsing reaper service url")
-	}
-	reaperClient := r.ReaperClient(reaperServiceUrl, cc.Name, cc.Spec.Reaper.RepairThreadCount)
+	reaperClient := r.ReaperClient(reaperServiceURL(cc), cc.Name, cc.Spec.Reaper.RepairThreadCount)
 	isRunning, err := reaperClient.IsRunning(ctx)
 	if err != nil {
 		if err = proberClient.UpdateReaperStatus(ctx, false); err != nil {

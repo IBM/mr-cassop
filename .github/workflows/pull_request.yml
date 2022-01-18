@@ -410,9 +410,17 @@ jobs:
     - name: Get go dependencies
       run: go mod download
     - name: Run e2e tests
+      id: e2e
       run: |
         export CASSANDRA_RELEASE_NAME=e2e-tests-ci
         make e2e-tests
+    - name: Upload logs artifact
+      if: ${{ always() && steps.e2e.outcome == 'failure' }}
+      uses: actions/upload-artifact@v2
+      with:
+        name: logs
+        path: /tmp/debug-logs/
+        retention-days: 7
     - name: Uninstall C* operator helm chart
       if: ${{ always() }}
       run: |

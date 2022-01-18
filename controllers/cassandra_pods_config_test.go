@@ -444,7 +444,7 @@ export PAUSE_INIT=false
 				},
 			},
 			expectedCMData: nil,
-			expectedError:  ErrPodNotScheduled,
+			expectedError:  errors.New("error getting broadcast addresses: cannot get pod's broadcast address: One of pods is not scheduled yet"),
 		},
 		{
 			name: "ErrPodNotScheduled error if pod has PodIP empty",
@@ -468,7 +468,7 @@ export PAUSE_INIT=false
 			k8sLists: []client.ObjectList{
 				&v1.PodList{
 					Items: []v1.Pod{
-						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "", "node1", true, map[string]string{
+						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "", "node1", false, map[string]string{
 							v1alpha1.CassandraClusterInstance:  "test-cluster",
 							v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
 							v1alpha1.CassandraClusterSeed:      "test-cluster-cassandra-dc1-0",
@@ -544,7 +544,7 @@ export PAUSE_INIT=false
 				},
 			},
 			expectedCMData: nil,
-			expectedError:  ErrPodNotScheduled,
+			expectedError:  errors.New("error getting broadcast addresses: cannot get pod's broadcast address: One of pods is not scheduled yet"),
 		},
 		{
 			name: "multi-region with ready regions and DCs",
@@ -1089,7 +1089,7 @@ export PAUSE_INIT=true
 				},
 			},
 			expectedCMData: nil,
-			expectedError:  errors.New("Cannot get node: node3"),
+			expectedError:  errors.New("error getting broadcast addresses: cannot get pod's broadcast address: Cannot get node: node3: nodes \"node3\" not found"),
 		},
 		{
 			name: "zone as racks enabled",
@@ -1193,7 +1193,7 @@ export PAUSE_INIT=false
 		if c.expectedError == nil {
 			asserts.Expect(err).To(BeNil())
 		} else {
-			asserts.Expect(err).To(MatchError(err))
+			asserts.Expect(err.Error()).To(Equal(c.expectedError.Error()), "match error message")
 		}
 		asserts.Expect(cmData).To(BeEquivalentTo(c.expectedCMData), cmp.Diff(cmData, c.expectedCMData))
 	}

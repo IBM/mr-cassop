@@ -1,6 +1,8 @@
 package labels
 
-import "github.com/ibm/cassandra-operator/api/v1alpha1"
+import (
+	"github.com/ibm/cassandra-operator/api/v1alpha1"
+)
 
 // CombinedComponentLabels create labels for a component and inherits CassandraCluster object labels
 func CombinedComponentLabels(instance *v1alpha1.CassandraCluster, componentName string) (m map[string]string) {
@@ -33,6 +35,10 @@ func InheritLabels(instance *v1alpha1.CassandraCluster) (m map[string]string) {
 }
 
 func WithDCLabel(labels map[string]string, dcName string) map[string]string {
-	labels[v1alpha1.CassandraClusterDC] = dcName
-	return labels
+	newLabels := make(map[string]string, len(labels)+1)
+	for key, value := range labels {
+		newLabels[key] = value
+	}
+	newLabels[v1alpha1.CassandraClusterDC] = dcName
+	return newLabels
 }

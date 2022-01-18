@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ibm/cassandra-operator/controllers/labels"
+
 	"github.com/gogo/protobuf/proto"
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -73,6 +75,12 @@ var _ = Describe("auth logic", func() {
 					},
 				},
 			}
+			newCassandraCluster.Spec.Reaper = &dbv1alpha1.Reaper{
+				MaxParallelRepairs:  20,
+				RepairRunThreads:    4,
+				RepairThreadCount:   4,
+				SegmentCountPerNode: 1, // speeds up repairs
+			}
 			newCassandraCluster.Spec.Cassandra.Sysctls = sysctls
 
 			deployCassandraCluster(newCassandraCluster)
@@ -87,6 +95,24 @@ var _ = Describe("auth logic", func() {
 
 			By("Secure admin role should be created")
 			testCQLLogin(pod.Name, pod.Namespace, testAdminRole, testAdminPassword)
+
+			By("Add a new DC")
+			ccName := types.NamespacedName{Name: newCassandraCluster.Name, Namespace: newCassandraCluster.Namespace}
+			cassPodsLabels := labels.ComponentLabels(newCassandraCluster, dbv1alpha1.CassandraClusterComponentCassandra)
+			Expect(restClient.Get(context.Background(), ccName, newCassandraCluster)).To(Succeed())
+
+			newDCName := "dc2"
+			newCassandraCluster.Spec.DCs = append(newCassandraCluster.Spec.DCs, dbv1alpha1.DC{Name: newDCName, Replicas: proto.Int32(3)})
+			Expect(restClient.Update(context.Background(), newCassandraCluster)).To(Succeed())
+			waitForPodsReadiness(newCassandraCluster.Namespace, cassPodsLabels, numberOfNodes(newCassandraCluster))
+
+			newDCPods := &v1.PodList{}
+			newDCPodLabels := labels.WithDCLabel(cassPodsLabels, newDCName)
+			Expect(restClient.List(context.Background(), newDCPods, client.InNamespace(newCassandraCluster.Namespace), client.MatchingLabels(newDCPodLabels)))
+			Expect(newDCPods.Items).ToNot(BeEmpty())
+
+			testCQLLogin(newDCPods.Items[0].Name, newDCPods.Items[0].Namespace, testAdminRole, testAdminPassword)
+			expectNumberOfNodes(newDCPods.Items[0].Name, newDCPods.Items[0].Namespace, testAdminRole, testAdminPassword, numberOfNodes(newCassandraCluster))
 
 			Expect(restClient.Get(context.Background(), types.NamespacedName{
 				Name: testAdminRoleSecret.Name, Namespace: testAdminRoleSecret.Namespace,
@@ -194,7 +220,6 @@ var _ = Describe("auth logic", func() {
 				Expect(strings.TrimSpace(execResult.stdout)).To(Equal(value))
 			}
 		})
-
 	})
 })
 
@@ -209,6 +234,6 @@ func testCQLLogin(podName, podNamespace, roleName, password string) {
 		execResult, err := execPod(podName, podNamespace, cmd)
 		stdout = execResult.stdout
 		return err
-	}, 3*time.Minute, 15*time.Second).Should(Succeed())
+	}, 5*time.Minute, 15*time.Second).Should(Succeed())
 	Expect(stdout).To(ContainSubstring(fmt.Sprintf("Connected to %s at 127.0.0.1:%d.", cassandraRelease, dbv1alpha1.CqlPort)))
 }

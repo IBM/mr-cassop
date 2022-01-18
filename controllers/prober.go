@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strconv"
 
 	"github.com/gogo/protobuf/proto"
@@ -41,7 +42,7 @@ func (r *CassandraClusterReconciler) reconcileProber(ctx context.Context, cc *db
 		return errors.Wrap(err, "failed to reconcile prober service")
 	}
 
-	if len(managedExternalRegionsDomains(cc.Spec.ExternalRegions)) > 0 {
+	if len(cc.Spec.Ingress.Domain) > 0 {
 		if err := r.reconcileProberIngress(ctx, cc); err != nil {
 			return errors.Wrap(err, "failed to reconcile prober ingress")
 		}
@@ -328,4 +329,9 @@ func jolokiaContainer(cc *dbv1alpha1.CassandraCluster, clientTLSSecret *v1.Secre
 	}
 
 	return container
+}
+
+func proberURL(cc *dbv1alpha1.CassandraCluster) *url.URL {
+	proberUrl, _ := url.Parse(fmt.Sprintf("http://%s.%s.svc.cluster.local", names.ProberService(cc.Name), cc.Namespace))
+	return proberUrl
 }
