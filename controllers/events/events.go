@@ -17,6 +17,7 @@ const (
 	EventTLSSecretNotFound       = "TLSSecretNotFound"
 	EventTLSSecretInvalid        = "TLSSecretInvalid"
 	EventInvalidRole             = "InvalidRole"
+	CassandraConfigInvalid       = "InvalidCassandraConfig"
 
 	EventAdminRoleChanged = "AdminRoleChanged"
 	EventRegionInit       = "RegionInit"

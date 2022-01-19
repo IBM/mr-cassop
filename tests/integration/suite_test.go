@@ -274,11 +274,30 @@ func StartTestManager(mgr manager.Manager) chan struct{} {
 func createOperatorConfigMaps() {
 	cassConfigCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.OperatorCassandraCM(),
+			Name:      names.OperatorCassandraConfigCM(),
 			Namespace: operatorConfig.Namespace,
 		},
 		Data: map[string]string{
-			"cassandra.yaml": "",
+			"cassandra.yaml": `authenticator: PasswordAuthenticator
+authorizer: CassandraAuthorizer
+auto_bootstrap: true
+auto_snapshot: true
+back_pressure_enabled: false
+back_pressure_strategy:
+  - class_name: org.apache.cassandra.net.RateBasedBackPressure
+    parameters:
+      - factor: 5
+        flow: FAST
+        high_ratio: 0.9
+batch_size_fail_threshold_in_kb: 50
+batch_size_warn_threshold_in_kb: 5
+batchlog_replay_throttle_in_kb: 1024
+concurrent_counter_writes: 32
+concurrent_materialized_view_writes: 32
+concurrent_reads: 32
+concurrent_writes: 32
+counter_cache_save_period: 7200
+`,
 		},
 	}
 

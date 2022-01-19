@@ -276,6 +276,7 @@ type Cassandra struct {
 	Persistence                   Persistence       `json:"persistence,omitempty"`
 	ZonesAsRacks                  bool              `json:"zonesAsRacks,omitempty"`
 	Sysctls                       map[string]string `json:"sysctls,omitempty"`
+	ConfigOverrides               string            `json:"configOverrides,omitempty"`
 }
 
 type Roles struct {

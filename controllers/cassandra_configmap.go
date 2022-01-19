@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ibm/cassandra-operator/controllers/events"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/labels"
@@ -37,6 +39,21 @@ func (r *CassandraClusterReconciler) reconcileCassandraConfigMap(ctx context.Con
 	err = yaml.Unmarshal([]byte(data["cassandra.yaml"]), &cassandraYaml)
 	if err != nil {
 		return errors.Wrap(err, "can't unmarshal 'cassandra.yaml'")
+	}
+
+	// override user provided configs
+	if len(cc.Spec.Cassandra.ConfigOverrides) > 0 {
+		overrides := make(map[string]interface{})
+		err = yaml.Unmarshal([]byte(cc.Spec.Cassandra.ConfigOverrides), &overrides)
+		if err != nil {
+			errMsg := fmt.Sprintf("Invalid Cassandra configs. Not valid YAML: %s", err.Error())
+			r.Log.Warn(errMsg)
+			r.Events.Warning(cc, events.CassandraConfigInvalid, errMsg)
+		} else {
+			for key, value := range overrides {
+				cassandraYaml[key] = value
+			}
+		}
 	}
 
 	if cc.Spec.Cassandra.Persistence.Enabled && cc.Spec.Cassandra.Persistence.CommitLogVolume {

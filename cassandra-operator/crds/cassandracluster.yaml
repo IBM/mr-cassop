@@ -39,6 +39,8 @@ spec:
                 type: string
               cassandra:
                 properties:
+                  configOverrides:
+                    type: string
                   image:
                     type: string
                   imagePullPolicy:

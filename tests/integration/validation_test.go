@@ -1,6 +1,8 @@
 package integration
 
 import (
+	"strings"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	. "github.com/onsi/ginkgo"
@@ -8,7 +10,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strings"
 )
 
 const (
@@ -811,6 +812,34 @@ var _ = Describe("cassandracluster validation", func() {
 			err := k8sClient.Create(ctx, cc)
 			Expect(err).To(BeAssignableToTypeOf(&errors.StatusError{}))
 			Expect(err.(*errors.StatusError).ErrStatus.Reason == "repairParallelism must be only `PARALLEL` if incrementalRepair is true").To(BeTrue())
+		})
+	})
+
+	Context("with invalid cassandra config overrides", func() {
+		It("Should fail the validation", func() {
+			cc := &v1alpha1.CassandraCluster{
+				ObjectMeta: cassandraObjectMeta,
+				Spec: v1alpha1.CassandraClusterSpec{
+					DCs: []v1alpha1.DC{
+						{
+							Name:     "dc1",
+							Replicas: proto.Int32(3),
+						},
+					},
+					ImagePullSecretName: "pullSecretName",
+					AdminRoleSecretName: "admin-role",
+					Cassandra: &v1alpha1.Cassandra{
+						ConfigOverrides: `invalid yaml&*^&&(*) config{}:::- sd:
+:
+:sd;`,
+					},
+				},
+			}
+
+			markMocksAsReady(cc)
+			err := k8sClient.Create(ctx, cc)
+			Expect(err).To(BeAssignableToTypeOf(&errors.StatusError{}))
+			Expect(err.(*errors.StatusError).ErrStatus.Reason).To(BeEquivalentTo("cassandra config override should be a string with valid YAML: error converting YAML to JSON: yaml: line 1: did not find expected key"))
 		})
 	})
 })

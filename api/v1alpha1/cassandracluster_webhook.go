@@ -18,11 +18,13 @@ package v1alpha1
 
 import (
 	"fmt"
+
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/yaml"
 )
 
 var webhookLogger = zap.NewNop().Sugar()
@@ -60,6 +62,12 @@ func (r *CassandraCluster) ValidateDelete() error {
 func validateCreateUpdate(r *CassandraCluster) error {
 	var errors []error
 
+	if r.Spec.Cassandra != nil {
+		if err := validateCassandra(r); err != nil {
+			errors = append(errors, err...)
+		}
+	}
+
 	if r.Spec.Reaper != nil {
 		if err := validateReaper(r); err != nil {
 			errors = append(errors, err...)
@@ -82,6 +90,17 @@ func validateReaper(r *CassandraCluster) (errors []error) {
 			if repair.IncrementalRepair && repair.RepairParallelism != "PARALLEL" {
 				errors = append(errors, fmt.Errorf("repairParallelism must be only `PARALLEL` if incrementalRepair is true for Keyspace: '%s' and Tables: '%s'", repair.Keyspace, repair.Tables))
 			}
+		}
+	}
+
+	return
+}
+
+func validateCassandra(r *CassandraCluster) (errors []error) {
+	if len(r.Spec.Cassandra.ConfigOverrides) > 0 {
+		err := yaml.Unmarshal([]byte(r.Spec.Cassandra.ConfigOverrides), map[string]interface{}{})
+		if err != nil {
+			errors = append(errors, fmt.Errorf("cassandra config override should be a string with valid YAML: %s", err.Error()))
 		}
 	}
 

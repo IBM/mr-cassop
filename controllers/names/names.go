@@ -103,10 +103,6 @@ func PodIPsConfigMap(clusterName string) string {
 	return clusterName + "-pod-ips"
 }
 
-func OperatorCassandraCM() string {
-	return cassandraOperator + "-cassandra-init-config"
-}
-
 func OperatorCollectdCM() string {
 	return cassandraOperator + "-collectd-configmap"
 }
