@@ -24,16 +24,17 @@ var _ = Describe("Cassandra monitoring", func() {
 					},
 					ImagePullSecretName: "pull-secret-name",
 					AdminRoleSecretName: "admin-role",
+					Cassandra: &v1alpha1.Cassandra{},
 				},
 			}
 			createReadyCluster(cc)
 			actualCC := getCassandraCluster(cc)
-			Expect(actualCC.Spec.Monitoring.Enabled).To(BeFalse())
-			Expect(actualCC.Spec.Monitoring.Agent).To(BeEmpty())
-			Expect(actualCC.Spec.Monitoring.ServiceMonitor.Enabled).To(BeFalse())
-			Expect(actualCC.Spec.Monitoring.ServiceMonitor.Namespace).To(BeEmpty())
-			Expect(actualCC.Spec.Monitoring.ServiceMonitor.Labels).To(BeEmpty())
-			Expect(actualCC.Spec.Monitoring.ServiceMonitor.ScrapeInterval).To(BeEmpty())
+			Expect(actualCC.Spec.Cassandra.Monitoring.Enabled).To(BeFalse())
+			Expect(actualCC.Spec.Cassandra.Monitoring.Agent).To(BeEmpty())
+			Expect(actualCC.Spec.Cassandra.Monitoring.ServiceMonitor.Enabled).To(BeFalse())
+			Expect(actualCC.Spec.Cassandra.Monitoring.ServiceMonitor.Namespace).To(BeEmpty())
+			Expect(actualCC.Spec.Cassandra.Monitoring.ServiceMonitor.Labels).To(BeEmpty())
+			Expect(actualCC.Spec.Cassandra.Monitoring.ServiceMonitor.ScrapeInterval).To(BeEmpty())
 		})
 	})
 
@@ -50,9 +51,11 @@ var _ = Describe("Cassandra monitoring", func() {
 					},
 					ImagePullSecretName: "pull-secret-name",
 					AdminRoleSecretName: "admin-role",
-					Monitoring: v1alpha1.Monitoring{
-						Enabled: true,
-						Agent:   v1alpha1.CassandraAgentTlp,
+					Cassandra: &v1alpha1.Cassandra{
+						Monitoring: v1alpha1.Monitoring{
+							Enabled: true,
+							Agent:   v1alpha1.CassandraAgentTlp,
+						},
 					},
 				},
 			}
@@ -75,9 +78,11 @@ var _ = Describe("Cassandra monitoring", func() {
 					},
 					ImagePullSecretName: "pull-secret-name",
 					AdminRoleSecretName: "admin-role",
-					Monitoring: v1alpha1.Monitoring{
-						Enabled: true,
-						Agent:   v1alpha1.CassandraAgentDatastax,
+					Cassandra: &v1alpha1.Cassandra{
+						Monitoring: v1alpha1.Monitoring{
+							Enabled: true,
+							Agent:   v1alpha1.CassandraAgentDatastax,
+						},
 					},
 				},
 			}
@@ -100,9 +105,11 @@ var _ = Describe("Cassandra monitoring", func() {
 					},
 					ImagePullSecretName: "pull-secret-name",
 					AdminRoleSecretName: "admin-role",
-					Monitoring: v1alpha1.Monitoring{
-						Enabled: true,
-						Agent:   v1alpha1.CassandraAgentInstaclustr,
+					Cassandra: &v1alpha1.Cassandra{
+						Monitoring: v1alpha1.Monitoring{
+							Enabled: true,
+							Agent:   v1alpha1.CassandraAgentInstaclustr,
+						},
 					},
 				},
 			}

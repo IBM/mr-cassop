@@ -90,7 +90,6 @@ type CassandraClusterSpec struct {
 	JVM                  JVM              `json:"jvm,omitempty"`
 	JMX                  JMX              `json:"jmx,omitempty"`
 	Encryption           Encryption       `json:"encryption,omitempty"`
-	Monitoring           Monitoring       `json:"monitoring,omitempty"`
 }
 
 type ExternalRegion struct {
@@ -276,6 +275,7 @@ type Cassandra struct {
 	Persistence                   Persistence       `json:"persistence,omitempty"`
 	ZonesAsRacks                  bool              `json:"zonesAsRacks,omitempty"`
 	Sysctls                       map[string]string `json:"sysctls,omitempty"`
+	Monitoring                    Monitoring        `json:"monitoring,omitempty"`
 	ConfigOverrides               string            `json:"configOverrides,omitempty"`
 }
 
@@ -300,8 +300,9 @@ type Prober struct {
 	// +kubebuilder:validation:Enum:=info;debug;trace
 	LogLevel string `json:"logLevel,omitempty"`
 	// +kubebuilder:validation:Enum:=console;json
-	LogFormat string  `json:"logFormat,omitempty"`
-	Jolokia   Jolokia `json:"jolokia,omitempty"`
+	LogFormat      string         `json:"logFormat,omitempty"`
+	Jolokia        Jolokia        `json:"jolokia,omitempty"`
+	ServiceMonitor ServiceMonitor `json:"serviceMonitor,omitempty"`
 }
 
 type Jolokia struct {

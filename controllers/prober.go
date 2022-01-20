@@ -42,6 +42,10 @@ func (r *CassandraClusterReconciler) reconcileProber(ctx context.Context, cc *db
 		return errors.Wrap(err, "failed to reconcile prober service")
 	}
 
+	if err := r.reconcileProberServiceMonitor(ctx, cc); err != nil {
+		return errors.Wrap(err, "Failed to reconcile prober service monitor")
+	}
+
 	if len(cc.Spec.Ingress.Domain) > 0 {
 		if err := r.reconcileProberIngress(ctx, cc); err != nil {
 			return errors.Wrap(err, "failed to reconcile prober ingress")
@@ -180,6 +184,7 @@ func (r *CassandraClusterReconciler) reconcileProberService(ctx context.Context,
 	desiredService := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      names.ProberService(cc.Name),
+			Labels:    labels.CombinedComponentLabels(cc, dbv1alpha1.CassandraClusterComponentProber),
 			Namespace: cc.Namespace,
 		},
 		Spec: v1.ServiceSpec{
@@ -187,7 +192,7 @@ func (r *CassandraClusterReconciler) reconcileProberService(ctx context.Context,
 			Selector: labels.CombinedComponentLabels(cc, dbv1alpha1.CassandraClusterComponentProber),
 			Ports: []v1.ServicePort{
 				{
-					Port:       80,
+					Port:       dbv1alpha1.ProberServicePort,
 					Name:       "prober",
 					TargetPort: intstr.FromString("prober-server"),
 					Protocol:   v1.ProtocolTCP,
@@ -204,7 +209,7 @@ func (r *CassandraClusterReconciler) reconcileProberService(ctx context.Context,
 	actualService := &v1.Service{}
 	err := r.Get(ctx, types.NamespacedName{Name: names.ProberService(cc.Name), Namespace: cc.Namespace}, actualService)
 	if err != nil && apierrors.IsNotFound(err) {
-		r.Log.Info("Creating prober Service")
+		r.Log.Info("Creating prober service")
 		err = r.Create(ctx, desiredService)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create service")

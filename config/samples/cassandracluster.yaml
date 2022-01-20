@@ -55,6 +55,11 @@ spec:
         requests:
           cpu: 200m
           memory: 256Mi
+    serviceMonitor:
+      enabled: false
+      namespace: ""
+      labels: { }
+      scrapeInterval: 60s
   reaper:
     incrementalRepair: false
     repairParallelism: "DATACENTER_AWARE"

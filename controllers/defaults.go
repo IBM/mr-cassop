@@ -23,7 +23,6 @@ func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.Cass
 	r.defaultCassandra(cc)
 	r.defaultProber(cc)
 	r.defaultReaper(cc)
-	r.defaultMonitoring(cc)
 
 	if len(cc.Spec.Maintenance) > 0 {
 		for i, entry := range cc.Spec.Maintenance {
@@ -159,6 +158,12 @@ func (r *CassandraClusterReconciler) defaultProber(cc *dbv1alpha1.CassandraClust
 	if cc.Spec.Prober.Jolokia.ImagePullPolicy == "" {
 		cc.Spec.Prober.Jolokia.ImagePullPolicy = v1.PullIfNotPresent
 	}
+
+	if cc.Spec.Prober.ServiceMonitor.Enabled {
+		if _, err := time.ParseDuration(cc.Spec.Prober.ServiceMonitor.ScrapeInterval); err != nil {
+			cc.Spec.Prober.ServiceMonitor.ScrapeInterval = "30s"
+		}
+	}
 }
 
 func (r *CassandraClusterReconciler) defaultCassandra(cc *dbv1alpha1.CassandraCluster) {
@@ -199,6 +204,8 @@ func (r *CassandraClusterReconciler) defaultCassandra(cc *dbv1alpha1.CassandraCl
 	}
 
 	cc.Spec.Cassandra.Persistence.CommitLogVolumeClaimSpec.AccessModes = []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce}
+
+	r.defaultMonitoring(cc)
 }
 
 func (r *CassandraClusterReconciler) defaultServerTLS(cc *dbv1alpha1.CassandraCluster) {
@@ -284,15 +291,15 @@ func (r *CassandraClusterReconciler) defaultTLSSecret(tlsSecret *dbv1alpha1.TLSS
 }
 
 func (r *CassandraClusterReconciler) defaultMonitoring(cc *dbv1alpha1.CassandraCluster) {
-	if !cc.Spec.Monitoring.Enabled {
+	if !cc.Spec.Cassandra.Monitoring.Enabled {
 		return
 	}
-	if cc.Spec.Monitoring.Agent == "" {
-		cc.Spec.Monitoring.Agent = "tlp"
+	if cc.Spec.Cassandra.Monitoring.Agent == "" {
+		cc.Spec.Cassandra.Monitoring.Agent = "tlp"
 	}
-	if cc.Spec.Monitoring.ServiceMonitor.Enabled {
-		if _, err := time.ParseDuration(cc.Spec.Monitoring.ServiceMonitor.ScrapeInterval); err != nil {
-			cc.Spec.Monitoring.ServiceMonitor.ScrapeInterval = "30s"
+	if cc.Spec.Cassandra.Monitoring.ServiceMonitor.Enabled {
+		if _, err := time.ParseDuration(cc.Spec.Cassandra.Monitoring.ServiceMonitor.ScrapeInterval); err != nil {
+			cc.Spec.Cassandra.Monitoring.ServiceMonitor.ScrapeInterval = "30s"
 		}
 	}
 }

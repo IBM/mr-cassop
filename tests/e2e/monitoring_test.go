@@ -17,7 +17,7 @@ var _ = Describe("Cassandra cluster", func() {
 	Context("when C* monitoring is enabled with tlp exporter", func() {
 		It("should be able to get C* metrics on tlp port", func() {
 			newCassandraCluster := cassandraCluster.DeepCopy()
-			newCassandraCluster.Spec.Monitoring.Enabled = true
+			newCassandraCluster.Spec.Cassandra.Monitoring.Enabled = true
 
 			deployCassandraCluster(newCassandraCluster)
 
@@ -123,8 +123,8 @@ var _ = Describe("Cassandra cluster", func() {
 	Context("when C* monitoring is enabled with datastax exporter", func() {
 		It("should be able to get C* metrics on datastax port", func() {
 			newCassandraCluster := cassandraCluster.DeepCopy()
-			newCassandraCluster.Spec.Monitoring.Enabled = true
-			newCassandraCluster.Spec.Monitoring.Agent = dbv1alpha1.CassandraAgentDatastax
+			newCassandraCluster.Spec.Cassandra.Monitoring.Enabled = true
+			newCassandraCluster.Spec.Cassandra.Monitoring.Agent = dbv1alpha1.CassandraAgentDatastax
 
 			deployCassandraCluster(newCassandraCluster)
 
@@ -176,8 +176,8 @@ var _ = Describe("Cassandra cluster", func() {
 	Context("when C* monitoring is enabled with instaclustr exporter", func() {
 		It("should be able to get C* metrics on instaclustr port", func() {
 			newCassandraCluster := cassandraCluster.DeepCopy()
-			newCassandraCluster.Spec.Monitoring.Enabled = true
-			newCassandraCluster.Spec.Monitoring.Agent = dbv1alpha1.CassandraAgentInstaclustr
+			newCassandraCluster.Spec.Cassandra.Monitoring.Enabled = true
+			newCassandraCluster.Spec.Cassandra.Monitoring.Agent = dbv1alpha1.CassandraAgentInstaclustr
 
 			deployCassandraCluster(newCassandraCluster)
 

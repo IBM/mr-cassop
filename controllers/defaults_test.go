@@ -49,12 +49,12 @@ func TestDefaultingFunction(t *testing.T) {
 	g.Expect(cc.Status.MaintenanceState).To(BeNil())
 	g.Expect(cc.Spec.Encryption.Server.InternodeEncryption).To(Equal(internodeEncryptionNone))
 	g.Expect(cc.Spec.Encryption.Client.Enabled).To(BeFalse())
-	g.Expect(cc.Spec.Monitoring.Enabled).To(BeFalse())
-	g.Expect(cc.Spec.Monitoring.Agent).To(BeEmpty())
-	g.Expect(cc.Spec.Monitoring.ServiceMonitor.Enabled).To(BeFalse())
-	g.Expect(cc.Spec.Monitoring.ServiceMonitor.Namespace).To(BeEmpty())
-	g.Expect(cc.Spec.Monitoring.ServiceMonitor.Labels).To(BeEmpty())
-	g.Expect(cc.Spec.Monitoring.ServiceMonitor.ScrapeInterval).To(BeEmpty())
+	g.Expect(cc.Spec.Cassandra.Monitoring.Enabled).To(BeFalse())
+	g.Expect(cc.Spec.Cassandra.Monitoring.Agent).To(BeEmpty())
+	g.Expect(cc.Spec.Cassandra.Monitoring.ServiceMonitor.Enabled).To(BeFalse())
+	g.Expect(cc.Spec.Cassandra.Monitoring.ServiceMonitor.Namespace).To(BeEmpty())
+	g.Expect(cc.Spec.Cassandra.Monitoring.ServiceMonitor.Labels).To(BeEmpty())
+	g.Expect(cc.Spec.Cassandra.Monitoring.ServiceMonitor.ScrapeInterval).To(BeEmpty())
 	g.Expect(cc.Spec.Cassandra.Sysctls).To(Equal(map[string]string{
 		"net.ipv4.ip_local_port_range": "1025 65535",
 		"net.ipv4.tcp_rmem":            "4096 87380 16777216",
@@ -82,6 +82,13 @@ func TestDefaultingFunction(t *testing.T) {
 				Sysctls: map[string]string{
 					"fs.file-max":      "1000000000",
 					"vm.max_map_count": "1000000000",
+				},
+				Monitoring: v1alpha1.Monitoring{
+					Enabled: true,
+					ServiceMonitor: v1alpha1.ServiceMonitor{
+						Enabled:   true,
+						Namespace: "",
+					},
 				},
 			},
 			Reaper: &v1alpha1.Reaper{
@@ -139,13 +146,6 @@ func TestDefaultingFunction(t *testing.T) {
 					Algorithm:         "SunX509",
 					StoreType:         "PKCS12",
 					CipherSuites:      []string{tlsEcdheRsaAes128GcmSha256},
-				},
-			},
-			Monitoring: v1alpha1.Monitoring{
-				Enabled: true,
-				ServiceMonitor: v1alpha1.ServiceMonitor{
-					Enabled:   true,
-					Namespace: "",
 				},
 			},
 			TopologySpreadByZone: proto.Bool(false),
@@ -214,9 +214,9 @@ func TestDefaultingFunction(t *testing.T) {
 	g.Expect(cc.Spec.Encryption.Client.RequireClientAuth).To(BeEquivalentTo(proto.Bool(false)))
 
 	// Monitoring
-	g.Expect(cc.Spec.Monitoring.Enabled).To(BeTrue())
-	g.Expect(cc.Spec.Monitoring.Agent).To(BeEquivalentTo("tlp"))
-	g.Expect(cc.Spec.Monitoring.ServiceMonitor.Enabled).To(BeTrue())
-	g.Expect(cc.Spec.Monitoring.ServiceMonitor.Labels).To(BeEmpty())
-	g.Expect(cc.Spec.Monitoring.ServiceMonitor.ScrapeInterval).To(BeEquivalentTo("30s"))
+	g.Expect(cc.Spec.Cassandra.Monitoring.Enabled).To(BeTrue())
+	g.Expect(cc.Spec.Cassandra.Monitoring.Agent).To(BeEquivalentTo("tlp"))
+	g.Expect(cc.Spec.Cassandra.Monitoring.ServiceMonitor.Enabled).To(BeTrue())
+	g.Expect(cc.Spec.Cassandra.Monitoring.ServiceMonitor.Labels).To(BeEmpty())
+	g.Expect(cc.Spec.Cassandra.Monitoring.ServiceMonitor.ScrapeInterval).To(BeEquivalentTo("30s"))
 }

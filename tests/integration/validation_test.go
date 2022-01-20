@@ -766,10 +766,10 @@ var _ = Describe("cassandracluster validation", func() {
 					Cassandra: &v1alpha1.Cassandra{
 						NumSeeds:        3,
 						ImagePullPolicy: v1.PullAlways,
-					},
-					Monitoring: v1alpha1.Monitoring{
-						Enabled: true,
-						Agent:   "agent",
+						Monitoring: v1alpha1.Monitoring{
+							Enabled: true,
+							Agent:   "agent",
+						},
 					},
 				},
 			}

@@ -2,6 +2,7 @@ package prober
 
 import (
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 
 	"github.com/ibm/cassandra-operator/prober/config"
@@ -65,14 +66,15 @@ func (p *Prober) Run() error {
 }
 
 func setupRoutes(router *httprouter.Router, prober *Prober) {
-	router.GET("/healthz/:broadcastip", prober.healthCheck)
-	router.GET("/ping", prober.ping)
-	router.GET("/region-ready", prober.getRegionReady)
-	router.PUT("/region-ready", prober.putRegionReady)
-	router.GET("/reaper-ready", prober.getReaperReady)
-	router.PUT("/reaper-ready", prober.putReaperReady)
-	router.GET("/seeds", prober.getSeeds)
-	router.PUT("/seeds", prober.putSeeds)
-	router.GET("/dcs", prober.getDCs)
-	router.PUT("/dcs", prober.putDCs)
+	router.GET("/healthz/:broadcastip", prometheusMiddleware(prober.healthCheck))
+	router.GET("/ping", prometheusMiddleware(prober.ping))
+	router.GET("/region-ready", prometheusMiddleware(prober.getRegionReady))
+	router.PUT("/region-ready", prometheusMiddleware(prober.putRegionReady))
+	router.GET("/reaper-ready", prometheusMiddleware(prober.getReaperReady))
+	router.PUT("/reaper-ready", prometheusMiddleware(prober.putReaperReady))
+	router.GET("/seeds", prometheusMiddleware(prober.getSeeds))
+	router.PUT("/seeds", prometheusMiddleware(prober.putSeeds))
+	router.GET("/dcs", prometheusMiddleware(prober.getDCs))
+	router.PUT("/dcs", prometheusMiddleware(prober.putDCs))
+	router.Handler("GET", "/metrics", promhttp.Handler())
 }

@@ -58,6 +58,32 @@ spec:
                     - debug
                     - trace
                     type: string
+                  monitoring:
+                    properties:
+                      agent:
+                        enum:
+                        - instaclustr
+                        - datastax
+                        - tlp
+                        type: string
+                      enabled:
+                        type: boolean
+                      serviceMonitor:
+                        properties:
+                          enabled:
+                            type: boolean
+                          labels:
+                            additionalProperties:
+                              type: string
+                            type: object
+                          namespace:
+                            type: string
+                          scrapeInterval:
+                            type: string
+                        required:
+                        - enabled
+                        type: object
+                    type: object
                   numSeeds:
                     format: int32
                     minimum: 1
@@ -1578,32 +1604,6 @@ spec:
                   - dc
                   type: object
                 type: array
-              monitoring:
-                properties:
-                  agent:
-                    enum:
-                    - instaclustr
-                    - datastax
-                    - tlp
-                    type: string
-                  enabled:
-                    type: boolean
-                  serviceMonitor:
-                    properties:
-                      enabled:
-                        type: boolean
-                      labels:
-                        additionalProperties:
-                          type: string
-                        type: object
-                      namespace:
-                        type: string
-                      scrapeInterval:
-                        type: string
-                    required:
-                    - enabled
-                    type: object
-                type: object
               podManagementPolicy:
                 description: PodManagementPolicyType defines the policy for creating
                   pods under a stateful set.
@@ -1701,6 +1701,21 @@ spec:
                           it defaults to Limits if that is explicitly specified, otherwise
                           to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                         type: object
+                    type: object
+                  serviceMonitor:
+                    properties:
+                      enabled:
+                        type: boolean
+                      labels:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      namespace:
+                        type: string
+                      scrapeInterval:
+                        type: string
+                    required:
+                    - enabled
                     type: object
                 type: object
               reaper:

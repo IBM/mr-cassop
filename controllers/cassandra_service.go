@@ -71,8 +71,8 @@ func (r *CassandraClusterReconciler) reconcileDCService(ctx context.Context, cc 
 		},
 	}
 
-	if cc.Spec.Monitoring.Enabled {
-		port := getJavaAgentPort(cc.Spec.Monitoring.Agent)
+	if cc.Spec.Cassandra.Monitoring.Enabled {
+		port := getJavaAgentPort(cc.Spec.Cassandra.Monitoring.Agent)
 		desiredService.Spec.Ports = append(desiredService.Spec.Ports, v1.ServicePort{
 			Name:       "agent",
 			Protocol:   v1.ProtocolTCP,

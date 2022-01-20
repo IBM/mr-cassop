@@ -14,7 +14,7 @@ import (
 )
 
 func (r *CassandraClusterReconciler) reconcileCollectdConfigMap(ctx context.Context, cc *v1alpha1.CassandraCluster) error {
-	if !cc.Spec.Monitoring.Enabled || cc.Spec.Monitoring.Agent != v1alpha1.CassandraAgentDatastax {
+	if !cc.Spec.Cassandra.Monitoring.Enabled || cc.Spec.Cassandra.Monitoring.Agent != v1alpha1.CassandraAgentDatastax {
 		return nil
 	}
 	operatorCM, err := r.getConfigMap(ctx, names.OperatorCollectdCM(), r.Cfg.Namespace)

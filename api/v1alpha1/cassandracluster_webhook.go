@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	"fmt"
+	"time"
 
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -74,6 +75,10 @@ func validateCreateUpdate(r *CassandraCluster) error {
 		}
 	}
 
+	if err := validateProber(r); err != nil {
+		errors = append(errors, err...)
+	}
+
 	// Todo: implement other checks discussed in https://github.com/TheWeatherCompany/cassandra-operator/issues/55
 
 	// If `errors` is empty this returns nil
@@ -93,6 +98,22 @@ func validateReaper(r *CassandraCluster) (errors []error) {
 		}
 	}
 
+	if r.Spec.Reaper.ServiceMonitor.ScrapeInterval != "" {
+		if _, err := time.ParseDuration(r.Spec.Reaper.ServiceMonitor.ScrapeInterval); err != nil {
+			errors = append(errors, fmt.Errorf("service monitor scrapeInterval must be a valid time duration"))
+		}
+	}
+
+	return
+}
+
+func validateProber(r *CassandraCluster) (errors []error) {
+	if r.Spec.Prober.ServiceMonitor.ScrapeInterval != "" {
+		if _, err := time.ParseDuration(r.Spec.Prober.ServiceMonitor.ScrapeInterval); err != nil {
+			errors = append(errors, fmt.Errorf("service monitor scrapeInterval must be a valid time duration"))
+		}
+	}
+
 	return
 }
 
@@ -101,6 +122,12 @@ func validateCassandra(r *CassandraCluster) (errors []error) {
 		err := yaml.Unmarshal([]byte(r.Spec.Cassandra.ConfigOverrides), map[string]interface{}{})
 		if err != nil {
 			errors = append(errors, fmt.Errorf("cassandra config override should be a string with valid YAML: %s", err.Error()))
+		}
+	}
+
+	if r.Spec.Cassandra.Monitoring.ServiceMonitor.ScrapeInterval != "" {
+		if _, err := time.ParseDuration(r.Spec.Cassandra.Monitoring.ServiceMonitor.ScrapeInterval); err != nil {
+			errors = append(errors, fmt.Errorf("service monitor scrapeInterval must be a valid time duration"))
 		}
 	}
 

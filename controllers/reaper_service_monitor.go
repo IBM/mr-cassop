@@ -14,10 +14,6 @@ import (
 )
 
 func (r *CassandraClusterReconciler) reconcileReaperServiceMonitor(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
-	if !cc.Spec.Monitoring.Enabled {
-		return nil
-	}
-
 	if err := r.cleanupOldReaperServiceMonitors(ctx, cc); err != nil {
 		return errors.WithStack(err)
 	}
@@ -75,8 +71,8 @@ func (r *CassandraClusterReconciler) createReaperServiceMonitor(cc *dbv1alpha1.C
 	serviceMonitor.SetName(names.ReaperService(cc.Name))
 	serviceMonitor.SetLabels(labels.CombinedComponentLabels(cc, dbv1alpha1.CassandraClusterComponentReaper))
 	serviceMonitor.SetNamespace(cc.Namespace)
-	if cc.Spec.Monitoring.ServiceMonitor.Namespace != "" {
-		serviceMonitor.SetNamespace(cc.Spec.Monitoring.ServiceMonitor.Namespace)
+	if cc.Spec.Reaper.ServiceMonitor.Namespace != "" {
+		serviceMonitor.SetNamespace(cc.Spec.Reaper.ServiceMonitor.Namespace)
 	}
 
 	additionalLabels := cc.Spec.Reaper.ServiceMonitor.Labels
@@ -110,7 +106,7 @@ func (r *CassandraClusterReconciler) createReaperServiceMonitor(cc *dbv1alpha1.C
 		},
 	}
 
-	if cc.Spec.Monitoring.ServiceMonitor.Namespace == "" {
+	if cc.Spec.Reaper.ServiceMonitor.Namespace == "" {
 		err := controllerutil.SetControllerReference(cc, serviceMonitor, r.Scheme)
 		if err != nil {
 			return nil, errors.WithStack(err)

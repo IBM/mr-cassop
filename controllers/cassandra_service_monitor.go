@@ -41,20 +41,16 @@ var serviceMonitorListGVK = schema.GroupVersionKind{
 }
 
 func (r *CassandraClusterReconciler) reconcileCassandraServiceMonitor(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
-	if !cc.Spec.Monitoring.Enabled {
-		return nil
-	}
-
 	if err := r.cleanupOldCassandraServiceMonitors(ctx, cc); err != nil {
 		return errors.WithStack(err)
 	}
 
-	if !cc.Spec.Monitoring.ServiceMonitor.Enabled {
+	if !cc.Spec.Cassandra.Monitoring.Enabled || !cc.Spec.Cassandra.Monitoring.ServiceMonitor.Enabled {
 		return nil
 	}
 
-	if cc.Spec.Monitoring.ServiceMonitor.Namespace != "" {
-		installationNamespace := cc.Spec.Monitoring.ServiceMonitor.Namespace
+	if cc.Spec.Cassandra.Monitoring.ServiceMonitor.Namespace != "" {
+		installationNamespace := cc.Spec.Cassandra.Monitoring.ServiceMonitor.Namespace
 		if err := r.Get(ctx, types.NamespacedName{Name: installationNamespace}, &v1.Namespace{}); err != nil {
 			if kerrors.IsNotFound(err) {
 				r.Log.Warnf("Can't install ServiceMonitor. Namespace %q doesn't exist", installationNamespace)
@@ -107,7 +103,7 @@ func (r *CassandraClusterReconciler) applyServiceMonitor(ctx context.Context, de
 // Deletes ServiceMonitors that are no longer needed. For example if the namespace is changed, the resource from the previous namespace should be deleted.
 // If the ServiceMonitor installation is disabled through the spec, we also need to delete the ServiceMonitor.
 func (r *CassandraClusterReconciler) cleanupOldCassandraServiceMonitors(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
-	if !cc.Spec.Monitoring.ServiceMonitor.Enabled {
+	if !cc.Spec.Cassandra.Monitoring.Enabled || !cc.Spec.Cassandra.Monitoring.ServiceMonitor.Enabled {
 		if err := r.removeServiceMonitors(ctx, cc, dbv1alpha1.CassandraClusterComponentCassandra); err != nil {
 			return errors.WithStack(err)
 		}
@@ -115,8 +111,8 @@ func (r *CassandraClusterReconciler) cleanupOldCassandraServiceMonitors(ctx cont
 	}
 
 	serviceMonitorNamespace := cc.Namespace
-	if cc.Spec.Monitoring.ServiceMonitor.Namespace != "" {
-		serviceMonitorNamespace = cc.Spec.Monitoring.ServiceMonitor.Namespace
+	if cc.Spec.Cassandra.Monitoring.ServiceMonitor.Namespace != "" {
+		serviceMonitorNamespace = cc.Spec.Cassandra.Monitoring.ServiceMonitor.Namespace
 	}
 
 	if err := r.removeOldServiceMonitors(ctx, cc, dbv1alpha1.CassandraClusterComponentCassandra, serviceMonitorNamespace); err != nil {
@@ -175,11 +171,11 @@ func (r *CassandraClusterReconciler) createCassandraServiceMonitor(cc *dbv1alpha
 	serviceMonitor.SetLabels(labels.CombinedComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra))
 
 	serviceMonitor.SetNamespace(cc.Namespace)
-	if cc.Spec.Monitoring.ServiceMonitor.Namespace != "" {
-		serviceMonitor.SetNamespace(cc.Spec.Monitoring.ServiceMonitor.Namespace)
+	if cc.Spec.Cassandra.Monitoring.ServiceMonitor.Namespace != "" {
+		serviceMonitor.SetNamespace(cc.Spec.Cassandra.Monitoring.ServiceMonitor.Namespace)
 	}
 
-	additionalLabels := cc.Spec.Monitoring.ServiceMonitor.Labels
+	additionalLabels := cc.Spec.Cassandra.Monitoring.ServiceMonitor.Labels
 	if len(additionalLabels) > 0 {
 		newLabels := serviceMonitor.GetLabels()
 		for key, value := range additionalLabels {
@@ -200,7 +196,7 @@ func (r *CassandraClusterReconciler) createCassandraServiceMonitor(cc *dbv1alpha
 		"endpoints": []interface{}{
 			map[string]interface{}{
 				"port":     "agent",
-				"interval": cc.Spec.Monitoring.ServiceMonitor.ScrapeInterval,
+				"interval": cc.Spec.Cassandra.Monitoring.ServiceMonitor.ScrapeInterval,
 			},
 		},
 		"namespaceSelector": map[string]interface{}{
@@ -217,7 +213,7 @@ func (r *CassandraClusterReconciler) createCassandraServiceMonitor(cc *dbv1alpha
 	}
 
 	// Set reference only if the ServiceMonitor is installed in the same namespace. It can't be set cross namespace.
-	if cc.Spec.Monitoring.ServiceMonitor.Namespace == "" {
+	if cc.Spec.Cassandra.Monitoring.ServiceMonitor.Namespace == "" {
 		err := controllerutil.SetControllerReference(cc, serviceMonitor, r.Scheme)
 		if err != nil {
 			return nil, errors.WithStack(err)
@@ -255,7 +251,7 @@ func createRelabeling(config relabelConfig) map[string]interface{} {
 
 func getCassandraServiceMonitorRelabelings(cc *dbv1alpha1.CassandraCluster) []interface{} {
 	var relabelings []interface{}
-	switch cc.Spec.Monitoring.Agent {
+	switch cc.Spec.Cassandra.Monitoring.Agent {
 	case dbv1alpha1.CassandraAgentDatastax:
 		relabelings = []interface{}{
 			createRelabeling(relabelConfig{
@@ -299,7 +295,7 @@ func getCassandraServiceMonitorRelabelings(cc *dbv1alpha1.CassandraCluster) []in
 
 func getCassandraServiceMonitorMetricRelabelings(cc *dbv1alpha1.CassandraCluster) []interface{} {
 	var metricRelabelings []interface{}
-	if cc.Spec.Monitoring.Agent == dbv1alpha1.CassandraAgentDatastax {
+	if cc.Spec.Cassandra.Monitoring.Agent == dbv1alpha1.CassandraAgentDatastax {
 		metricRelabelings = []interface{}{
 			createRelabeling(relabelConfig{
 				// Drop metrics we can calculate from prometheus directly

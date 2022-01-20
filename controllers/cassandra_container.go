@@ -123,16 +123,16 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, resta
 		TerminationMessagePolicy: v1.TerminationMessageReadFile,
 	}
 
-	if cc.Spec.Monitoring.Enabled {
-		if cc.Spec.Monitoring.Agent == dbv1alpha1.CassandraAgentTlp {
+	if cc.Spec.Cassandra.Monitoring.Enabled {
+		if cc.Spec.Cassandra.Monitoring.Agent == dbv1alpha1.CassandraAgentTlp {
 			container.VolumeMounts = append(container.VolumeMounts, prometheusVolumeMount())
 		}
-		if cc.Spec.Monitoring.Agent == dbv1alpha1.CassandraAgentDatastax {
+		if cc.Spec.Cassandra.Monitoring.Agent == dbv1alpha1.CassandraAgentDatastax {
 			container.VolumeMounts = append(container.VolumeMounts, collectdVolumeMount())
 		}
 		container.Env = append(container.Env, v1.EnvVar{
 			Name:  "JVM_OPTS",
-			Value: getJavaAgent(cc.Spec.Monitoring.Agent),
+			Value: getJavaAgent(cc.Spec.Cassandra.Monitoring.Agent),
 		})
 	}
 
@@ -215,7 +215,7 @@ func getCassandraRunCommand(cc *dbv1alpha1.CassandraCluster, clientTLSSecret *v1
 		args = append(args, "rm -rf /var/lib/cassandra/data/system/peers*")
 	}
 
-	if cc.Spec.Monitoring.Agent == dbv1alpha1.CassandraAgentDatastax {
+	if cc.Spec.Cassandra.Monitoring.Agent == dbv1alpha1.CassandraAgentDatastax {
 		args = append(args, `
 if [[ ! -f "/etc/mtab" ]] && [[ -f "/proc/mounts" ]]; then
 	ln -sf /proc/mounts /etc/mtab

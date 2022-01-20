@@ -14,7 +14,7 @@ import (
 )
 
 func (r *CassandraClusterReconciler) reconcilePrometheusConfigMap(ctx context.Context, cc *v1alpha1.CassandraCluster) error {
-	if !cc.Spec.Monitoring.Enabled {
+	if !cc.Spec.Cassandra.Monitoring.Enabled {
 		return nil
 	}
 
