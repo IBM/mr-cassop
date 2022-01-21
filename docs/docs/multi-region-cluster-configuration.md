@@ -52,7 +52,7 @@ There are a few prerequisites for deploying a cluster in multiple regions.
 * Datacenter names should be unique between regions (e.g. each region should have its own unique name via the datacenter name).
 * If server encryption is enabled, ensure the encryption keys are compatible between the regions.
 * Ensure reaper repairs (or nodetool repairs) aren't going to overlap or start running while pairing clusters.
-The only point of contact defined in the CassandraCluster spec is `externalRegions`. This is an array where the ingress domains to other regions are defined.
+The only point of contact defined in the CassandraCluster spec is the `.spec.externalRegions.managed` field. This is an array where the ingress domains to other regions are defined.
 
 For example, consider two regions - `us-east` and `us-south`. The multi-cluster configuration could look like the following:
 
@@ -75,7 +75,8 @@ spec:
     domain: us-east.my-cluster.my-cloud.com
     secret: ingress-secret
   externalRegions:
-  - domain: us-south.my-cluster.my-cloud.com
+    managed:
+    - domain: us-south.my-cluster.my-cloud.com
 ```
 
 `us-south` regions:
@@ -96,10 +97,11 @@ spec:
     domain: us-south.my-cluster.my-cloud.com
     secret: ingress-secret
   externalRegions:
-  - domain: us-east.my-cluster.my-cloud.com
+    managed:
+    - domain: us-east.my-cluster.my-cloud.com
 ```
 
-As you can see, the `externalRegions` refer to the regions to which the `CassandraCluster` should connect. So `us-east` refers to the `us-south` region and vice versa.
+As you can see, the `.spec.externalRegions.managed` refer to the regions to which the `CassandraCluster` should connect to. So `us-east` refers to the `us-south` region and vice versa.
 
 Those manifests can be deployed in any order. Both operators wait until both CassandraClusters are deployed. Only after that will the Cassandra nodes begin to initialize.
 
@@ -118,7 +120,7 @@ Simply define the keyspaces you want to override and the replication settings fo
 
 ```yaml
 spec:
-  names:
+  keyspaces:
   - system_traces
   - system_auth
   dcs:
@@ -144,18 +146,19 @@ To do that, the `externalRegions` should be configured the following way:
 ```yaml
 spec:
   externalRegions:
-  - domain: us-east.my-cluster.my-cloud.com # an operator managed region
-  - seeds: [ "12.123.43.23", "12.123.43.34"] # unmanaged regions
-    dcs:
-    - name: dc4
-      rf: 3
-    - name: dc5
-      rf: 3
+    managed:
+    - domain: us-east.my-cluster.my-cloud.com # an operator managed region
+    unmanaged:
+    - seeds: [ "12.123.43.23", "12.123.43.34"] # unmanaged region
+      dcs:
+      - name: dc4
+        rf: 3
+      - name: dc5
+        rf: 3
 ```
 
-As you can see, the operator can connect regions both managed by other Cassandra operators (using the `domain` field) and by setting the seed nodes of an unmanaged region by using the `seeds` field. The `dcs` field is also required in the second case to correctly configure the replication options for the keyspaces.
-
-You may set only the `domain` field, or both the `seeds` + `dcs` fields for one region. If you set both, `domain` takes precedence and the region is considered to be managed.
+As you can see, the operator can connect regions both managed by other Cassandra operators (using the `.spec.spec.externalRegions.managed` array) and by setting the seed nodes of an unmanaged region by using the `.spec.spec.externalRegions.unmanaged[].seeds` field. 
+The `.spec.spec.externalRegions.unmanaged[].dcs` field is also required to correctly configure the replication options for the keyspaces.
 
 ## Treat Zones as Racks
 
@@ -164,6 +167,6 @@ In order to accomplish this, set the `zonesAsRacks` flag to `true` in your Cassa
 
 :::note
 
-For the change to take effect Cassandra nodes must be restarted
+For the change to take effect Cassandra nodes will be restarted
 
 :::

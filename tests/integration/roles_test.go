@@ -28,9 +28,7 @@ var _ = Describe("user roles", func() {
 			},
 			AdminRoleSecretName: "admin-role",
 			ImagePullSecretName: "imagePullSecret",
-			Roles: v1alpha1.Roles{
-				SecretName: rolesSecretName,
-			},
+			RolesSecretName:     rolesSecretName,
 		},
 	}
 

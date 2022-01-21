@@ -55,25 +55,9 @@ func (r *CassandraClusterReconciler) reconcileProber(ctx context.Context, cc *db
 	return nil
 }
 
-func managedExternalRegionsDomains(externalRegions []dbv1alpha1.ExternalRegion) []string {
-	if len(externalRegions) == 0 {
-		return nil
-	}
-	managedRegionsDomains := make([]string, 0)
-	for _, externalRegion := range externalRegions {
-		if len(externalRegion.Domain) > 0 {
-			managedRegionsDomains = append(managedRegionsDomains, externalRegion.Domain)
-		}
-	}
-
-	return managedRegionsDomains
-}
-
 func (r *CassandraClusterReconciler) reconcileProberDeployment(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
 	var err error
-
 	clientTLSSecret := &v1.Secret{}
-
 	if cc.Spec.Encryption.Client.Enabled {
 		clientTLSSecret, err = r.getSecret(ctx, cc.Spec.Encryption.Client.TLSSecret.Name, cc.Namespace)
 		if err != nil {
@@ -242,7 +226,7 @@ func (r *CassandraClusterReconciler) reconcileProberService(ctx context.Context,
 
 func proberContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 	adminSecret := names.ActiveAdminSecret(cc.Name)
-	if cc.Spec.JMX.Authentication == jmxAuthenticationLocalFiles {
+	if cc.Spec.JMXAuth == jmxAuthenticationLocalFiles {
 		adminSecret = cc.Spec.AdminRoleSecretName
 	}
 	return v1.Container{

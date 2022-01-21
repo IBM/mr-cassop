@@ -131,7 +131,7 @@ func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, res
 			ServiceName:         names.DCService(cc.Name, dc.Name),
 			Replicas:            dc.Replicas,
 			Selector:            &metav1.LabelSelector{MatchLabels: stsLabels},
-			PodManagementPolicy: cc.Spec.PodManagementPolicy,
+			PodManagementPolicy: appsv1.ParallelPodManagement,
 			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
 				Type:          appsv1.RollingUpdateStatefulSetStrategyType,
 				RollingUpdate: &appsv1.RollingUpdateStatefulSetStrategy{Partition: proto.Int32(0)},
@@ -324,7 +324,7 @@ func authVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
 		},
 	}
 
-	if cc.Spec.JMX.Authentication == jmxAuthenticationLocalFiles {
+	if cc.Spec.JMXAuth == jmxAuthenticationLocalFiles {
 		volume.VolumeSource.Secret.Items = append(volume.VolumeSource.Secret.Items, v1.KeyToPath{
 			Key:  "jmxremote.password",
 			Path: "jmxremote.password",

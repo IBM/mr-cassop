@@ -145,6 +145,10 @@ var _ = BeforeSuite(func() {
 				ImagePullPolicy: v1.PullAlways,
 				Resources:       cassandraResources,
 				NumSeeds:        2,
+				JVMOptions: []string{
+					"-Xmx1024M", //Max Heap Size
+					"-Xms1024M", //Min Heap Size
+				},
 			},
 			Prober: v1alpha1.Prober{
 				ImagePullPolicy: v1.PullAlways,
@@ -153,9 +157,6 @@ var _ = BeforeSuite(func() {
 					ImagePullPolicy: v1.PullAlways,
 					Resources:       proberResources,
 				},
-			},
-			JVM: v1alpha1.JVM{
-				MaxHeapSize: "1024M",
 			},
 		},
 	}

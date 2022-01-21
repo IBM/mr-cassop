@@ -170,7 +170,7 @@ func (r *CassandraClusterReconciler) getInitOrderInfo(ctx context.Context, cc *v
 		return false, nextLocalDCToInit, nil
 	}
 
-	if len(cc.Spec.ExternalRegions) == 0 {
+	if len(cc.Spec.ExternalRegions.Managed) == 0 {
 		return false, "", nil
 	}
 
@@ -209,7 +209,7 @@ func (r *CassandraClusterReconciler) getInitOrderInfo(ctx context.Context, cc *v
 
 func (r *CassandraClusterReconciler) getRemoteClusterRegionsStatuses(ctx context.Context, cc *v1alpha1.CassandraCluster, proberClient prober.ProberClient) (clusterRegionsStatuses map[string]bool, err error) {
 	clusterRegionsStatuses = make(map[string]bool)
-	for _, externalRegion := range cc.Spec.ExternalRegions {
+	for _, externalRegion := range cc.Spec.ExternalRegions.Managed {
 		if len(externalRegion.Domain) > 0 {
 			proberHost := names.ProberIngressDomain(cc, externalRegion)
 			regionsReady, err := proberClient.RegionReady(ctx, proberHost)
@@ -225,8 +225,8 @@ func (r *CassandraClusterReconciler) getRemoteClusterRegionsStatuses(ctx context
 }
 
 func getAllRegionsHosts(cc *v1alpha1.CassandraCluster) []string {
-	allRegionsHosts := make([]string, 0, len(cc.Spec.ExternalRegions)+1)
-	for _, externalRegion := range cc.Spec.ExternalRegions {
+	allRegionsHosts := make([]string, 0, len(cc.Spec.ExternalRegions.Managed)+1)
+	for _, externalRegion := range cc.Spec.ExternalRegions.Managed {
 		if len(externalRegion.Domain) > 0 {
 			allRegionsHosts = append(allRegionsHosts, names.ProberIngressDomain(cc, externalRegion))
 		}
@@ -265,18 +265,18 @@ func (r *CassandraClusterReconciler) getSeedsList(ctx context.Context, cc *v1alp
 	}
 	if cc.Spec.HostPort.Enabled {
 		// GET /seeds of external regions
-		for _, externalRegion := range cc.Spec.ExternalRegions {
-			if len(externalRegion.Domain) > 0 {
-				regionsHost := names.ProberIngressDomain(cc, externalRegion)
-				seeds, err := proberClient.GetSeeds(ctx, regionsHost)
-				if err != nil {
-					r.Log.Warnf("can't get seeds from region %s", regionsHost)
-					return nil, ErrRegionNotReady
-				}
-				cassandraSeeds = append(cassandraSeeds, seeds...)
-			} else if len(externalRegion.Seeds) > 0 {
-				cassandraSeeds = append(cassandraSeeds, externalRegion.Seeds...)
+		for _, managedRegion := range cc.Spec.ExternalRegions.Managed {
+			regionsHost := names.ProberIngressDomain(cc, managedRegion)
+			seeds, err := proberClient.GetSeeds(ctx, regionsHost)
+			if err != nil {
+				r.Log.Warnf("can't get seeds from region %s", regionsHost)
+				return nil, ErrRegionNotReady
 			}
+			cassandraSeeds = append(cassandraSeeds, seeds...)
+		}
+
+		for _, unmanagedRegion := range cc.Spec.ExternalRegions.Unmanaged {
+			cassandraSeeds = append(cassandraSeeds, unmanagedRegion.Seeds...)
 		}
 	}
 

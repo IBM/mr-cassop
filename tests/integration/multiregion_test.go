@@ -17,12 +17,14 @@ import (
 )
 
 var _ = Describe("multiple regions", func() {
-	externalRegions := []v1alpha1.ExternalRegion{
-		{
-			Domain: "domain1.external.com",
-		},
-		{
-			Domain: "domain2.external.com",
+	externalRegions := v1alpha1.ExternalRegions{
+		Managed: []v1alpha1.ManagedRegion{
+			{
+				Domain: "domain1.external.com",
+			},
+			{
+				Domain: "domain2.external.com",
+			},
 		},
 	}
 	cc := &v1alpha1.CassandraCluster{
@@ -70,17 +72,15 @@ var _ = Describe("multiple regions", func() {
 			},
 		}}
 
-		for i, externalRegion := range cc.Spec.ExternalRegions {
-			if len(externalRegion.Domain) != 0 {
-				ingressHost := names.ProberIngressDomain(cc, externalRegion)
-				mockProberClient.readyClusters[ingressHost] = false
-				mockProberClient.seeds[ingressHost] = []string{"13.432.13" + strconv.Itoa(i) + ".3", "13.432.13" + strconv.Itoa(i) + ".4"}
-				mockProberClient.dcs[ingressHost] = []v1alpha1.DC{
-					{
-						Name:     "ext-dc" + "-" + strconv.Itoa(i),
-						Replicas: proto.Int32(3),
-					},
-				}
+		for i, managedRegion := range cc.Spec.ExternalRegions.Managed {
+			ingressHost := names.ProberIngressDomain(cc, managedRegion)
+			mockProberClient.readyClusters[ingressHost] = false
+			mockProberClient.seeds[ingressHost] = []string{"13.432.13" + strconv.Itoa(i) + ".3", "13.432.13" + strconv.Itoa(i) + ".4"}
+			mockProberClient.dcs[ingressHost] = []v1alpha1.DC{
+				{
+					Name:     "ext-dc" + "-" + strconv.Itoa(i),
+					Replicas: proto.Int32(3),
+				},
 			}
 		}
 
@@ -115,10 +115,8 @@ var _ = Describe("multiple regions", func() {
 
 		By("reaper should be deployed after regions are ready")
 
-		for _, externalRegion := range cc.Spec.ExternalRegions {
-			if len(externalRegion.Domain) != 0 {
-				mockProberClient.readyClusters[names.ProberIngressDomain(cc, externalRegion)] = true
-			}
+		for _, managedRegion := range cc.Spec.ExternalRegions.Managed {
+			mockProberClient.readyClusters[names.ProberIngressDomain(cc, managedRegion)] = true
 		}
 
 		for index, dc := range cc.Spec.DCs {

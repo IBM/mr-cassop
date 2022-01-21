@@ -361,12 +361,14 @@ export PAUSE_INIT=false
 						Enabled:           true,
 						UseExternalHostIP: true,
 					},
-					ExternalRegions: []v1alpha1.ExternalRegion{
-						{
-							Seeds: []string{"10.10.10.121", "10.10.9.121"},
-						},
-						{
-							Seeds: []string{"10.11.10.121", "10.11.9.121"},
+					ExternalRegions: v1alpha1.ExternalRegions{
+						Unmanaged: []v1alpha1.UnmanagedRegion{
+							{
+								Seeds: []string{"10.10.10.121", "10.10.9.121"},
+							},
+							{
+								Seeds: []string{"10.11.10.121", "10.11.9.121"},
+							},
 						},
 					},
 				},
@@ -567,9 +569,11 @@ export PAUSE_INIT=false
 						Domain: "region1.ingress.domain",
 						Secret: "region1.ingress.domain-secret",
 					},
-					ExternalRegions: []v1alpha1.ExternalRegion{
-						{
-							Domain: "region2.ingress.domain",
+					ExternalRegions: v1alpha1.ExternalRegions{
+						Managed: []v1alpha1.ManagedRegion{
+							{
+								Domain: "region2.ingress.domain",
+							},
 						},
 					},
 				},
@@ -659,9 +663,11 @@ export PAUSE_INIT=false
 						Domain: "region1.ingress.domain",
 						Secret: "region1.ingress.domain-secret",
 					},
-					ExternalRegions: []v1alpha1.ExternalRegion{
-						{
-							Domain: "region2.ingress.domain",
+					ExternalRegions: v1alpha1.ExternalRegions{
+						Managed: []v1alpha1.ManagedRegion{
+							{
+								Domain: "region2.ingress.domain",
+							},
 						},
 					},
 				},
@@ -784,9 +790,11 @@ export PAUSE_INIT=true
 						Domain: "region1.ingress.domain",
 						Secret: "region1.ingress.domain-secret",
 					},
-					ExternalRegions: []v1alpha1.ExternalRegion{
-						{
-							Domain: "region2.ingress.domain",
+					ExternalRegions: v1alpha1.ExternalRegions{
+						Managed: []v1alpha1.ManagedRegion{
+							{
+								Domain: "region2.ingress.domain",
+							},
 						},
 					},
 				},
@@ -909,9 +917,11 @@ export PAUSE_INIT=false
 						Domain: "region2.ingress.domain",
 						Secret: "region2.ingress.domain-secret",
 					},
-					ExternalRegions: []v1alpha1.ExternalRegion{
-						{
-							Domain: "region1.ingress.domain",
+					ExternalRegions: v1alpha1.ExternalRegions{
+						Managed: []v1alpha1.ManagedRegion{
+							{
+								Domain: "region1.ingress.domain",
+							},
 						},
 					},
 				},
@@ -1034,9 +1044,11 @@ export PAUSE_INIT=true
 						Domain: "region2.ingress.domain",
 						Secret: "region2.ingress.domain-secret",
 					},
-					ExternalRegions: []v1alpha1.ExternalRegion{
-						{
-							Domain: "region1.ingress.domain",
+					ExternalRegions: v1alpha1.ExternalRegions{
+						Managed: []v1alpha1.ManagedRegion{
+							{
+								Domain: "region1.ingress.domain",
+							},
 						},
 					},
 				},

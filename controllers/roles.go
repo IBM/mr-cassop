@@ -25,15 +25,15 @@ type Role struct {
 }
 
 func (r *CassandraClusterReconciler) reconcileRoles(ctx context.Context, cc *dbv1alpha1.CassandraCluster, cqlClient cql.CqlClient) error {
-	if cc.Spec.Roles.SecretName == "" {
+	if cc.Spec.RolesSecretName == "" {
 		return nil
 	}
 
 	rolesSecret := &v1.Secret{}
-	err := r.Get(ctx, types.NamespacedName{Name: cc.Spec.Roles.SecretName, Namespace: cc.Namespace}, rolesSecret)
+	err := r.Get(ctx, types.NamespacedName{Name: cc.Spec.RolesSecretName, Namespace: cc.Namespace}, rolesSecret)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			errMsg := fmt.Sprintf("roles secret %q not found", cc.Spec.Roles.SecretName)
+			errMsg := fmt.Sprintf("roles secret %q not found", cc.Spec.RolesSecretName)
 			r.Events.Warning(cc, events.EventRoleSecretNotFound, errMsg)
 			r.Log.Warnf(errMsg)
 			return nil

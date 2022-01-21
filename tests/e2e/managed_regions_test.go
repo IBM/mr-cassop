@@ -73,10 +73,12 @@ var _ = Describe("managed multi region cluster", func() {
 				Replicas: proto.Int32(3),
 			},
 		}
-		cc1.Spec.ExternalRegions = []dbv1alpha1.ExternalRegion{
-			{
-				Domain:    ingressDomain,
-				Namespace: namespaceName2,
+		cc1.Spec.ExternalRegions = dbv1alpha1.ExternalRegions{
+			Managed: []dbv1alpha1.ManagedRegion{
+				{
+					Domain:    ingressDomain,
+					Namespace: namespaceName2,
+				},
 			},
 		}
 
@@ -87,10 +89,12 @@ var _ = Describe("managed multi region cluster", func() {
 				Replicas: proto.Int32(3),
 			},
 		}
-		cc2.Spec.ExternalRegions = []dbv1alpha1.ExternalRegion{
-			{
-				Domain:    ingressDomain,
-				Namespace: namespaceName1,
+		cc2.Spec.ExternalRegions = dbv1alpha1.ExternalRegions{
+			Managed: []dbv1alpha1.ManagedRegion{
+				{
+					Domain:    ingressDomain,
+					Namespace: namespaceName1,
+				},
 			},
 		}
 

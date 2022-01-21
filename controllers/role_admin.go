@@ -37,7 +37,7 @@ func (r *CassandraClusterReconciler) reconcileAdminRole(ctx context.Context, cc 
 		}
 	}
 
-	if cc.Spec.JMX.Authentication == jmxAuthenticationLocalFiles {
+	if cc.Spec.JMXAuth == jmxAuthenticationLocalFiles {
 		adminRoleSecret.Data[dbv1alpha1.CassandraOperatorJmxUsername] = []byte(cassandraOperatorAdminRole)
 		adminRoleSecret.Data[dbv1alpha1.CassandraOperatorJmxPassword] = []byte(cassandraOperatorAdminPassword)
 	}

@@ -62,7 +62,7 @@ var _ = Describe("auth logic", func() {
 			}
 			cc := cassandraCluster.DeepCopy()
 			cc.Spec.AdminRoleSecretName = testAdminRoleSecretName
-			cc.Spec.JMX.Authentication = "internal"
+			cc.Spec.JMXAuth = "internal"
 			cc.Spec.Cassandra.Persistence = dbv1alpha1.Persistence{
 				Enabled: true,
 				DataVolumeClaimSpec: v1.PersistentVolumeClaimSpec{

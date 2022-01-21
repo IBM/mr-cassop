@@ -43,7 +43,7 @@ func ProberIngressHost(clusterName, namespace string, domain string) string {
 	return fmt.Sprintf("%s.%s", proberIngressSubdomain(clusterName, namespace), domain)
 }
 
-func ProberIngressDomain(cc *dbv1alpha1.CassandraCluster, externalRegion dbv1alpha1.ExternalRegion) string {
+func ProberIngressDomain(cc *dbv1alpha1.CassandraCluster, externalRegion dbv1alpha1.ManagedRegion) string {
 	namespace := cc.Namespace
 	if len(externalRegion.Namespace) != 0 {
 		namespace = externalRegion.Namespace

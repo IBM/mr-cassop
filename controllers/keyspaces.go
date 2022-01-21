@@ -72,7 +72,7 @@ func getKeyspaceByName(existingKeyspaces []cql.Keyspace, keyspaceName string) (c
 func desiredReplicationOptions(cc *dbv1alpha1.CassandraCluster, keyspace string, allDCs []dbv1alpha1.DC) map[string]string {
 	options := make(map[string]string, len(cc.Spec.SystemKeyspaces.DCs))
 
-	if len(cc.Spec.SystemKeyspaces.DCs) > 0 && keyspaceExists(cc.Spec.SystemKeyspaces.Names, keyspace) {
+	if len(cc.Spec.SystemKeyspaces.DCs) > 0 && keyspaceExists(cc.Spec.SystemKeyspaces.Keyspaces, keyspace) {
 		for _, dc := range cc.Spec.SystemKeyspaces.DCs {
 			options[dc.Name] = fmt.Sprint(dc.RF)
 		}
@@ -98,11 +98,11 @@ func desiredKeyspacesToReconcile(cc *dbv1alpha1.CassandraCluster) []dbv1alpha1.K
 		dbv1alpha1.KeyspaceName(cc.Spec.Reaper.Keyspace),
 	}
 
-	if len(cc.Spec.SystemKeyspaces.Names) == 0 {
+	if len(cc.Spec.SystemKeyspaces.Keyspaces) == 0 {
 		return keyspacesToReconcile
 	}
 
-	for _, desiredKeyspace := range cc.Spec.SystemKeyspaces.Names {
+	for _, desiredKeyspace := range cc.Spec.SystemKeyspaces.Keyspaces {
 		if !keyspaceExists(keyspacesToReconcile, string(desiredKeyspace)) {
 			keyspacesToReconcile = append(keyspacesToReconcile, desiredKeyspace)
 		}

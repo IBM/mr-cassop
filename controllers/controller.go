@@ -210,7 +210,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	// The existing ready region should set the replication settings correctly for the new region to come up.
 	// We need to do it before the check if the whole cluster is ready because it never will be unless we
 	// set the correct replication settings and run a repair.
-	if len(managedExternalRegionsDomains(cc.Spec.ExternalRegions)) > 0 {
+	if len(cc.Spec.ExternalRegions.Managed) > 0 {
 		err = r.reconcileSystemAuthIfReady(ctx, cc, allDCs)
 		if err != nil {
 			return ctrl.Result{}, err

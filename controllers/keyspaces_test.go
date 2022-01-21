@@ -32,7 +32,7 @@ func TestReconcileRFSettings(t *testing.T) {
 				},
 			},
 			SystemKeyspaces: v1alpha1.SystemKeyspaces{
-				Names: []v1alpha1.KeyspaceName{"system_auth"},
+				Keyspaces: []v1alpha1.KeyspaceName{"system_auth"},
 				DCs: []v1alpha1.SystemKeyspaceDC{
 					{
 						Name: "dc1",

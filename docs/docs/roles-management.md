@@ -33,7 +33,7 @@ metadata:
 type: Opaque
 ```
 
-Once the roles secret is created, it has to be referenced in the CassandraCluster spec in the `.spec.roles.secretName` field.
+Once the roles secret is created, it has to be referenced in the CassandraCluster spec in the `.spec.rolesSecretName` field.
 
 ```yaml
 apiVersion: db.ibm.com/v1alpha1
@@ -42,8 +42,7 @@ metadata:
   name: test-cluster
 spec:
   imagePullSecretName: "pull-secret"
-  roles:
-    secretName: cassandra-roles
+  rolesSecretName: cassandra-roles
   cassandra:
     purgeGossip: true
   ...

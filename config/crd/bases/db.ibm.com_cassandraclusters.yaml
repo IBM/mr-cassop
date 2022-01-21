@@ -52,6 +52,10 @@ spec:
                     - Never
                     - IfNotPresent
                     type: string
+                  jvmOptions:
+                    items:
+                      type: string
+                    type: array
                   logLevel:
                     enum:
                     - info
@@ -1421,8 +1425,8 @@ spec:
               encryption:
                 properties:
                   client:
-                    description: Client defines encryption between Cassandra nodes
-                      and clients via CQL and JMX protocols for tools like reaper,
+                    description: ClientEncryption defines encryption between Cassandra
+                      nodes and clients via CQL and JMX protocols for tools like reaper,
                       cqlsh, nodetool and others.
                     properties:
                       algorithm:
@@ -1467,7 +1471,8 @@ spec:
                         type: object
                     type: object
                   server:
-                    description: Server defines encryption between Cassandra nodes
+                    description: ServerEncryption defines encryption between Cassandra
+                      nodes
                     properties:
                       algorithm:
                         type: string
@@ -1510,35 +1515,48 @@ spec:
                     type: object
                 type: object
               externalRegions:
-                items:
-                  properties:
-                    dcs:
-                      items:
-                        properties:
-                          name:
-                            maxLength: 63
-                            minLength: 1
-                            pattern: ^[a-z0-9][a-z0-9\-]*$
+                properties:
+                  managed:
+                    items:
+                      properties:
+                        domain:
+                          type: string
+                        namespace:
+                          type: string
+                      required:
+                      - domain
+                      type: object
+                    type: array
+                  unmanaged:
+                    items:
+                      properties:
+                        dcs:
+                          items:
+                            properties:
+                              name:
+                                maxLength: 63
+                                minLength: 1
+                                pattern: ^[a-z0-9][a-z0-9\-]*$
+                                type: string
+                              rf:
+                                format: int32
+                                minimum: 1
+                                type: integer
+                            required:
+                            - name
+                            - rf
+                            type: object
+                          type: array
+                        seeds:
+                          items:
                             type: string
-                          rf:
-                            format: int32
-                            minimum: 1
-                            type: integer
-                        required:
-                        - name
-                        - rf
-                        type: object
-                      type: array
-                    domain:
-                      type: string
-                    namespace:
-                      type: string
-                    seeds:
-                      items:
-                        type: string
-                      type: array
-                  type: object
-                type: array
+                          type: array
+                      required:
+                      - dcs
+                      - seeds
+                      type: object
+                    type: array
+                type: object
               hostPort:
                 properties:
                   enabled:
@@ -1566,23 +1584,13 @@ spec:
                   secret:
                     type: string
                 type: object
-              jmx:
-                properties:
-                  authentication:
-                    description: 'Authentication is always enabled and by default
-                      is set to `internal`. Available options: `internal`, `local_files`.'
-                    enum:
-                    - local_files
-                    - internal
-                    type: string
-                type: object
-              jvm:
-                properties:
-                  heapNewSize:
-                    type: string
-                  maxHeapSize:
-                    type: string
-                type: object
+              jmxAuth:
+                description: 'Authentication is always enabled and by default is set
+                  to `internal`. Available options: `internal`, `local_files`.'
+                enum:
+                - local_files
+                - internal
+                type: string
               maintenance:
                 items:
                   properties:
@@ -1595,6 +1603,8 @@ spec:
                       type: string
                     pods:
                       items:
+                        description: PodName is the name of a Pod. Used to define
+                          CRD validation
                         maxLength: 253
                         minLength: 1
                         pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
@@ -1604,13 +1614,6 @@ spec:
                   - dc
                   type: object
                 type: array
-              podManagementPolicy:
-                description: PodManagementPolicyType defines the policy for creating
-                  pods under a stateful set.
-                enum:
-                - OrderedReady
-                - Parallel
-                type: string
               prober:
                 properties:
                   image:
@@ -1926,13 +1929,8 @@ spec:
                       type: object
                     type: array
                 type: object
-              roles:
-                properties:
-                  secretName:
-                    type: string
-                required:
-                - secretName
-                type: object
+              rolesSecretName:
+                type: string
               systemKeyspaces:
                 properties:
                   dcs:
@@ -1952,7 +1950,7 @@ spec:
                       - rf
                       type: object
                     type: array
-                  names:
+                  keyspaces:
                     items:
                       description: KeyspaceName is the name of a Cassandra keyspace
                       maxLength: 48
@@ -1983,6 +1981,8 @@ spec:
                       type: string
                     pods:
                       items:
+                        description: PodName is the name of a Pod. Used to define
+                          CRD validation
                         maxLength: 253
                         minLength: 1
                         pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$

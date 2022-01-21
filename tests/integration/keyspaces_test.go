@@ -25,7 +25,7 @@ var _ = Describe("system keyspaces settings", func() {
 					ImagePullSecretName: "pull-secret-name",
 					AdminRoleSecretName: "admin-role",
 					SystemKeyspaces: v1alpha1.SystemKeyspaces{
-						Names: []v1alpha1.KeyspaceName{"system_auth"},
+						Keyspaces: []v1alpha1.KeyspaceName{"system_auth"},
 						DCs: []v1alpha1.SystemKeyspaceDC{{
 							Name: "dc1",
 							RF:   3,
@@ -67,7 +67,7 @@ var _ = Describe("system keyspaces settings", func() {
 					ImagePullSecretName: "pull-secret-name",
 					AdminRoleSecretName: "admin-role",
 					SystemKeyspaces: v1alpha1.SystemKeyspaces{
-						Names: []v1alpha1.KeyspaceName{"system_auth", "system_traces"},
+						Keyspaces: []v1alpha1.KeyspaceName{"system_auth", "system_traces"},
 						DCs: []v1alpha1.SystemKeyspaceDC{{
 							Name: "dc1",
 							RF:   3,
@@ -138,7 +138,7 @@ var _ = Describe("system keyspaces settings", func() {
 					ImagePullSecretName: "pull-secret-name",
 					AdminRoleSecretName: "admin-role",
 					SystemKeyspaces: v1alpha1.SystemKeyspaces{
-						Names: []v1alpha1.KeyspaceName{"system_auth", "system_traces", "non_existing"},
+						Keyspaces: []v1alpha1.KeyspaceName{"system_auth", "system_traces", "non_existing"},
 						DCs: []v1alpha1.SystemKeyspaceDC{{
 							Name: "dc1",
 							RF:   3,
@@ -212,7 +212,7 @@ var _ = Describe("system keyspaces settings", func() {
 					ImagePullSecretName: "pull-secret-name",
 					AdminRoleSecretName: "admin-role",
 					SystemKeyspaces: v1alpha1.SystemKeyspaces{
-						Names: []v1alpha1.KeyspaceName{"system_auth", "system_traces"},
+						Keyspaces: []v1alpha1.KeyspaceName{"system_auth", "system_traces"},
 						DCs: []v1alpha1.SystemKeyspaceDC{{
 							Name: "dc1",
 							RF:   3,
@@ -363,7 +363,7 @@ var _ = Describe("system keyspaces settings", func() {
 						},
 					},
 					SystemKeyspaces: v1alpha1.SystemKeyspaces{
-						Names: []v1alpha1.KeyspaceName{
+						Keyspaces: []v1alpha1.KeyspaceName{
 							"system_traces",
 						},
 						DCs: []v1alpha1.SystemKeyspaceDC{

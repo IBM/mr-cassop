@@ -51,16 +51,6 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, resta
 				Name:  "CASSANDRA_LISTEN_ADDRESS",
 				Value: "$(POD_IP)",
 			},
-			// If not defined the MAX_HEAP_SIZE value will be generated in Cassandra image by cassandra-env.sh script on startup
-			{
-				Name:  "MAX_HEAP_SIZE",
-				Value: cc.Spec.JVM.MaxHeapSize,
-			},
-			// If not defined the HEAP_NEWSIZE value will be generated in Cassandra image by cassandra-env.sh script on startup
-			{
-				Name:  "HEAP_NEWSIZE",
-				Value: cc.Spec.JVM.HeapNewSize,
-			},
 			{
 				Name:  "POD_RESTART_CHECKSUM", //used to force the statefulset to restart pods on some changes that need Cassandra restart
 				Value: restartChecksum.checksum(),
@@ -252,14 +242,14 @@ fi`,
 		"${replace_address}",
 	}
 
-	if cc.Spec.JMX.Authentication == jmxAuthenticationLocalFiles {
+	if cc.Spec.JMXAuth == jmxAuthenticationLocalFiles {
 		cassandraRunCommand = append(cassandraRunCommand,
 			"-Dcom.sun.management.jmxremote.password.file=/etc/cassandra-auth-config/jmxremote.password",
 			"-Dcom.sun.management.jmxremote.access.file=/etc/cassandra-auth-config/jmxremote.access",
 		)
 	}
 
-	if cc.Spec.JMX.Authentication == jmxAuthenticationInternal {
+	if cc.Spec.JMXAuth == jmxAuthenticationInternal {
 		cassandraRunCommand = append(cassandraRunCommand,
 			"-Dcassandra.jmx.remote.login.config=CassandraLogin",
 			"-Djava.security.auth.login.config=$CASSANDRA_HOME/conf/cassandra-jaas.config",

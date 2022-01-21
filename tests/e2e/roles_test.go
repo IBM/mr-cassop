@@ -22,7 +22,7 @@ var _ = Describe("user provided roles", func() {
 			testUserName := "alice"
 			testUserPassword := "testpassword"
 			newCassandraCluster := cassandraCluster.DeepCopy()
-			newCassandraCluster.Spec.Roles.SecretName = rolesSecretName
+			newCassandraCluster.Spec.RolesSecretName = rolesSecretName
 			rolesSecret := &v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      rolesSecretName,

@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -71,32 +70,39 @@ type CassandraClusterSpec struct {
 	// +kubebuilder:validation:MinItems:=1
 	DCs []DC `json:"dcs"`
 	// +kubebuilder:validation:MinLength:=1
-	ImagePullSecretName  string `json:"imagePullSecretName"`
-	CQLConfigMapLabelKey string `json:"cqlConfigMapLabelKey,omitempty"`
-	// +kubebuilder:validation:Enum=OrderedReady;Parallel
-	PodManagementPolicy appsv1.PodManagementPolicyType `json:"podManagementPolicy,omitempty"`
-	Cassandra           *Cassandra                     `json:"cassandra,omitempty"`
+	ImagePullSecretName  string     `json:"imagePullSecretName"`
+	CQLConfigMapLabelKey string     `json:"cqlConfigMapLabelKey,omitempty"`
+	Cassandra            *Cassandra `json:"cassandra,omitempty"`
 	// +kubebuilder:validation:MinLength:=1
-	AdminRoleSecretName  string           `json:"adminRoleSecretName"`
-	TopologySpreadByZone *bool            `json:"topologySpreadByZone,omitempty"`
-	Roles                Roles            `json:"roles,omitempty"`
-	Maintenance          []Maintenance    `json:"maintenance,omitempty" diff:"maintenance"`
-	SystemKeyspaces      SystemKeyspaces  `json:"systemKeyspaces,omitempty"`
-	Ingress              Ingress          `json:"ingress,omitempty"`
-	ExternalRegions      []ExternalRegion `json:"externalRegions,omitempty"`
-	Prober               Prober           `json:"prober,omitempty"`
-	Reaper               *Reaper          `json:"reaper,omitempty"`
-	HostPort             HostPort         `json:"hostPort,omitempty"`
-	JVM                  JVM              `json:"jvm,omitempty"`
-	JMX                  JMX              `json:"jmx,omitempty"`
-	Encryption           Encryption       `json:"encryption,omitempty"`
+	AdminRoleSecretName  string          `json:"adminRoleSecretName"`
+	RolesSecretName      string          `json:"rolesSecretName,omitempty"`
+	TopologySpreadByZone *bool           `json:"topologySpreadByZone,omitempty"`
+	Maintenance          []Maintenance   `json:"maintenance,omitempty" diff:"maintenance"`
+	SystemKeyspaces      SystemKeyspaces `json:"systemKeyspaces,omitempty"`
+	Ingress              Ingress         `json:"ingress,omitempty"`
+	ExternalRegions      ExternalRegions `json:"externalRegions,omitempty"`
+	Prober               Prober          `json:"prober,omitempty"`
+	Reaper               *Reaper         `json:"reaper,omitempty"`
+	HostPort             HostPort        `json:"hostPort,omitempty"`
+	// Authentication is always enabled and by default is set to `internal`. Available options: `internal`, `local_files`.
+	// +kubebuilder:validation:Enum:=local_files;internal
+	JMXAuth    string     `json:"jmxAuth,omitempty"`
+	Encryption Encryption `json:"encryption,omitempty"`
 }
 
-type ExternalRegion struct {
-	Domain    string             `json:"domain,omitempty"`
-	Namespace string             `json:"namespace,omitempty"`
-	Seeds     []string           `json:"seeds,omitempty"`
-	DCs       []SystemKeyspaceDC `json:"dcs,omitempty"`
+type ExternalRegions struct {
+	Managed   []ManagedRegion   `json:"managed,omitempty"`
+	Unmanaged []UnmanagedRegion `json:"unmanaged,omitempty"`
+}
+
+type ManagedRegion struct {
+	Domain    string `json:"domain"`
+	Namespace string `json:"namespace,omitempty"`
+}
+
+type UnmanagedRegion struct {
+	Seeds []string           `json:"seeds"`
+	DCs   []SystemKeyspaceDC `json:"dcs"`
 }
 
 type Reaper struct {
@@ -150,29 +156,12 @@ type ServiceMonitor struct {
 	ScrapeInterval string            `json:"scrapeInterval,omitempty"`
 }
 
-type JVM struct {
-	MaxHeapSize string `json:"maxHeapSize,omitempty"`
-	HeapNewSize string `json:"heapNewSize,omitempty"`
-	// TODO implement usage of those parameters
-	//MigrationTaskWaitSeconds       int32    `json:"migrationTaskWaitSeconds,omitempty"`
-	//RingDelayMS                    int32    `json:"ringDelayMS,omitempty"`
-	//MaxGCPauseMillis               int32    `json:"maxGCPauseMillis,omitempty"`
-	//G1RSetUpdatingPauseTimePercent int32    `json:"g1RSetUpdatingPauseTimePercent,omitempty"`
-	//InitiatingHeapOccupancyPercent int32    `json:"initiatingHeapOccupancyPercent,omitempty"`
-}
-
-type JMX struct {
-	// Authentication is always enabled and by default is set to `internal`. Available options: `internal`, `local_files`.
-	// +kubebuilder:validation:Enum:=local_files;internal
-	Authentication string `json:"authentication,omitempty"`
-}
-
 type Encryption struct {
 	Server ServerEncryption `json:"server,omitempty"`
 	Client ClientEncryption `json:"client,omitempty"`
 }
 
-// Server defines encryption between Cassandra nodes
+// ServerEncryption defines encryption between Cassandra nodes
 type ServerEncryption struct {
 	// InternodeEncryption enables server encryption and by default is set to `none`. Available options: `none`, `rack`, `dc`, `all`.
 	// +kubebuilder:validation:Enum:=none;rack;dc;all
@@ -187,7 +176,7 @@ type ServerEncryption struct {
 	CipherSuites                []string  `json:"cipherSuites,omitempty"`
 }
 
-// Client defines encryption between Cassandra nodes and clients via CQL and JMX protocols for tools like reaper, cqlsh, nodetool and others.
+// ClientEncryption defines encryption between Cassandra nodes and clients via CQL and JMX protocols for tools like reaper, cqlsh, nodetool and others.
 type ClientEncryption struct {
 	// ClientEncryption enables encryption between client and server via CQL and JXM protocols.
 	Enabled bool `json:"enabled,omitempty"`
@@ -274,13 +263,10 @@ type Cassandra struct {
 	PurgeGossip                   bool              `json:"purgeGossip,omitempty"`
 	Persistence                   Persistence       `json:"persistence,omitempty"`
 	ZonesAsRacks                  bool              `json:"zonesAsRacks,omitempty"`
+	JVMOptions                    []string          `json:"jvmOptions,omitempty"`
 	Sysctls                       map[string]string `json:"sysctls,omitempty"`
 	Monitoring                    Monitoring        `json:"monitoring,omitempty"`
 	ConfigOverrides               string            `json:"configOverrides,omitempty"`
-}
-
-type Roles struct {
-	SecretName string `json:"secretName"`
 }
 
 type Persistence struct {
@@ -312,6 +298,7 @@ type Jolokia struct {
 	Resources       v1.ResourceRequirements `json:"resources,omitempty"`
 }
 
+// PodName is the name of a Pod. Used to define CRD validation
 // +kubebuilder:validation:MinLength:=1
 // +kubebuilder:validation:MaxLength:=253
 // +kubebuilder:validation:Pattern:=^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
@@ -333,8 +320,8 @@ type Maintenance struct {
 type KeyspaceName string
 
 type SystemKeyspaces struct {
-	Names []KeyspaceName     `json:"names,omitempty"`
-	DCs   []SystemKeyspaceDC `json:"dcs,omitempty"`
+	Keyspaces []KeyspaceName     `json:"keyspaces,omitempty"`
+	DCs       []SystemKeyspaceDC `json:"dcs,omitempty"`
 }
 
 type SystemKeyspaceDC struct {

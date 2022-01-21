@@ -46,7 +46,7 @@ var _ = Describe("unmanaged region", func() {
 		unmanagedCC.Namespace = namespaceName1
 		unmanagedCC.Spec.AdminRoleSecretName = testAdminRoleSecretName
 		unmanagedCC.Spec.HostPort = dbv1alpha1.HostPort{Enabled: true}
-		unmanagedCC.Spec.JMX.Authentication = "local_files"
+		unmanagedCC.Spec.JMXAuth = "local_files"
 		unmanagedCC.Spec.Cassandra.Persistence = dbv1alpha1.Persistence{
 			Enabled: true,
 			DataVolumeClaimSpec: v1.PersistentVolumeClaimSpec{
@@ -82,7 +82,7 @@ var _ = Describe("unmanaged region", func() {
 		Expect(restClient.Get(context.Background(), types.NamespacedName{Name: unmanagedCC.Name, Namespace: unmanagedCC.Namespace}, unmanagedCC))
 		By("Prepare the keyspaces on the unmanaged cluster")
 		unmanagedCC.Spec.SystemKeyspaces = dbv1alpha1.SystemKeyspaces{
-			Names: []dbv1alpha1.KeyspaceName{"reaper", "system_auth"},
+			Keyspaces: []dbv1alpha1.KeyspaceName{"reaper", "system_auth"},
 			DCs: []dbv1alpha1.SystemKeyspaceDC{
 				{
 					Name: "dc1",
@@ -106,13 +106,15 @@ var _ = Describe("unmanaged region", func() {
 			seedIPs = append(seedIPs, pod.Spec.NodeName)
 		}
 
-		managedCC.Spec.ExternalRegions = []dbv1alpha1.ExternalRegion{
-			{
-				Seeds: seedIPs,
-				DCs: []dbv1alpha1.SystemKeyspaceDC{
-					{
-						Name: "dc2",
-						RF:   3,
+		managedCC.Spec.ExternalRegions = dbv1alpha1.ExternalRegions{
+			Unmanaged: []dbv1alpha1.UnmanagedRegion{
+				{
+					Seeds: seedIPs,
+					DCs: []dbv1alpha1.SystemKeyspaceDC{
+						{
+							Name: "dc2",
+							RF:   3,
+						},
 					},
 				},
 			},

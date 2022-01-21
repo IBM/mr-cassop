@@ -116,6 +116,14 @@ func (r *CassandraClusterReconciler) reconcileCassandraConfigMap(ctx context.Con
 	restartChecksum["cassandra.yaml"] = string(cassandraYamlBytes) //to restart cassandra pods on change
 	data["cassandra.yaml"] = string(cassandraYamlBytes)
 
+	if len(cc.Spec.Cassandra.JVMOptions) > 0 {
+		data["jvm.options"] += "\n\n### OVERRIDES PROVIDED BY THE USER\n\n\n"
+		data["jvm.options"] += strings.Join(cc.Spec.Cassandra.JVMOptions, "\n")
+		data["jvm.options"] += "\n"
+
+		restartChecksum["jvm.options"] = data["jvm.options"] //to restart cassandra pods on change
+	}
+
 	desiredCM.Data = data
 
 	if err := controllerutil.SetControllerReference(cc, desiredCM, r.Scheme); err != nil {

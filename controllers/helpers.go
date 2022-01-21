@@ -135,40 +135,29 @@ func (r *CassandraClusterReconciler) getAllDCs(ctx context.Context, cc *v1alpha1
 	allDCs := make([]v1alpha1.DC, 0)
 	allDCs = append(allDCs, cc.Spec.DCs...)
 
-	if len(cc.Spec.ExternalRegions) == 0 {
+	if len(cc.Spec.ExternalRegions.Managed) == 0 && len(cc.Spec.ExternalRegions.Unmanaged) == 0 {
 		return allDCs, nil
 	}
 
-	for _, externalRegion := range cc.Spec.ExternalRegions {
-		if len(externalRegion.Domain) != 0 {
-			externalDCs, err := proberClient.GetDCs(ctx, names.ProberIngressDomain(cc, externalRegion))
-			if err != nil {
-				return nil, errors.Wrapf(err, "can't get dcs list from dc %q", externalRegion.Domain)
-			}
+	for _, externalRegion := range cc.Spec.ExternalRegions.Managed {
+		externalDCs, err := proberClient.GetDCs(ctx, names.ProberIngressDomain(cc, externalRegion))
+		if err != nil {
+			return nil, errors.Wrapf(err, "can't get dcs list from dc %q", externalRegion.Domain)
+		}
 
-			allDCs = append(allDCs, externalDCs...)
-		} else {
-			if len(externalRegion.Seeds) > 0 && len(externalRegion.DCs) > 0 {
-				for _, dc := range externalRegion.DCs {
-					rf := int32(defaultRF)
-					if dc.RF < 3 {
-						rf = dc.RF
-					}
-					allDCs = append(allDCs, v1alpha1.DC{Name: dc.Name, Replicas: &rf})
-				}
+		allDCs = append(allDCs, externalDCs...)
+
+	}
+
+	for _, unmanagedRegion := range cc.Spec.ExternalRegions.Unmanaged {
+		for _, dc := range unmanagedRegion.DCs {
+			rf := int32(defaultRF)
+			if dc.RF < 3 {
+				rf = dc.RF
 			}
+			allDCs = append(allDCs, v1alpha1.DC{Name: dc.Name, Replicas: &rf})
 		}
 	}
 
 	return allDCs, nil
-}
-
-func joinUnmanagedCluster(cc *v1alpha1.CassandraCluster) bool {
-	for _, region := range cc.Spec.ExternalRegions {
-		if len(region.Domain) == 0 {
-			return true
-		}
-	}
-
-	return false
 }

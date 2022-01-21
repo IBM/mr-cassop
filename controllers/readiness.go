@@ -68,11 +68,8 @@ func (r *CassandraClusterReconciler) unreadyDCs(ctx context.Context, cc *v1alpha
 
 func (r *CassandraClusterReconciler) unreadyRegions(ctx context.Context, cc *v1alpha1.CassandraCluster, proberClient prober.ProberClient) ([]string, error) {
 	unreadyRegions := make([]string, 0)
-	for _, externalRegion := range cc.Spec.ExternalRegions {
-		if len(externalRegion.Domain) == 0 { //region not managed by an operator
-			continue
-		}
-		proberHost := names.ProberIngressDomain(cc, externalRegion)
+	for _, managedRegion := range cc.Spec.ExternalRegions.Managed {
+		proberHost := names.ProberIngressDomain(cc, managedRegion)
 		regionReady, err := proberClient.RegionReady(ctx, proberHost)
 		if err != nil {
 			r.Log.Warnf(fmt.Sprintf("Unable to get DC's status from prober %q. Err: %#v", proberHost, err))
@@ -88,7 +85,7 @@ func (r *CassandraClusterReconciler) unreadyRegions(ctx context.Context, cc *v1a
 }
 
 func (r *CassandraClusterReconciler) waitForFirstRegionReaper(ctx context.Context, cc *v1alpha1.CassandraCluster, proberClient prober.ProberClient) (bool, error) {
-	if len(managedExternalRegionsDomains(cc.Spec.ExternalRegions)) == 0 {
+	if len(cc.Spec.ExternalRegions.Managed) == 0 {
 		return false, nil
 	}
 

@@ -73,6 +73,7 @@ var _ = Describe("cassandra statefulset deployment", func() {
 				Expect(sts.Spec.Replicas).To(BeEquivalentTo(dc.Replicas))
 				Expect(sts.Spec.Selector.MatchLabels).To(BeEquivalentTo(cassandraLabels))
 				Expect(sts.Spec.ServiceName).To(Equal("test-cassandra-cluster" + "-cassandra-" + dc.Name))
+				Expect(sts.Spec.PodManagementPolicy).To(Equal(appsv1.ParallelPodManagement))
 				Expect(sts.Spec.Template.Labels).To(Equal(cassandraLabels))
 				Expect(sts.OwnerReferences[0].Controller).To(Equal(proto.Bool(true)))
 				Expect(sts.OwnerReferences[0].Kind).To(Equal("CassandraCluster"))

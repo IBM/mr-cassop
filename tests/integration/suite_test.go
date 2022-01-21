@@ -367,8 +367,8 @@ func CleanUpCreatedResources(ccName, ccNamespace string) {
 		{name: cc.Spec.AdminRoleSecretName, objType: &v1.Secret{}},
 	}
 
-	if cc.Spec.Roles.SecretName != "" {
-		resourcesToDelete = append(resourcesToDelete, resourceToDelete{name: cc.Spec.Roles.SecretName, objType: &v1.Secret{}})
+	if cc.Spec.RolesSecretName != "" {
+		resourcesToDelete = append(resourcesToDelete, resourceToDelete{name: cc.Spec.RolesSecretName, objType: &v1.Secret{}})
 	}
 
 	// add DC specific resources

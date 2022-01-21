@@ -67,10 +67,12 @@ var _ = Describe("one DC region", func() {
 				Replicas: proto.Int32(3),
 			},
 		}
-		cc2.Spec.ExternalRegions = []dbv1alpha1.ExternalRegion{
-			{
-				Domain:    ingressDomain,
-				Namespace: namespaceName1,
+		cc2.Spec.ExternalRegions = dbv1alpha1.ExternalRegions{
+			Managed: []dbv1alpha1.ManagedRegion{
+				{
+					Domain:    ingressDomain,
+					Namespace: namespaceName1,
+				},
 			},
 		}
 
@@ -87,10 +89,12 @@ var _ = Describe("one DC region", func() {
 
 		cc1Name := types.NamespacedName{Name: cc1.Name, Namespace: namespaceName1}
 		Expect(restClient.Get(context.Background(), cc1Name, cc1)).To(Succeed())
-		cc1.Spec.ExternalRegions = []dbv1alpha1.ExternalRegion{
-			{
-				Domain:    ingressDomain,
-				Namespace: namespaceName2,
+		cc1.Spec.ExternalRegions = dbv1alpha1.ExternalRegions{
+			Managed: []dbv1alpha1.ManagedRegion{
+				{
+					Domain:    ingressDomain,
+					Namespace: namespaceName2,
+				},
 			},
 		}
 		By("Setup first region to connect to the new second region")

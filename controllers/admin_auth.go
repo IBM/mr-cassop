@@ -122,22 +122,20 @@ func (r *CassandraClusterReconciler) createClusterAdminSecrets(ctx context.Conte
 	}
 
 	joiningExistingManagedRegion := false
-	if len(managedExternalRegionsDomains(cc.Spec.ExternalRegions)) > 0 {
+	if len(cc.Spec.ExternalRegions.Managed) > 0 {
 		proberClient := r.ProberClient(proberURL(cc))
-		for _, externalRegion := range cc.Spec.ExternalRegions {
-			if len(externalRegion.Domain) != 0 {
-				regionHost := names.ProberIngressDomain(cc, externalRegion)
-				regionReady, err := proberClient.RegionReady(ctx, regionHost)
-				if err == nil && regionReady {
-					r.Log.Warnf("Region %s is ready. Using provided credentials to join an existing region.", regionHost)
-					joiningExistingManagedRegion = true
-					break
-				}
+		for _, managedRegion := range cc.Spec.ExternalRegions.Managed {
+			regionHost := names.ProberIngressDomain(cc, managedRegion)
+			regionReady, err := proberClient.RegionReady(ctx, regionHost)
+			if err == nil && regionReady {
+				r.Log.Warnf("Region %s is ready. Using provided credentials to join an existing region.", regionHost)
+				joiningExistingManagedRegion = true
+				break
 			}
 		}
 	}
 
-	if storageExists || joinUnmanagedCluster(cc) || joiningExistingManagedRegion {
+	if storageExists || len(cc.Spec.ExternalRegions.Unmanaged) > 0 || joiningExistingManagedRegion {
 		//use the user provided credentials, not cassandra/cassandra
 		desiredRoleName = secretRoleName
 		desiredRolePassword = secretRolePassword
@@ -146,7 +144,7 @@ func (r *CassandraClusterReconciler) createClusterAdminSecrets(ctx context.Conte
 	desiredSecretData[dbv1alpha1.CassandraOperatorAdminRole] = []byte(desiredRoleName)
 	desiredSecretData[dbv1alpha1.CassandraOperatorAdminPassword] = []byte(desiredRolePassword)
 
-	if cc.Spec.JMX.Authentication == jmxAuthenticationLocalFiles {
+	if cc.Spec.JMXAuth == jmxAuthenticationLocalFiles {
 		desiredSecretData[dbv1alpha1.CassandraOperatorJmxUsername] = []byte(secretRoleName)
 		desiredSecretData[dbv1alpha1.CassandraOperatorJmxPassword] = []byte(secretRolePassword)
 	}
@@ -212,7 +210,7 @@ func (r *CassandraClusterReconciler) handleAdminRoleChange(ctx context.Context, 
 	r.Log.Info("Logged in successfully with new credentials. Updating active admin secret.")
 	defer cqlClientTestCon.CloseSession()
 
-	if cc.Spec.JMX.Authentication == jmxAuthenticationLocalFiles {
+	if cc.Spec.JMXAuth == jmxAuthenticationLocalFiles {
 		actualBaseAdminSecret.Data[dbv1alpha1.CassandraOperatorJmxUsername] = []byte(newCassandraOperatorAdminRole)
 		actualBaseAdminSecret.Data[dbv1alpha1.CassandraOperatorJmxPassword] = []byte(newCassandraOperatorAdminPassword)
 	}
@@ -324,7 +322,7 @@ func (r *CassandraClusterReconciler) reconcileAdminAuthConfigSecret(ctx context.
 	cassandraAdminRole := string(secretData[dbv1alpha1.CassandraOperatorAdminRole])
 	cassandraAdminPassword := string(secretData[dbv1alpha1.CassandraOperatorAdminPassword])
 
-	if cc.Spec.JMX.Authentication == jmxAuthenticationLocalFiles {
+	if cc.Spec.JMXAuth == jmxAuthenticationLocalFiles {
 		jmxUsername := string(secretData[dbv1alpha1.CassandraOperatorJmxUsername])
 		jmxPassword := string(secretData[dbv1alpha1.CassandraOperatorJmxPassword])
 		data["jmxremote.password"] = []byte(fmt.Sprintf("%s %s\n", jmxUsername, jmxPassword))

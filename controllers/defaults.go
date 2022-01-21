@@ -7,17 +7,12 @@ import (
 	"github.com/gogo/protobuf/proto"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/names"
-	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 )
 
 func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.CassandraCluster) {
 	if cc.Spec.CQLConfigMapLabelKey == "" {
 		cc.Spec.CQLConfigMapLabelKey = defaultCQLConfigMapLabelKey
-	}
-
-	if cc.Spec.PodManagementPolicy == "" {
-		cc.Spec.PodManagementPolicy = appsv1.ParallelPodManagement
 	}
 
 	r.defaultCassandra(cc)
@@ -38,8 +33,8 @@ func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.Cass
 		}
 	}
 
-	if cc.Spec.JMX.Authentication == "" {
-		cc.Spec.JMX.Authentication = jmxAuthenticationInternal
+	if cc.Spec.JMXAuth == "" {
+		cc.Spec.JMXAuth = jmxAuthenticationInternal
 	}
 
 	if cc.Spec.TopologySpreadByZone == nil {

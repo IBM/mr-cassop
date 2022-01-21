@@ -311,7 +311,7 @@ var _ = Describe("cassandracluster validation", func() {
 					},
 					ImagePullSecretName: "pullSecretName",
 					SystemKeyspaces: v1alpha1.SystemKeyspaces{
-						Names: []v1alpha1.KeyspaceName{
+						Keyspaces: []v1alpha1.KeyspaceName{
 							v1alpha1.KeyspaceName(emptyChar),
 						},
 					},
@@ -334,7 +334,7 @@ var _ = Describe("cassandracluster validation", func() {
 					},
 					ImagePullSecretName: "pullSecretName",
 					SystemKeyspaces: v1alpha1.SystemKeyspaces{
-						Names: []v1alpha1.KeyspaceName{
+						Keyspaces: []v1alpha1.KeyspaceName{
 							v1alpha1.KeyspaceName(invalidNumCharsShort),
 						},
 					},
@@ -357,7 +357,7 @@ var _ = Describe("cassandracluster validation", func() {
 					},
 					ImagePullSecretName: "pullSecretName",
 					SystemKeyspaces: v1alpha1.SystemKeyspaces{
-						Names: []v1alpha1.KeyspaceName{
+						Keyspaces: []v1alpha1.KeyspaceName{
 							v1alpha1.KeyspaceName(invalidSpecialChars),
 						},
 					},
@@ -380,7 +380,7 @@ var _ = Describe("cassandracluster validation", func() {
 					},
 					ImagePullSecretName: "pullSecretName",
 					SystemKeyspaces: v1alpha1.SystemKeyspaces{
-						Names: []v1alpha1.KeyspaceName{
+						Keyspaces: []v1alpha1.KeyspaceName{
 							"system_auth",
 						},
 						DCs: []v1alpha1.SystemKeyspaceDC{
@@ -408,7 +408,7 @@ var _ = Describe("cassandracluster validation", func() {
 					},
 					ImagePullSecretName: "pullSecretName",
 					SystemKeyspaces: v1alpha1.SystemKeyspaces{
-						Names: []v1alpha1.KeyspaceName{
+						Keyspaces: []v1alpha1.KeyspaceName{
 							"system_auth",
 						},
 						DCs: []v1alpha1.SystemKeyspaceDC{
@@ -436,7 +436,7 @@ var _ = Describe("cassandracluster validation", func() {
 					},
 					ImagePullSecretName: "pullSecretName",
 					SystemKeyspaces: v1alpha1.SystemKeyspaces{
-						Names: []v1alpha1.KeyspaceName{
+						Keyspaces: []v1alpha1.KeyspaceName{
 							"system_auth",
 						},
 						DCs: []v1alpha1.SystemKeyspaceDC{
@@ -465,7 +465,7 @@ var _ = Describe("cassandracluster validation", func() {
 					},
 					ImagePullSecretName: "pullSecretName",
 					SystemKeyspaces: v1alpha1.SystemKeyspaces{
-						Names: []v1alpha1.KeyspaceName{
+						Keyspaces: []v1alpha1.KeyspaceName{
 							"system_auth",
 						},
 						DCs: []v1alpha1.SystemKeyspaceDC{
@@ -733,7 +733,7 @@ var _ = Describe("cassandracluster validation", func() {
 					},
 					CQLConfigMapLabelKey: "cql-label-key",
 					SystemKeyspaces: v1alpha1.SystemKeyspaces{
-						Names: []v1alpha1.KeyspaceName{
+						Keyspaces: []v1alpha1.KeyspaceName{
 							"system_auth",
 						},
 						DCs: []v1alpha1.SystemKeyspaceDC{
