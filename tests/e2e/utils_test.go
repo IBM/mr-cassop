@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -25,7 +24,7 @@ import (
 
 	prometheusClient "github.com/prometheus/client_model/go"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
@@ -41,35 +40,67 @@ type ExecResult struct {
 }
 
 func waitForPodsReadiness(namespace string, labels map[string]string, expectedNumberOfPods int32) {
-	Eventually(func() (bool, error) {
+	start := time.Now()
+	Eventually(func() error {
 		podList := &v1.PodList{}
-		err = restClient.List(context.Background(), podList, client.InNamespace(namespace), client.MatchingLabels(labels))
+		err := kubeClient.List(ctx, podList, client.InNamespace(namespace), client.MatchingLabels(labels))
 		if err != nil {
-			return false, err
+			return err
 		}
 
 		if len(podList.Items) == 0 || (expectedNumberOfPods != 0 && int32(len(podList.Items)) != expectedNumberOfPods) {
-			return false, nil
+			return fmt.Errorf("unexpected number of found pods with labels %v: %d, expected %d", labels, len(podList.Items), expectedNumberOfPods)
+		}
+
+		for _, pod := range podList.Items {
+			podScheduled := false
+			for _, condition := range pod.Status.Conditions {
+				if condition.Type == v1.PodScheduled {
+					if condition.Status == v1.ConditionTrue {
+						podScheduled = true
+					}
+				}
+			}
+			if !podScheduled {
+				return fmt.Errorf("pod %s/%s is not yet scheduled", pod.Namespace, pod.Name)
+			}
+		}
+		return nil
+	}, time.Minute*20, time.Second*10).Should(Succeed(), fmt.Sprintf("Pod haven't been scheduled: %s", labels[v1alpha1.CassandraClusterComponent]))
+	By(fmt.Sprintf("pods were scheduled in %s", time.Since(start)))
+
+	start = time.Now()
+	Eventually(func() error {
+		podList := &v1.PodList{}
+		err := kubeClient.List(ctx, podList, client.InNamespace(namespace), client.MatchingLabels(labels))
+		if err != nil {
+			return err
+		}
+
+		if len(podList.Items) == 0 || (expectedNumberOfPods != 0 && int32(len(podList.Items)) != expectedNumberOfPods) {
+			return fmt.Errorf("unexpected number of found pods: %d, expected %d", len(podList.Items), expectedNumberOfPods)
 		}
 
 		for _, pod := range podList.Items {
 			if len(pod.Status.ContainerStatuses) == 0 {
-				return false, nil
+				return fmt.Errorf("container statuses not found for pod %s/%s", pod.Namespace, pod.Name)
+
 			}
 			for _, container := range pod.Status.ContainerStatuses {
 				if !container.Ready {
-					return false, nil
+					return fmt.Errorf("pod %s/%s is not ready. Expected container %s to be ready", pod.Namespace, pod.Name, container.Name)
 				}
 			}
 		}
-		return true, nil
-	}, time.Minute*20, time.Second*2).Should(BeTrue(), fmt.Sprintf("Pods should become ready: %s", labels[v1alpha1.CassandraClusterComponent]))
+		return nil
+	}, time.Minute*20, time.Second*10).Should(Succeed(), fmt.Sprintf("Pods should become ready: %s", labels[v1alpha1.CassandraClusterComponent]))
+	By(fmt.Sprintf("pods become ready in %s", time.Since(start)))
 }
 
 func waitForPodsTermination(namespace string, labels map[string]string) {
 	Eventually(func() bool {
 		podList := &v1.PodList{}
-		err = restClient.List(context.Background(), podList, client.InNamespace(namespace), client.MatchingLabels(labels))
+		err := kubeClient.List(ctx, podList, client.InNamespace(namespace), client.MatchingLabels(labels))
 		Expect(err).To(Succeed())
 
 		return len(podList.Items) == 0 //return true if expression is true
@@ -78,7 +109,7 @@ func waitForPodsTermination(namespace string, labels map[string]string) {
 
 func waitForCassandraClusterSchemaDeletion(namespace string, release string) {
 	Eventually(func() metav1.StatusReason {
-		err = restClient.Get(context.Background(), types.NamespacedName{
+		err := kubeClient.Get(ctx, types.NamespacedName{
 			Namespace: namespace,
 			Name:      release,
 		}, &v1alpha1.CassandraCluster{})
@@ -98,7 +129,7 @@ func portForwardPod(namespace string, labels map[string]string, portMappings []s
 	Expect(err).To(Succeed())
 
 	podList := &v1.PodList{}
-	err = restClient.List(context.Background(), podList, client.InNamespace(namespace), client.MatchingLabels(labels))
+	err = kubeClient.List(ctx, podList, client.InNamespace(namespace), client.MatchingLabels(labels))
 	Expect(err).To(Succeed())
 	Expect(len(podList.Items)).ToNot(BeEquivalentTo(0), "pods not found for port forwarding")
 
@@ -123,7 +154,7 @@ func portForwardPod(namespace string, labels map[string]string, portMappings []s
 		if len(errOut.String()) != 0 {
 			Fail(fmt.Sprintf("Port forwarding failed. Error: %s", errOut.String()))
 		} else if len(out.String()) != 0 {
-			_, err := fmt.Fprintf(GinkgoWriter, "Message from port forwarder: %s", out.String())
+			GinkgoWriter.Printf("Message from port forwarder: %s", out.String())
 			Expect(err).To(Succeed())
 		}
 	}()
@@ -172,8 +203,8 @@ func findFirstMapByKV(repair []map[string]interface{}, k string, v []string) map
 }
 
 func getPodLogs(pod v1.Pod, podLogOpts v1.PodLogOptions) (string, error) {
-	req := kubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &podLogOpts)
-	podLogs, err := req.Stream(context.Background())
+	req := k8sClientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &podLogOpts)
+	podLogs, err := req.Stream(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -190,7 +221,7 @@ func getPodLogs(pod v1.Pod, podLogOpts v1.PodLogOptions) (string, error) {
 }
 
 func execPod(podName string, namespace string, cmd []string) (ExecResult, error) {
-	req := kubeClient.CoreV1().RESTClient().Post().Resource("pods").Name(podName).
+	req := k8sClientset.CoreV1().RESTClient().Post().Resource("pods").Name(podName).
 		Namespace(namespace).SubResource("exec")
 	option := &v1.PodExecOptions{
 		Command: cmd,
@@ -224,26 +255,46 @@ func execPod(podName string, namespace string, cmd []string) (ExecResult, error)
 
 func deployCassandraCluster(cassandraCluster *v1alpha1.CassandraCluster) {
 	By("Deploy cassandra cluster and all of its components")
-	Expect(restClient).ToNot(BeNil())
+	Expect(kubeClient).ToNot(BeNil())
+
+	adminSecret := &v1.Secret{}
+	err := kubeClient.Get(ctx, types.NamespacedName{Name: cassandraCluster.Spec.AdminRoleSecretName, Namespace: cassandraCluster.Namespace}, adminSecret)
+	if err != nil && errors.IsNotFound(err) {
+		adminSecret = &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      cassandraCluster.Spec.AdminRoleSecretName,
+				Namespace: cassandraCluster.Namespace,
+			},
+			Data: map[string][]byte{
+				v1alpha1.CassandraOperatorAdminRole:     []byte("cassandra-operator"),
+				v1alpha1.CassandraOperatorAdminPassword: []byte("cassandra-operator-password"),
+			},
+		}
+		Expect(kubeClient.Create(ctx, adminSecret)).To(Succeed())
+	}
 
 	By("Cassandra cluster is starting...")
-	Expect(restClient.Create(context.Background(), cassandraCluster)).To(Succeed())
+	Expect(kubeClient.Create(ctx, cassandraCluster)).To(Succeed())
 
 	By("Waiting for prober pods readiness...")
-	waitForPodsReadiness(cassandraCluster.Namespace, proberPodLabels, 1)
+	waitForPodsReadiness(cassandraCluster.Namespace, labels.Prober(cassandraCluster), 1)
 
 	By("Waiting for cassandra cluster pods readiness...")
 	for _, dc := range cassandraCluster.Spec.DCs {
-		waitForPodsReadiness(cassandraCluster.Namespace, labels.WithDCLabel(cassandraClusterPodLabels, dc.Name), *dc.Replicas)
+		waitForPodsReadiness(cassandraCluster.Namespace, labels.WithDCLabel(labels.Cassandra(cassandraCluster), dc.Name), *dc.Replicas)
 	}
+
+	By("Waiting for reaper pods readiness...")
+	waitForPodsReadiness(cassandraCluster.Namespace, labels.Reaper(cassandraCluster), int32(len(cassandraCluster.Spec.DCs)))
 	By("Cassandra cluster ready")
 }
 
 func showPodLogs(labels map[string]string, namespace string) {
 	podList := &v1.PodList{}
-	err = restClient.List(context.Background(), podList, client.InNamespace(namespace), client.MatchingLabels(labels))
+	err := kubeClient.List(ctx, podList, client.InNamespace(namespace), client.MatchingLabels(labels))
 	if err != nil {
 		fmt.Println("Unable to get pods. Error: ", err)
+		return
 	}
 
 	for _, pod := range podList.Items {
@@ -251,7 +302,7 @@ func showPodLogs(labels map[string]string, namespace string) {
 
 		for _, container := range pod.Spec.Containers {
 			logFileName := fmt.Sprintf("%s%s-%s-%s.txt", debugLogsDir, pod.Namespace, pod.Name, container.Name)
-			str, err := getPodLogs(pod, v1.PodLogOptions{TailLines: &tailLines, Container: container.Name})
+			str, err := getPodLogs(pod, v1.PodLogOptions{TailLines: &cfg.tailLines, Container: container.Name})
 			if err != nil {
 				fileContent := []byte(fmt.Sprintf("couldn't get logs for pod %s/%s: %s", pod.Namespace, pod.Name, err.Error()))
 				Expect(ioutil.WriteFile(logFileName, fileContent, 0777)).To(Succeed())
@@ -273,9 +324,10 @@ func showPodLogs(labels map[string]string, namespace string) {
 // showClusterEvents shows all events from the cluster. Helpful if the pods were not able to be schedule
 func showClusterEvents() {
 	eventsList := &v1.EventList{}
-	err = restClient.List(context.Background(), eventsList)
+	err := kubeClient.List(ctx, eventsList)
 	if err != nil {
 		fmt.Println("Unable to get events. Error: ", err)
+		return
 	}
 
 	var eventsOutput []string
@@ -288,7 +340,7 @@ func showClusterEvents() {
 		))
 	}
 
-	startIndex := len(eventsOutput) - int(tailLines)
+	startIndex := len(eventsOutput) - int(cfg.tailLines)
 	if startIndex < 0 {
 		startIndex = 0
 	}
@@ -337,41 +389,42 @@ func getMetricByLabel(metricFamilies map[string]*prometheusClient.MetricFamily, 
 
 func prepareNamespace(namespaceName string) {
 	ns := &v1.Namespace{}
-	err = restClient.Get(context.Background(), types.NamespacedName{Name: namespaceName}, ns)
+	err := kubeClient.Get(ctx, types.NamespacedName{Name: namespaceName}, ns)
 	if err != nil && errors.IsNotFound(err) {
 		ns = &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespaceName}}
-		Expect(restClient.Create(context.Background(), ns)).To(Succeed())
+		Expect(kubeClient.Create(ctx, ns)).To(Succeed())
 	} else {
 		Expect(err).ToNot(HaveOccurred())
 	}
 
-	copySecret(cassandraNamespace, imagePullSecret, namespaceName)
-	copySecret(cassandraNamespace, ingressSecret, namespaceName)
+	copySecret(cfg.operatorNamespace, cfg.imagePullSecret, namespaceName)
+	copySecret(cfg.operatorNamespace, cfg.ingressSecret, namespaceName)
 }
 
 func copySecret(namespaceFrom, secretName, namespaceTo string) {
 	secret := &v1.Secret{}
-	err := restClient.Get(context.Background(), types.NamespacedName{Name: secretName, Namespace: namespaceTo}, secret)
+	err := kubeClient.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespaceTo}, secret)
 	if err == nil {
 		return
 	}
 
-	Expect(restClient.Get(context.Background(), types.NamespacedName{Namespace: namespaceFrom, Name: secretName}, secret)).To(Succeed())
+	Expect(kubeClient.Get(ctx, types.NamespacedName{Namespace: namespaceFrom, Name: secretName}, secret)).To(Succeed())
 	newSecret := secret.DeepCopy()
 	newSecret.Namespace = namespaceTo
 	newSecret.ResourceVersion = ""
 	newSecret.UID = ""
 	delete(newSecret.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
-	err = restClient.Create(context.Background(), newSecret)
+	err = kubeClient.Create(ctx, newSecret)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		Expect(err).ToNot(HaveOccurred())
 	}
 }
 
 func createSecret(namespace, name string, data map[string][]byte) {
-	err := restClient.Get(context.Background(), types.NamespacedName{Name: name, Namespace: namespace}, &v1.Secret{})
+	existingSecret := &v1.Secret{}
+	err := kubeClient.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, existingSecret)
 	if err == nil {
-		return
+		Expect(kubeClient.Delete(ctx, existingSecret)) //recreate the existing secret to ensure we have correct data in it
 	}
 
 	secret := &v1.Secret{
@@ -381,15 +434,15 @@ func createSecret(namespace, name string, data map[string][]byte) {
 		},
 		Data: data,
 	}
-	Expect(restClient.Create(context.Background(), secret)).To(Succeed())
+	Expect(kubeClient.Create(ctx, secret)).To(Succeed())
 }
 
 func removeNamespaces(namespaces ...string) {
 	for _, namespace := range namespaces {
 		ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
-		err := restClient.Get(context.Background(), types.NamespacedName{Name: namespace}, ns)
+		err := kubeClient.Get(ctx, types.NamespacedName{Name: namespace}, ns)
 		if err == nil {
-			Expect(restClient.Delete(context.Background(), ns)).To(Succeed())
+			Expect(kubeClient.Delete(ctx, ns)).To(Succeed())
 		}
 	}
 	By(fmt.Sprintf("Waiting for namespaces %v to be removed", namespaces))
@@ -397,8 +450,47 @@ func removeNamespaces(namespaces ...string) {
 
 	for _, namespace := range namespaces {
 		Eventually(func() error {
-			return restClient.Get(context.Background(), types.NamespacedName{Name: namespace}, &v1.Namespace{})
-		}, 5*time.Minute, 10*time.Second).ShouldNot(Succeed())
+			return kubeClient.Get(ctx, types.NamespacedName{Name: namespace}, &v1.Namespace{})
+		}, 15*time.Minute, 10*time.Second).ShouldNot(Succeed())
 	}
 	By(fmt.Sprintf("Namespaces removed after %s", time.Since(start)))
+}
+
+func cleanupResources(ccName, ccNamespace string) {
+	By(fmt.Sprintf("cleaning up resources for CassandraCluster %s/%s", ccNamespace, ccName))
+	cc := &v1alpha1.CassandraCluster{}
+	err := kubeClient.Get(ctx, types.NamespacedName{Name: ccName, Namespace: ccNamespace}, cc)
+	if err != nil && errors.IsNotFound(err) {
+		return
+	} else {
+		Expect(err).ToNot(HaveOccurred())
+	}
+
+	Expect(kubeClient.Delete(ctx, cc)).To(Succeed())
+	waitForPodsTermination(cc.Namespace, labels.Prober(cc))
+	waitForPodsTermination(cc.Namespace, labels.Cassandra(cc))
+	waitForPodsTermination(cc.Namespace, labels.Reaper(cc))
+
+	if len(cc.Spec.AdminRoleSecretName) > 0 {
+		adminRoleSecret := &v1.Secret{}
+		err := kubeClient.Get(ctx, types.NamespacedName{Name: cc.Spec.AdminRoleSecretName, Namespace: ccNamespace}, adminRoleSecret)
+		if err == nil {
+			Expect(kubeClient.Delete(ctx, adminRoleSecret))
+		}
+	}
+
+	Expect(kubeClient.DeleteAllOf(
+		ctx,
+		&v1.PersistentVolumeClaim{},
+		client.InNamespace(cc.Namespace),
+		client.MatchingLabels(labels.Cassandra(cc))),
+	).To(Succeed())
+
+	if len(cc.Spec.RolesSecretName) > 0 {
+		roleSecret := &v1.Secret{}
+		err := kubeClient.Get(ctx, types.NamespacedName{Name: cc.Spec.RolesSecretName, Namespace: ccNamespace}, roleSecret)
+		if err == nil {
+			Expect(kubeClient.Delete(ctx, roleSecret))
+		}
+	}
 }

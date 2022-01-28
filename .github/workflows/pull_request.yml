@@ -409,10 +409,11 @@ jobs:
         go-version: ^1.17
     - name: Get go dependencies
       run: go mod download
+    - name: Install Ginkgo
+      run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.1.0
     - name: Run e2e tests
       id: e2e
       run: |
-        export CASSANDRA_RELEASE_NAME=e2e-tests-ci
         make e2e-tests
     - name: Upload logs artifact
       if: ${{ always() && steps.e2e.outcome == 'failure' }}

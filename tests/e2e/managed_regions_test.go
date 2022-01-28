@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -16,7 +15,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
@@ -26,6 +25,7 @@ var _ = Describe("managed multi region cluster", func() {
 	testAdminRoleSecretName := "test-admin-role"
 	namespaceName1 := "e2e-region1-cc"
 	namespaceName2 := "e2e-region2-cc"
+	ccName := "managed-regions"
 	adminRoleSecretData := map[string][]byte{
 		dbv1alpha1.CassandraOperatorAdminRole:     []byte(testAdminRole),
 		dbv1alpha1.CassandraOperatorAdminPassword: []byte(testAdminPassword),
@@ -44,19 +44,18 @@ var _ = Describe("managed multi region cluster", func() {
 	})
 
 	It("should pass", func() {
-		cc1 := cassandraCluster.DeepCopy()
-		cc1.Namespace = namespaceName1
+		cc1 := newCassandraClusterTmpl(ccName, namespaceName1)
 		cc1.Spec.AdminRoleSecretName = testAdminRoleSecretName
-		cc1.Spec.HostPort = dbv1alpha1.HostPort{Enabled: true}
+		cc1.Spec.HostPort = dbv1alpha1.HostPort{Enabled: true, UseExternalHostIP: false}
 		cc1.Spec.Ingress = dbv1alpha1.Ingress{
-			Domain:           ingressDomain,
-			Secret:           ingressSecret,
+			Domain:           cfg.ingressDomain,
+			Secret:           cfg.ingressSecret,
 			IngressClassName: proto.String("public-iks-k8s-nginx"),
 		}
 		cc1.Spec.Cassandra.Persistence = dbv1alpha1.Persistence{
 			Enabled: true,
 			DataVolumeClaimSpec: v1.PersistentVolumeClaimSpec{
-				StorageClassName: proto.String(storageClassName),
+				StorageClassName: proto.String(cfg.storageClassName),
 				Resources: v1.ResourceRequirements{
 					Requests: v1.ResourceList{
 						v1.ResourceStorage: resource.MustParse("20Gi"),
@@ -76,7 +75,7 @@ var _ = Describe("managed multi region cluster", func() {
 		cc1.Spec.ExternalRegions = dbv1alpha1.ExternalRegions{
 			Managed: []dbv1alpha1.ManagedRegion{
 				{
-					Domain:    ingressDomain,
+					Domain:    cfg.ingressDomain,
 					Namespace: namespaceName2,
 				},
 			},
@@ -92,33 +91,43 @@ var _ = Describe("managed multi region cluster", func() {
 		cc2.Spec.ExternalRegions = dbv1alpha1.ExternalRegions{
 			Managed: []dbv1alpha1.ManagedRegion{
 				{
-					Domain:    ingressDomain,
+					Domain:    cfg.ingressDomain,
 					Namespace: namespaceName1,
 				},
 			},
 		}
 
 		By("Deploying clusters")
-		Expect(restClient.Create(context.Background(), cc1)).To(Succeed())
-		Expect(restClient.Create(context.Background(), cc2)).To(Succeed())
+		Expect(kubeClient.Create(ctx, cc1)).To(Succeed())
+		Expect(kubeClient.Create(ctx, cc2)).To(Succeed())
 
-		waitForPodsReadiness(cc1.Namespace, labels.ComponentLabels(cc1, dbv1alpha1.CassandraClusterComponentProber), 1)
-		waitForPodsReadiness(cc2.Namespace, labels.ComponentLabels(cc2, dbv1alpha1.CassandraClusterComponentProber), 1)
+		waitForPodsReadiness(cc1.Namespace, labels.Prober(cc1), 1)
+		waitForPodsReadiness(cc2.Namespace, labels.Prober(cc2), 1)
 		By("Waiting for the first region to become ready")
-		waitForPodsReadiness(cc1.Namespace, labels.ComponentLabels(cc1, dbv1alpha1.CassandraClusterComponentCassandra), numberOfNodes(cc1))
+		waitForPodsReadiness(cc1.Namespace, labels.Cassandra(cc1), numberOfNodes(cc1))
 
 		By("Waiting for the second region to become ready")
-		waitForPodsReadiness(cc2.Namespace, labels.ComponentLabels(cc1, dbv1alpha1.CassandraClusterComponentCassandra), numberOfNodes(cc2))
+		waitForPodsReadiness(cc2.Namespace, labels.Cassandra(cc1), numberOfNodes(cc2))
 
 		By("Waiting for reaper to become ready in both regions")
-		waitForPodsReadiness(cc1.Namespace, labels.ComponentLabels(cc1, dbv1alpha1.CassandraClusterComponentReaper), int32(len(cc1.Spec.DCs)))
-		waitForPodsReadiness(cc2.Namespace, labels.ComponentLabels(cc2, dbv1alpha1.CassandraClusterComponentReaper), int32(len(cc1.Spec.DCs)))
+		waitForPodsReadiness(cc1.Namespace, labels.Reaper(cc1), int32(len(cc1.Spec.DCs)))
+		waitForPodsReadiness(cc2.Namespace, labels.Reaper(cc2), int32(len(cc1.Spec.DCs)))
 
 		cc1Pods := &v1.PodList{}
-		Expect(restClient.List(context.Background(), cc1Pods, client.InNamespace(cc1.Namespace), client.MatchingLabels(labels.ComponentLabels(cc1, dbv1alpha1.CassandraClusterComponentCassandra))))
+		Expect(kubeClient.List(ctx, cc1Pods, client.InNamespace(cc1.Namespace), client.MatchingLabels(labels.Cassandra(cc1))))
 		Expect(cc1Pods.Items).ToNot(BeEmpty())
-
 		expectNumberOfNodes(cc1Pods.Items[0].Name, cc1Pods.Items[0].Namespace, testAdminRole, testAdminPassword, numberOfNodes(cc1)+numberOfNodes(cc2))
+
+		By("Check if node's internalIP is used")
+		cmd := []string{
+			"sh",
+			"-c",
+			"cat /etc/cassandra/cassandra.yaml | grep 'broadcast_address:' | cut -f2 -d':'",
+		}
+
+		nodes := &v1.NodeList{}
+		Expect(kubeClient.List(ctx, nodes))
+		checkBroadcastAddressOnAllPods(cc1Pods, nodes, v1.NodeInternalIP, cmd)
 	})
 })
 

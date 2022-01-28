@@ -1,46 +1,41 @@
 package e2e
 
 import (
-	"context"
 	"fmt"
-	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
-	"k8s.io/apimachinery/pkg/types"
 	"time"
 
-	. "github.com/onsi/ginkgo"
+	"github.com/ibm/cassandra-operator/controllers/labels"
+
+	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
+	"k8s.io/apimachinery/pkg/types"
+
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("user provided roles", func() {
+	ccName := "roles"
+	AfterEach(func() {
+		cleanupResources(ccName, cfg.operatorNamespace)
+	})
+
 	Context("if a valid secret provided", func() {
 		It("should be created", func() {
-			rolesSecretName := cassandraCluster.Name + "-cassandra-roles"
+			cc := newCassandraClusterTmpl(ccName, cfg.operatorNamespace)
+			rolesSecretName := cc.Name + "-cassandra-roles"
+			cc.Spec.RolesSecretName = rolesSecretName
 			testUserName := "alice"
 			testUserPassword := "testpassword"
-			newCassandraCluster := cassandraCluster.DeepCopy()
-			newCassandraCluster.Spec.RolesSecretName = rolesSecretName
-			rolesSecret := &v1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      rolesSecretName,
-					Namespace: cassandraObjectMeta.Namespace,
-				},
-				Data: map[string][]byte{
-					testUserName: []byte(fmt.Sprintf(`{"password": "%s", "login": true, "super": true}`, testUserPassword)),
-				},
-			}
 
-			Expect(restClient.Create(context.Background(), rolesSecret)).To(Succeed())
-			defer func() { Expect(restClient.Delete(context.Background(), rolesSecret)).To(Succeed()) }()
-
-			deployCassandraCluster(newCassandraCluster)
-
+			createSecret(cc.Namespace, rolesSecretName, map[string][]byte{
+				testUserName: []byte(fmt.Sprintf(`{"password": "%s", "login": true, "super": true}`, testUserPassword)),
+			})
+			deployCassandraCluster(cc)
 			podList := &v1.PodList{}
-			err = restClient.List(context.Background(), podList, client.InNamespace(cassandraNamespace), client.MatchingLabels(cassandraClusterPodLabels))
-			Expect(err).ToNot(HaveOccurred())
+			Expect(kubeClient.List(ctx, podList, client.InNamespace(cc.Namespace), client.MatchingLabels(labels.Cassandra(cc)))).To(Succeed())
 
 			Expect(len(podList.Items)).Should(BeNumerically(">", 0))
 			pod := podList.Items[0]
@@ -57,17 +52,18 @@ var _ = Describe("user provided roles", func() {
 				stdout = execResult.stdout
 				return err
 			}, 30*time.Second, 5*time.Second).Should(Succeed())
-			Expect(stdout).To(ContainSubstring(fmt.Sprintf("Connected to %s at %s:%d.", cassandraRelease, "127.0.0.1", dbv1alpha1.CqlPort)))
+			Expect(stdout).To(ContainSubstring(fmt.Sprintf("Connected to %s at %s:%d.", cc.Name, "127.0.0.1", dbv1alpha1.CqlPort)))
 
-			Expect(restClient.Get(context.Background(), types.NamespacedName{
-				Name: rolesSecret.Name, Namespace: rolesSecret.Namespace,
+			rolesSecret := &v1.Secret{}
+			Expect(kubeClient.Get(ctx, types.NamespacedName{
+				Name: rolesSecretName, Namespace: cc.Namespace,
 			}, rolesSecret)).To(Succeed())
 
 			rolesSecret.Data = map[string][]byte{
 				testUserName: []byte(fmt.Sprintf(`{"password": "%s", "login": true, "super": true, "delete": true}`, testUserPassword)),
 			}
 
-			Expect(restClient.Update(context.Background(), rolesSecret)).To(Succeed())
+			Expect(kubeClient.Update(ctx, rolesSecret)).To(Succeed())
 
 			Eventually(func() error {
 				_, err := execPod(pod.Name, pod.Namespace, cmd)

@@ -1,14 +1,15 @@
 package integration
 
 import (
+	"time"
+
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/names"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"time"
 )
 
 var _ = Describe("maintenance mode request", func() {
@@ -51,28 +52,26 @@ var _ = Describe("maintenance mode request", func() {
 			}
 			createReadyCluster(cc)
 
-			When("pod is added to spec", func() {
-				actualCC := getCassandraCluster(cc)
-				maintenancePatch := client.MergeFrom(actualCC.DeepCopy())
-				actualCC.Spec.Maintenance = []v1alpha1.Maintenance{
-					{
-						DC: "dc1",
-						Pods: []v1alpha1.PodName{
-							v1alpha1.PodName(names.DC(actualCC.Name, actualCC.Spec.DCs[0].Name) + "-0"),
-						},
+			By("pod is added to spec")
+			actualCC := getCassandraCluster(cc)
+			maintenancePatch := client.MergeFrom(actualCC.DeepCopy())
+			actualCC.Spec.Maintenance = []v1alpha1.Maintenance{
+				{
+					DC: "dc1",
+					Pods: []v1alpha1.PodName{
+						v1alpha1.PodName(names.DC(actualCC.Name, actualCC.Spec.DCs[0].Name) + "-0"),
 					},
-				}
-				Expect(k8sClient.Patch(ctx, actualCC, maintenancePatch)).To(Succeed())
-				compareMaintenanceSpecWithStatus(cc)
-			})
+				},
+			}
+			Expect(k8sClient.Patch(ctx, actualCC, maintenancePatch)).To(Succeed())
+			compareMaintenanceSpecWithStatus(cc)
 
-			When("pod is removed from spec", func() {
-				actualCC := getCassandraCluster(cc)
-				maintenancePatch := client.MergeFrom(actualCC.DeepCopy())
-				actualCC.Spec.Maintenance = nil
-				Expect(k8sClient.Patch(ctx, actualCC, maintenancePatch)).To(Succeed())
-				compareMaintenanceSpecWithStatus(cc)
-			})
+			By("pod is removed from spec")
+			actualCC = getCassandraCluster(cc)
+			maintenancePatch = client.MergeFrom(actualCC.DeepCopy())
+			actualCC.Spec.Maintenance = nil
+			Expect(k8sClient.Patch(ctx, actualCC, maintenancePatch)).To(Succeed())
+			compareMaintenanceSpecWithStatus(cc)
 		})
 	})
 
@@ -93,29 +92,27 @@ var _ = Describe("maintenance mode request", func() {
 			}
 			createReadyCluster(cc)
 
-			When("pod is added to spec", func() {
-				actualCC := getCassandraCluster(cc)
-				maintenancePatch := client.MergeFrom(actualCC.DeepCopy())
-				actualCC.Spec.Maintenance = []v1alpha1.Maintenance{
-					{
-						DC: "dc1",
-						Pods: []v1alpha1.PodName{
-							v1alpha1.PodName(names.DC(actualCC.Name, actualCC.Spec.DCs[0].Name) + "-0"),
-							v1alpha1.PodName(names.DC(actualCC.Name, actualCC.Spec.DCs[0].Name) + "-1"),
-						},
+			By("pod is added to spec")
+			actualCC := getCassandraCluster(cc)
+			maintenancePatch := client.MergeFrom(actualCC.DeepCopy())
+			actualCC.Spec.Maintenance = []v1alpha1.Maintenance{
+				{
+					DC: "dc1",
+					Pods: []v1alpha1.PodName{
+						v1alpha1.PodName(names.DC(actualCC.Name, actualCC.Spec.DCs[0].Name) + "-0"),
+						v1alpha1.PodName(names.DC(actualCC.Name, actualCC.Spec.DCs[0].Name) + "-1"),
 					},
-				}
-				Expect(k8sClient.Patch(ctx, actualCC, maintenancePatch)).To(Succeed())
-				compareMaintenanceSpecWithStatus(cc)
-			})
+				},
+			}
+			Expect(k8sClient.Patch(ctx, actualCC, maintenancePatch)).To(Succeed())
+			compareMaintenanceSpecWithStatus(cc)
 
-			When("pod is removed from spec", func() {
-				actualCC := getCassandraCluster(cc)
-				maintenancePatch := client.MergeFrom(actualCC.DeepCopy())
-				actualCC.Spec.Maintenance = nil
-				Expect(k8sClient.Patch(ctx, actualCC, maintenancePatch)).To(Succeed())
-				compareMaintenanceSpecWithStatus(cc)
-			})
+			By("pod is removed from spec")
+			actualCC = getCassandraCluster(cc)
+			maintenancePatch = client.MergeFrom(actualCC.DeepCopy())
+			actualCC.Spec.Maintenance = nil
+			Expect(k8sClient.Patch(ctx, actualCC, maintenancePatch)).To(Succeed())
+			compareMaintenanceSpecWithStatus(cc)
 		})
 	})
 
@@ -140,43 +137,41 @@ var _ = Describe("maintenance mode request", func() {
 			}
 			createReadyCluster(cc)
 
-			When("pods are added to spec", func() {
-				actualCC := getCassandraCluster(cc)
-				maintenancePatch := client.MergeFrom(actualCC.DeepCopy())
-				actualCC.Spec.Maintenance = []v1alpha1.Maintenance{
-					{
-						DC: "dc1",
-						Pods: []v1alpha1.PodName{
-							v1alpha1.PodName(names.DC(actualCC.Name, actualCC.Spec.DCs[0].Name) + "-0"),
-							v1alpha1.PodName(names.DC(actualCC.Name, actualCC.Spec.DCs[0].Name) + "-1"),
-						},
+			By("pods are added to spec")
+			actualCC := getCassandraCluster(cc)
+			maintenancePatch := client.MergeFrom(actualCC.DeepCopy())
+			actualCC.Spec.Maintenance = []v1alpha1.Maintenance{
+				{
+					DC: "dc1",
+					Pods: []v1alpha1.PodName{
+						v1alpha1.PodName(names.DC(actualCC.Name, actualCC.Spec.DCs[0].Name) + "-0"),
+						v1alpha1.PodName(names.DC(actualCC.Name, actualCC.Spec.DCs[0].Name) + "-1"),
 					},
-					{
-						DC: "dc2",
-						Pods: []v1alpha1.PodName{
-							v1alpha1.PodName(names.DC(actualCC.Name, actualCC.Spec.DCs[1].Name) + "-0"),
-						},
+				},
+				{
+					DC: "dc2",
+					Pods: []v1alpha1.PodName{
+						v1alpha1.PodName(names.DC(actualCC.Name, actualCC.Spec.DCs[1].Name) + "-0"),
 					},
-				}
-				Expect(k8sClient.Patch(ctx, actualCC, maintenancePatch)).To(Succeed())
-				compareMaintenanceSpecWithStatus(cc)
-			})
+				},
+			}
+			Expect(k8sClient.Patch(ctx, actualCC, maintenancePatch)).To(Succeed())
+			compareMaintenanceSpecWithStatus(cc)
 
-			When("pods are removed from spec", func() {
-				actualCC := getCassandraCluster(cc)
-				maintenancePatch := client.MergeFrom(actualCC.DeepCopy())
-				actualCC.Spec.Maintenance = []v1alpha1.Maintenance{
-					{
-						DC: "dc1",
-						Pods: []v1alpha1.PodName{
-							v1alpha1.PodName(names.DC(actualCC.Name, actualCC.Spec.DCs[0].Name) + "-0"),
-							v1alpha1.PodName(names.DC(actualCC.Name, actualCC.Spec.DCs[0].Name) + "-1"),
-						},
+			By("pods are removed from spec")
+			actualCC = getCassandraCluster(cc)
+			maintenancePatch = client.MergeFrom(actualCC.DeepCopy())
+			actualCC.Spec.Maintenance = []v1alpha1.Maintenance{
+				{
+					DC: "dc1",
+					Pods: []v1alpha1.PodName{
+						v1alpha1.PodName(names.DC(actualCC.Name, actualCC.Spec.DCs[0].Name) + "-0"),
+						v1alpha1.PodName(names.DC(actualCC.Name, actualCC.Spec.DCs[0].Name) + "-1"),
 					},
-				}
-				Expect(k8sClient.Patch(ctx, actualCC, maintenancePatch)).To(Succeed())
-				compareMaintenanceSpecWithStatus(cc)
-			})
+				},
+			}
+			Expect(k8sClient.Patch(ctx, actualCC, maintenancePatch)).To(Succeed())
+			compareMaintenanceSpecWithStatus(cc)
 		})
 	})
 
@@ -201,25 +196,23 @@ var _ = Describe("maintenance mode request", func() {
 			}
 			createReadyCluster(cc)
 
-			When("dc is added to spec", func() {
-				actualCC := getCassandraCluster(cc)
-				maintenancePatch := client.MergeFrom(actualCC.DeepCopy())
-				actualCC.Spec.Maintenance = []v1alpha1.Maintenance{
-					{
-						DC: "dc2",
-					},
-				}
-				Expect(k8sClient.Patch(ctx, actualCC, maintenancePatch)).To(Succeed())
-				compareMaintenanceSpecWithStatus(cc)
-			})
+			By("dc is added to spec")
+			actualCC := getCassandraCluster(cc)
+			maintenancePatch := client.MergeFrom(actualCC.DeepCopy())
+			actualCC.Spec.Maintenance = []v1alpha1.Maintenance{
+				{
+					DC: "dc2",
+				},
+			}
+			Expect(k8sClient.Patch(ctx, actualCC, maintenancePatch)).To(Succeed())
+			compareMaintenanceSpecWithStatus(cc)
 
-			When("dc is removed from spec", func() {
-				actualCC := getCassandraCluster(cc)
-				maintenancePatch := client.MergeFrom(actualCC.DeepCopy())
-				actualCC.Spec.Maintenance = nil
-				Expect(k8sClient.Patch(ctx, actualCC, maintenancePatch)).To(Succeed())
-				compareMaintenanceSpecWithStatus(cc)
-			})
+			By("dc is removed from spec")
+			actualCC = getCassandraCluster(cc)
+			maintenancePatch = client.MergeFrom(actualCC.DeepCopy())
+			actualCC.Spec.Maintenance = nil
+			Expect(k8sClient.Patch(ctx, actualCC, maintenancePatch)).To(Succeed())
+			compareMaintenanceSpecWithStatus(cc)
 		})
 	})
 
@@ -244,35 +237,33 @@ var _ = Describe("maintenance mode request", func() {
 			}
 			createReadyCluster(cc)
 
-			When("pod is added to spec", func() {
-				actualCC := getCassandraCluster(cc)
-				maintenancePatch := client.MergeFrom(actualCC.DeepCopy())
-				actualCC.Spec.Maintenance = []v1alpha1.Maintenance{
-					{
-						DC: "dc1",
-						Pods: []v1alpha1.PodName{
-							v1alpha1.PodName(names.DC(actualCC.Name, actualCC.Spec.DCs[0].Name) + "-0"),
-						},
+			By("pod is added to spec")
+			actualCC := getCassandraCluster(cc)
+			maintenancePatch := client.MergeFrom(actualCC.DeepCopy())
+			actualCC.Spec.Maintenance = []v1alpha1.Maintenance{
+				{
+					DC: "dc1",
+					Pods: []v1alpha1.PodName{
+						v1alpha1.PodName(names.DC(actualCC.Name, actualCC.Spec.DCs[0].Name) + "-0"),
 					},
-				}
-				Expect(k8sClient.Patch(ctx, actualCC, maintenancePatch)).To(Succeed())
-				compareMaintenanceSpecWithStatus(cc)
-			})
+				},
+			}
+			Expect(k8sClient.Patch(ctx, actualCC, maintenancePatch)).To(Succeed())
+			compareMaintenanceSpecWithStatus(cc)
 
-			When("pod is changed in spec", func() {
-				actualCC := getCassandraCluster(cc)
-				maintenancePatch := client.MergeFrom(actualCC.DeepCopy())
-				actualCC.Spec.Maintenance = []v1alpha1.Maintenance{
-					{
-						DC: "dc1",
-						Pods: []v1alpha1.PodName{
-							v1alpha1.PodName(names.DC(actualCC.Name, actualCC.Spec.DCs[0].Name) + "-1"),
-						},
+			By("pod is changed in spec")
+			actualCC = getCassandraCluster(cc)
+			maintenancePatch = client.MergeFrom(actualCC.DeepCopy())
+			actualCC.Spec.Maintenance = []v1alpha1.Maintenance{
+				{
+					DC: "dc1",
+					Pods: []v1alpha1.PodName{
+						v1alpha1.PodName(names.DC(actualCC.Name, actualCC.Spec.DCs[0].Name) + "-1"),
 					},
-				}
-				Expect(k8sClient.Patch(ctx, actualCC, maintenancePatch)).To(Succeed())
-				compareMaintenanceSpecWithStatus(cc)
-			})
+				},
+			}
+			Expect(k8sClient.Patch(ctx, actualCC, maintenancePatch)).To(Succeed())
+			compareMaintenanceSpecWithStatus(cc)
 		})
 	})
 })

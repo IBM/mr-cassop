@@ -4,7 +4,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/names"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -24,7 +24,7 @@ var _ = Describe("Cassandra monitoring", func() {
 					},
 					ImagePullSecretName: "pull-secret-name",
 					AdminRoleSecretName: "admin-role",
-					Cassandra: &v1alpha1.Cassandra{},
+					Cassandra:           &v1alpha1.Cassandra{},
 				},
 			}
 			createReadyCluster(cc)

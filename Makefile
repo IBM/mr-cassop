@@ -41,11 +41,9 @@ integration-tests:
 
 # Run e2e tests
 e2e-tests:
-	go test ./tests/e2e/ \
-		-ginkgo.v -ginkgo.reportPassed -ginkgo.progress \
-		-test.v -test.timeout=2h -ginkgo.failFast \
-		-cassandraNamespace=$(K8S_NAMESPACE) \
-		-cassandraRelease=$(CASSANDRA_RELEASE_NAME) \
+	ginkgo -v --procs 11 --timeout=1h30m --always-emit-ginkgo-writer --progress --fail-fast ./tests/e2e/ -- \
+		-test.v -test.timeout=1h30m \
+		-operatorNamespace=$(K8S_NAMESPACE) \
 		-imagePullSecret=$(IMAGE_PULL_SECRET) \
 		-ingressDomain=$(INGRESS_DOMAIN) \
 		-ingressSecret=$(INGRESS_SECRET) \

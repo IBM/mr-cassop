@@ -42,3 +42,15 @@ func WithDCLabel(labels map[string]string, dcName string) map[string]string {
 	newLabels[v1alpha1.CassandraClusterDC] = dcName
 	return newLabels
 }
+
+func Cassandra(instance *v1alpha1.CassandraCluster) map[string]string {
+	return ComponentLabels(instance, v1alpha1.CassandraClusterComponentCassandra)
+}
+
+func Prober(instance *v1alpha1.CassandraCluster) map[string]string {
+	return ComponentLabels(instance, v1alpha1.CassandraClusterComponentProber)
+}
+
+func Reaper(instance *v1alpha1.CassandraCluster) map[string]string {
+	return ComponentLabels(instance, v1alpha1.CassandraClusterComponentReaper)
+}

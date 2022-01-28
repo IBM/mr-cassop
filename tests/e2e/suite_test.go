@@ -7,21 +7,23 @@ import (
 	"os"
 	"testing"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
+	"github.com/onsi/ginkgo/v2/types"
+
+	apixv1Client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
+	"k8s.io/client-go/kubernetes/scheme"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/gogo/protobuf/proto"
+
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
-	apixv1Client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -30,65 +32,31 @@ const (
 )
 
 var (
-	restClient          client.Client
-	restClientConfig    *rest.Config
-	kubeClient          *kubernetes.Clientset
-	cassandraObjectMeta metav1.ObjectMeta
-	cassandraCluster    *v1alpha1.CassandraCluster
-	adminRoleSecret     *v1.Secret
+	kubeClient       client.Client
+	restClientConfig *rest.Config
+	k8sClientset     *kubernetes.Clientset
 
-	err                 error
-	cassandraNamespace  string
-	cassandraRelease    string
-	imagePullSecret     string
-	adminRoleSecretName string
-	adminRoleName       string
-	adminRolePassword   string
-	ingressDomain       string
-	ingressSecret       string
-	storageClassName    string
-	tailLines           int64 = 60
-	statusCode          int
-
-	operatorPodLabel          map[string]string
-	cassandraDeploymentLabel  map[string]string
-	proberPodLabels           map[string]string
-	cassandraClusterPodLabels map[string]string
-	reaperPodLabels           map[string]string
-
-	cassandraResources = v1.ResourceRequirements{
-		Limits: v1.ResourceList{
-			v1.ResourceMemory: resource.MustParse("1.5Gi"),
-			v1.ResourceCPU:    resource.MustParse("1"),
-		},
-		Requests: v1.ResourceList{
-			v1.ResourceMemory: resource.MustParse("1.5Gi"),
-			v1.ResourceCPU:    resource.MustParse("1"),
-		},
-	}
-
-	proberResources = v1.ResourceRequirements{
-		Requests: v1.ResourceList{
-			v1.ResourceMemory: resource.MustParse("256Mi"),
-			v1.ResourceCPU:    resource.MustParse("200m"),
-		},
-	}
-
-	cassandraDCs = []v1alpha1.DC{
-		{
-			Name:     "dc1",
-			Replicas: proto.Int32(3),
-		},
-	}
+	operatorPodLabel = map[string]string{"operator": "cassandra-operator"}
+	ctx              = context.Background()
+	cfg              = testConfig{}
 )
 
+type testConfig struct {
+	operatorNamespace string
+	imagePullSecret   string
+	ingressDomain     string
+	ingressSecret     string
+	storageClassName  string
+	tailLines         int64
+}
+
 func init() {
-	flag.StringVar(&cassandraNamespace, "cassandraNamespace", "default", "Set the namespace for e2e tests run.")
-	flag.StringVar(&cassandraRelease, "cassandraRelease", "e2e-tests", "Set the cassandra cluster release name for e2e tests run.")
-	flag.StringVar(&imagePullSecret, "imagePullSecret", "all-icr-io", "Set the imagePullSecret.")
-	flag.StringVar(&ingressDomain, "ingressDomain", "", "Set the ingress domain.")
-	flag.StringVar(&ingressSecret, "ingressSecret", "", "Set the ingress secret name.")
-	flag.StringVar(&storageClassName, "storageClassName", "", "Set the storage class name.")
+	flag.StringVar(&cfg.operatorNamespace, "operatorNamespace", "default", "Set the namespace for e2e tests run.")
+	flag.StringVar(&cfg.imagePullSecret, "imagePullSecret", "all-icr-io", "Set the imagePullSecret.")
+	flag.StringVar(&cfg.ingressDomain, "ingressDomain", "", "Set the ingress domain.")
+	flag.StringVar(&cfg.ingressSecret, "ingressSecret", "", "Set the ingress secret name.")
+	flag.StringVar(&cfg.storageClassName, "storageClassName", "", "Set the storage class name.")
+	flag.Int64Var(&cfg.tailLines, "tailLines", 60, "Set the storage class name.")
 }
 
 func TestCassandraCluster(t *testing.T) {
@@ -96,115 +64,51 @@ func TestCassandraCluster(t *testing.T) {
 	RunSpecs(t, "Cassandra Cluster Suite")
 }
 
-var _ = BeforeSuite(func() {
-	operatorPodLabel = map[string]string{"operator": "cassandra-operator"}
-	cassandraDeploymentLabel = map[string]string{v1alpha1.CassandraClusterInstance: cassandraRelease}
-	proberPodLabels = map[string]string{v1alpha1.CassandraClusterInstance: cassandraRelease, v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentProber}
-	cassandraClusterPodLabels = map[string]string{v1alpha1.CassandraClusterInstance: cassandraRelease, v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra}
-	reaperPodLabels = map[string]string{v1alpha1.CassandraClusterInstance: cassandraRelease, v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentReaper}
-
-	cassandraObjectMeta = metav1.ObjectMeta{
-		Namespace: cassandraNamespace,
-		Name:      cassandraRelease,
-	}
-
+var _ = SynchronizedBeforeSuite(func() []byte {
+	// this will run only once on the first process
+	return []byte("")
+}, func(address []byte) {
+	// this will run on every process
 	By("Configuring environment...")
 
-	err = v1alpha1.AddToScheme(scheme.Scheme)
-	Expect(err).ToNot(HaveOccurred())
+	Expect(v1alpha1.AddToScheme(scheme.Scheme)).To(Succeed())
 
 	By("Configuring API Clients for REST...")
+	var err error
 	restClientConfig, err = ctrl.GetConfig()
 	Expect(err).ToNot(HaveOccurred())
 
-	restClient, err = client.New(restClientConfig, client.Options{Scheme: scheme.Scheme})
+	kubeClient, err = client.New(restClientConfig, client.Options{Scheme: scheme.Scheme})
 	Expect(err).ToNot(HaveOccurred())
 
 	By("Checking if CRD is deployed...")
 	apixClient, err := apixv1Client.NewForConfig(restClientConfig)
 	Expect(err).ToNot(HaveOccurred())
 	cassandraCRD := apixClient.CustomResourceDefinitions()
-	crd, err := cassandraCRD.Get(context.Background(), "cassandraclusters.db.ibm.com", metav1.GetOptions{TypeMeta: metav1.TypeMeta{}})
+	crd, err := cassandraCRD.Get(ctx, "cassandraclusters.db.ibm.com", metav1.GetOptions{TypeMeta: metav1.TypeMeta{}})
 	if err != nil || crd == nil {
 		Fail(fmt.Sprintf("Cassandra operator is not deployed in the cluster. Error: %s", err))
 	}
 
-	// Create client test. We use kubernetes package bc currently only it has GetLogs method.
-	kubeClient, err = kubernetes.NewForConfig(restClientConfig)
+	// Create clientset to be able to pull logs and exec into pods
+	k8sClientset, err = kubernetes.NewForConfig(restClientConfig)
 	Expect(err).ToNot(HaveOccurred())
-
-	adminRoleSecretName = "admin-role"
-
-	cassandraCluster = &v1alpha1.CassandraCluster{
-		ObjectMeta: cassandraObjectMeta,
-		Spec: v1alpha1.CassandraClusterSpec{
-			DCs:                 cassandraDCs,
-			ImagePullSecretName: imagePullSecret,
-			AdminRoleSecretName: adminRoleSecretName,
-			Cassandra: &v1alpha1.Cassandra{
-				ImagePullPolicy: v1.PullAlways,
-				Resources:       cassandraResources,
-				NumSeeds:        2,
-				JVMOptions: []string{
-					"-Xmx1024M", //Max Heap Size
-					"-Xms1024M", //Min Heap Size
-				},
-			},
-			Prober: v1alpha1.Prober{
-				ImagePullPolicy: v1.PullAlways,
-				Resources:       proberResources,
-				Jolokia: v1alpha1.Jolokia{
-					ImagePullPolicy: v1.PullAlways,
-					Resources:       proberResources,
-				},
-			},
-		},
-	}
-
-	adminRoleSecret = &v1.Secret{}
-	adminRoleName = "cassandra-operator"
-	adminRolePassword = "password"
-	err = restClient.Get(context.Background(), types.NamespacedName{Namespace: cassandraCluster.Namespace, Name: adminRoleSecretName}, adminRoleSecret)
-	if err != nil && errors.IsNotFound(err) {
-		By("admin role secret doesn't exist. Creating it.")
-		adminRoleSecret = &v1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      adminRoleSecretName,
-				Namespace: cassandraNamespace,
-			},
-			Data: map[string][]byte{
-				v1alpha1.CassandraOperatorAdminRole:     []byte(adminRoleName),
-				v1alpha1.CassandraOperatorAdminPassword: []byte(adminRolePassword),
-			},
-		}
-
-		Expect(restClient.Create(context.Background(), adminRoleSecret)).To(Succeed())
-	} else if err != nil {
-		Expect(err).ToNot(HaveOccurred())
-	} else {
-		By("admin secret exists")
-	}
-})
-
-var _ = AfterSuite(func() {
-	Expect(restClient.Delete(context.Background(), adminRoleSecret)).To(Succeed())
 })
 
 var _ = JustAfterEach(func() {
-	if CurrentGinkgoTestDescription().Failed {
-		fmt.Printf("Test failed! Collecting diags just after failed test in %s\n", CurrentGinkgoTestDescription().TestText)
-
+	if CurrentSpecReport().Failed() && CurrentSpecReport().State != types.SpecStateInterrupted {
+		fmt.Printf("Test failed! Collecting diags just after failed test in %s:%d\n", CurrentSpecReport().FileName(), CurrentSpecReport().LineNumber())
 		Expect(os.MkdirAll(debugLogsDir, 0777)).To(Succeed())
 		ccList := &v1alpha1.CassandraClusterList{}
-		Expect(restClient.List(context.Background(), ccList)).To(Succeed())
+		Expect(kubeClient.List(ctx, ccList)).To(Succeed())
 
-		fmt.Fprintf(GinkgoWriter, "Gathering log info for Cassandra Operator\n")
-		showPodLogs(operatorPodLabel, cassandraNamespace)
+		GinkgoWriter.Println("Gathering log info for Cassandra Operator")
+		showPodLogs(operatorPodLabel, cfg.operatorNamespace)
 
 		for _, cc := range ccList.Items {
-			fmt.Fprintf(GinkgoWriter, "Gathering log info for CassandraCluster %s/%s\n", cc.Namespace, cc.Name)
+			GinkgoWriter.Printf("Gathering log info for CassandraCluster %s/%s\n", cc.Namespace, cc.Name)
 			podList := &v1.PodList{}
-			Expect(restClient.List(context.Background(), podList, client.InNamespace(cc.Namespace))).To(Succeed())
+			Expect(kubeClient.List(ctx, podList, client.InNamespace(cc.Namespace))).To(Succeed())
 
 			for _, pod := range podList.Items {
 				fmt.Println("Pod: ", pod.Name, " Status: ", pod.Status.Phase)
@@ -220,13 +124,62 @@ var _ = JustAfterEach(func() {
 	}
 })
 
-var _ = AfterEach(func() {
-	By("Removing cassandra cluster...")
-	Expect(restClient.DeleteAllOf(context.Background(), &v1alpha1.CassandraCluster{}, client.InNamespace(cassandraNamespace))).To(Succeed())
-
-	By("Wait until all pods are terminated...")
-	waitForPodsTermination(cassandraNamespace, cassandraDeploymentLabel)
-
-	By("Wait until CassandraCluster resource is deleted")
-	waitForCassandraClusterSchemaDeletion(cassandraNamespace, cassandraRelease)
-})
+func newCassandraClusterTmpl(name, namespace string) *v1alpha1.CassandraCluster {
+	adminRoleName := name + "-admin-role"
+	return &v1alpha1.CassandraCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: v1alpha1.CassandraClusterSpec{
+			DCs: []v1alpha1.DC{
+				{
+					Name:     "dc1",
+					Replicas: proto.Int32(3),
+				},
+			},
+			ImagePullSecretName: cfg.imagePullSecret,
+			AdminRoleSecretName: adminRoleName,
+			Cassandra: &v1alpha1.Cassandra{
+				ImagePullPolicy: v1.PullAlways,
+				Resources: v1.ResourceRequirements{
+					Limits: v1.ResourceList{
+						v1.ResourceMemory: resource.MustParse("1.5Gi"),
+					},
+					Requests: v1.ResourceList{
+						v1.ResourceMemory: resource.MustParse("1.5Gi"),
+					},
+				},
+				NumSeeds: 2,
+				JVMOptions: []string{
+					"-Xmx1024M", //Max Heap Size
+					"-Xms1024M", //Min Heap Size
+				},
+			},
+			Prober: v1alpha1.Prober{
+				ImagePullPolicy: v1.PullAlways,
+				Resources: v1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						v1.ResourceMemory: resource.MustParse("256Mi"),
+					},
+				},
+				Jolokia: v1alpha1.Jolokia{
+					ImagePullPolicy: v1.PullAlways,
+					Resources: v1.ResourceRequirements{
+						Requests: v1.ResourceList{
+							v1.ResourceMemory: resource.MustParse("256Mi"),
+						},
+					},
+				},
+			},
+			Reaper: &v1alpha1.Reaper{
+				ImagePullPolicy: v1.PullIfNotPresent,
+				Resources: v1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						v1.ResourceMemory: resource.MustParse("512Mi"),
+					},
+				},
+			},
+		},
+	}
+}

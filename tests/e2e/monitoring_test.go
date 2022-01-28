@@ -7,7 +7,7 @@ import (
 
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/labels"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/prometheus/common/expfmt"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
@@ -15,19 +15,17 @@ import (
 
 var _ = Describe("Cassandra cluster", func() {
 	Context("when C* monitoring is enabled with tlp exporter", func() {
+		ccName := "monitoring-tlp"
+		AfterEach(func() {
+			cleanupResources(ccName, cfg.operatorNamespace)
+		})
 		It("should be able to get C* metrics on tlp port", func() {
-			newCassandraCluster := cassandraCluster.DeepCopy()
-			newCassandraCluster.Spec.Cassandra.Monitoring.Enabled = true
-
-			deployCassandraCluster(newCassandraCluster)
-
-			By("checking reaper pods readiness...")
-			for _, dc := range newCassandraCluster.Spec.DCs {
-				waitForPodsReadiness(cassandraNamespace, labels.WithDCLabel(reaperPodLabels, dc.Name), 1)
-			}
+			cc := newCassandraClusterTmpl(ccName, cfg.operatorNamespace)
+			cc.Spec.Cassandra.Monitoring.Enabled = true
+			deployCassandraCluster(cc)
 
 			By("check tlp exporter port")
-			pf := portForwardPod(cassandraNamespace, cassandraClusterPodLabels, []string{fmt.Sprintf("%d:%d", dbv1alpha1.TlpPort, dbv1alpha1.TlpPort)})
+			pf := portForwardPod(cc.Namespace, labels.Cassandra(cc), []string{fmt.Sprintf("%d:%d", dbv1alpha1.TlpPort, dbv1alpha1.TlpPort)})
 			var resp *http.Response
 			Eventually(func() (int, error) {
 				var err error
@@ -71,7 +69,7 @@ var _ = Describe("Cassandra cluster", func() {
 			pf.Close()
 
 			By("check reaper admin port")
-			pf = portForwardPod(cassandraNamespace, reaperPodLabels, []string{fmt.Sprintf("%d:%d", dbv1alpha1.ReaperAdminPort, dbv1alpha1.ReaperAdminPort)})
+			pf = portForwardPod(cc.Namespace, labels.Reaper(cc), []string{fmt.Sprintf("%d:%d", dbv1alpha1.ReaperAdminPort, dbv1alpha1.ReaperAdminPort)})
 			defer pf.Close()
 			resp = &http.Response{}
 			Eventually(func() (bool, error) {
@@ -121,15 +119,19 @@ var _ = Describe("Cassandra cluster", func() {
 	})
 
 	Context("when C* monitoring is enabled with datastax exporter", func() {
+		ccName := "monitoring-datastax"
+		AfterEach(func() {
+			cleanupResources(ccName, cfg.operatorNamespace)
+		})
 		It("should be able to get C* metrics on datastax port", func() {
-			newCassandraCluster := cassandraCluster.DeepCopy()
-			newCassandraCluster.Spec.Cassandra.Monitoring.Enabled = true
-			newCassandraCluster.Spec.Cassandra.Monitoring.Agent = dbv1alpha1.CassandraAgentDatastax
+			cc := newCassandraClusterTmpl(ccName, cfg.operatorNamespace)
+			cc.Spec.Cassandra.Monitoring.Enabled = true
+			cc.Spec.Cassandra.Monitoring.Agent = dbv1alpha1.CassandraAgentDatastax
 
-			deployCassandraCluster(newCassandraCluster)
+			deployCassandraCluster(cc)
 
 			By("check datastax exporter port")
-			pf := portForwardPod(cassandraNamespace, cassandraClusterPodLabels, []string{fmt.Sprintf("%d:%d", dbv1alpha1.DatastaxPort, dbv1alpha1.DatastaxPort)})
+			pf := portForwardPod(cc.Namespace, labels.Cassandra(cc), []string{fmt.Sprintf("%d:%d", dbv1alpha1.DatastaxPort, dbv1alpha1.DatastaxPort)})
 			defer pf.Close()
 			var resp *http.Response
 			Eventually(func() (int, error) {
@@ -174,15 +176,18 @@ var _ = Describe("Cassandra cluster", func() {
 	})
 
 	Context("when C* monitoring is enabled with instaclustr exporter", func() {
+		ccName := "monitoring-instaclustr"
+		AfterEach(func() {
+			cleanupResources(ccName, cfg.operatorNamespace)
+		})
 		It("should be able to get C* metrics on instaclustr port", func() {
-			newCassandraCluster := cassandraCluster.DeepCopy()
-			newCassandraCluster.Spec.Cassandra.Monitoring.Enabled = true
-			newCassandraCluster.Spec.Cassandra.Monitoring.Agent = dbv1alpha1.CassandraAgentInstaclustr
-
-			deployCassandraCluster(newCassandraCluster)
+			cc := newCassandraClusterTmpl(ccName, cfg.operatorNamespace)
+			cc.Spec.Cassandra.Monitoring.Enabled = true
+			cc.Spec.Cassandra.Monitoring.Agent = dbv1alpha1.CassandraAgentInstaclustr
+			deployCassandraCluster(cc)
 
 			By("check instaclustr exporter port")
-			pf := portForwardPod(cassandraNamespace, cassandraClusterPodLabels, []string{fmt.Sprintf("%d:%d", dbv1alpha1.InstaclustrPort, dbv1alpha1.InstaclustrPort)})
+			pf := portForwardPod(cc.Namespace, labels.Cassandra(cc), []string{fmt.Sprintf("%d:%d", dbv1alpha1.InstaclustrPort, dbv1alpha1.InstaclustrPort)})
 			defer pf.Close()
 			var resp *http.Response
 			Eventually(func() (int, error) {

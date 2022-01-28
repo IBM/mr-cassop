@@ -2,7 +2,6 @@ CONTROLLER_GEN_VERSION = v0.7.0
 
 CLOUD_PROVIDER = ibm
 
-CASSANDRA_RELEASE_NAME ?= e2e-tests
 IMAGE_PULL_SECRET ?= icm-coreeng-pull-secret
 STORAGE_CLASS_NAME ?= ibmc-block-gold
 
