@@ -47,7 +47,7 @@ func TestDefaultingFunction(t *testing.T) {
 	g.Expect(cc.Spec.Reaper.ServiceMonitor.ScrapeInterval).To(BeEmpty())
 	g.Expect(cc.Spec.Maintenance).To(BeNil())
 	g.Expect(cc.Status.MaintenanceState).To(BeNil())
-	g.Expect(cc.Spec.Encryption.Server.InternodeEncryption).To(Equal(internodeEncryptionNone))
+	g.Expect(cc.Spec.Encryption.Server.InternodeEncryption).To(Equal(v1alpha1.InternodeEncryptionNone))
 	g.Expect(cc.Spec.Encryption.Client.Enabled).To(BeFalse())
 	g.Expect(cc.Spec.Cassandra.Monitoring.Enabled).To(BeFalse())
 	g.Expect(cc.Spec.Cassandra.Monitoring.Agent).To(BeEmpty())

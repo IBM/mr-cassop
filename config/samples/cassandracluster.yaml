@@ -29,19 +29,15 @@ spec:
       requests:
         memory: 1.5Gi
         cpu: "1"
-  jvm:
-    maxHeapSize: 1024M
+    jvmOptions:
+    - -Xmx1024M
+    - -Xms1024M
   cqlConfigMapLabelKey: cql-scripts
   dcs:
   - name: dc1
     replicas: 3
   - name: dc2
     replicas: 3
-  ingress:
-    domain: icm-cassandra-dev-3f3037ed650e84f558a8839c9ec8a6ed-0000.us-south.containers.appdomain.cloud
-    secret: icm-cassandra-dev-3f3037ed650e84f558a8839c9ec8a6ed-0000
-    annotations:
-      "ingress.bluemix.net/redirect-to-https": "True"
   prober:
     logLevel: debug
     imagePullPolicy: IfNotPresent
@@ -95,20 +91,6 @@ spec:
   hostPort:
     enabled: false
     useExternalHostIP: false # If set to false host internal ip will be used
-    ports:
-    - intra
-    - cql
-    - jmx
-    - thrift
-  monitoring:
-    enabled: false
-    agent: "tlp"
-    serviceMonitor:
-      enabled: false
-      namespace: ""
-      labels: {}
-      scrapeInterval: 30s
-  jmx: {}
   encryption:
     server:
       internodeEncryption: none # If set to `all` all internode traffic are encrypted

@@ -59,7 +59,6 @@ const (
 	repairCauseCQLConfigMap  = "cql-configmap"
 	repairCauseReaperInit    = "reaper-init"
 
-	internodeEncryptionNone     = "none"
 	jmxAuthenticationInternal   = "internal"
 	jmxAuthenticationLocalFiles = "local_files"
 

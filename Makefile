@@ -41,8 +41,8 @@ integration-tests:
 
 # Run e2e tests
 e2e-tests:
-	ginkgo -v --procs 11 --timeout=1h30m --always-emit-ginkgo-writer --progress --fail-fast ./tests/e2e/ -- \
-		-test.v -test.timeout=1h30m \
+	ginkgo -v --procs 11 --timeout=$(E2E_TIMEOUT) --always-emit-ginkgo-writer --progress --fail-fast ./tests/e2e/ -- \
+		-test.v -test.timeout=$(E2E_TIMEOUT) \
 		-operatorNamespace=$(K8S_NAMESPACE) \
 		-imagePullSecret=$(IMAGE_PULL_SECRET) \
 		-ingressDomain=$(INGRESS_DOMAIN) \
@@ -116,7 +116,7 @@ ifeq (, $(shell which controller-gen))
 	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
 	cd $$CONTROLLER_GEN_TMP_DIR ;\
 	go mod init tmp ;\
-	go get sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION) ;\
+	go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION) ;\
 	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
 	}
 CONTROLLER_GEN=$(GOBIN)/controller-gen
@@ -131,7 +131,7 @@ ifeq (, $(shell which kustomize))
 	KUSTOMIZE_GEN_TMP_DIR=$$(mktemp -d) ;\
 	cd $$KUSTOMIZE_GEN_TMP_DIR ;\
 	go mod init tmp ;\
-	go get sigs.k8s.io/kustomize/kustomize/v3@v3.5.4 ;\
+	go install sigs.k8s.io/kustomize/kustomize/v3@$(KUSTOMIZE_VERSION) ;\
 	rm -rf $$KUSTOMIZE_GEN_TMP_DIR ;\
 	}
 KUSTOMIZE=$(GOBIN)/kustomize

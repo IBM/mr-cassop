@@ -59,7 +59,14 @@ const (
 	ThriftPort      = 9160
 	InstaclustrPort = 9500
 
-	ReaperReplicasNumber = 1
+	ReaperReplicasNumber     = 1
+	reaperRepairIntensityMin = 0.1
+	reaperRepairIntensityMax = 1.0
+
+	InternodeEncryptionNone = "none"
+
+	HMS       = "15:04:05"
+	ISOFormat = "2006-01-02T" + HMS // YYYY-MM-DDThh:mm:ss format (reaper API dates do not include timezone)
 )
 
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.

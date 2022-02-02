@@ -130,7 +130,7 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, resta
 		container.VolumeMounts = append(container.VolumeMounts, commitLogVolumeMount())
 	}
 
-	if cc.Spec.Encryption.Server.InternodeEncryption != internodeEncryptionNone {
+	if cc.Spec.Encryption.Server.InternodeEncryption != dbv1alpha1.InternodeEncryptionNone {
 		container.VolumeMounts = append(container.VolumeMounts, cassandraServerTLSVolumeMount())
 	}
 
@@ -185,7 +185,7 @@ func cassandraContainerPorts(cc *dbv1alpha1.CassandraCluster) []v1.ContainerPort
 		// intra needed to allow cassandra nodes to talk to each other
 		portsToExpose = append(portsToExpose, "jmx", "intra")
 
-		if cc.Spec.Encryption.Server.InternodeEncryption != internodeEncryptionNone {
+		if cc.Spec.Encryption.Server.InternodeEncryption != dbv1alpha1.InternodeEncryptionNone {
 			portsToExpose = append(portsToExpose, "tls")
 		}
 

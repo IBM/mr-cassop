@@ -107,6 +107,14 @@ func (r *CassandraClusterReconciler) createClusterAdminSecrets(ctx context.Conte
 	desiredRolePassword := dbv1alpha1.CassandraDefaultPassword
 	desiredSecretData := baseAdminSecret.Data
 
+	if len(cc.Spec.ExternalRegions.Managed) > 0 || len(cc.Spec.ExternalRegions.Unmanaged) > 0 {
+		if cc.Spec.Encryption.Server.InternodeEncryption == dbv1alpha1.InternodeEncryptionNone {
+			warnMsg := "Running a multi-region setup without server encryption is insecure. Enabling it is highly recommended"
+			r.Events.Warning(cc, events.EventInsecureSetup, warnMsg)
+			r.Log.Warn(warnMsg)
+		}
+	}
+
 	storageExists := false
 	if cc.Spec.Cassandra.Persistence.Enabled {
 		pvcs := &v1.PersistentVolumeClaimList{}
@@ -116,7 +124,7 @@ func (r *CassandraClusterReconciler) createClusterAdminSecrets(ctx context.Conte
 		}
 
 		if len(pvcs.Items) > 0 { // cluster existed before. Use the credentials from the provided secret to recreate the cluster.
-			r.Log.Info("PVCs found. Assuming cluster existed before. Using credentials from secret %s", cc.Spec.AdminRoleSecretName)
+			r.Log.Infof("PVCs found. Assuming cluster existed before. Using credentials from secret %s", cc.Spec.AdminRoleSecretName)
 			storageExists = true
 		}
 	}

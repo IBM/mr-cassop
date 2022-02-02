@@ -41,14 +41,8 @@ func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.Cass
 		cc.Spec.TopologySpreadByZone = proto.Bool(true)
 	}
 
-	if cc.Spec.Encryption.Server.InternodeEncryption != internodeEncryptionNone {
-		r.defaultServerTLS(cc)
-	}
-
-	if cc.Spec.Encryption.Client.Enabled {
-		r.defaultClientTLS(cc)
-	}
-
+	r.defaultServerTLS(cc)
+	r.defaultClientTLS(cc)
 	r.defaultSysctls(cc)
 }
 
@@ -205,7 +199,7 @@ func (r *CassandraClusterReconciler) defaultCassandra(cc *dbv1alpha1.CassandraCl
 
 func (r *CassandraClusterReconciler) defaultServerTLS(cc *dbv1alpha1.CassandraCluster) {
 	if cc.Spec.Encryption.Server.InternodeEncryption == "" {
-		cc.Spec.Encryption.Server.InternodeEncryption = internodeEncryptionNone
+		cc.Spec.Encryption.Server.InternodeEncryption = dbv1alpha1.InternodeEncryptionNone
 	}
 
 	if cc.Spec.Encryption.Server.RequireClientAuth == nil {

@@ -25,7 +25,7 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 	var err error
 	clientTLSSecret := &v1.Secret{}
 
-	if cc.Spec.Encryption.Server.InternodeEncryption != internodeEncryptionNone {
+	if cc.Spec.Encryption.Server.InternodeEncryption != dbv1alpha1.InternodeEncryptionNone {
 		serverTLSSecret, err := r.getSecret(ctx, cc.Spec.Encryption.Server.TLSSecret.Name, cc.Namespace)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
@@ -79,6 +79,11 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 		restartChecksum["client-tls-secret"] = fmt.Sprintf("%v", clientTLSSecret.Data)
 	}
 
+	if cc.Spec.HostPort.Enabled && util.Contains(cc.Spec.HostPort.Ports, "cql") && !cc.Spec.Encryption.Client.Enabled {
+		warnMsg := fmt.Sprintf("Exposing cql port (%d) as hostPort without client encryption enabled is not secure", dbv1alpha1.CqlPort)
+		r.Events.Warning(cc, events.EventInsecureSetup, warnMsg)
+		r.Log.Warn(warnMsg)
+	}
 	desiredSts := cassandraStatefulSet(cc, dc, restartChecksum, clientTLSSecret)
 
 	if err = controllerutil.SetControllerReference(cc, desiredSts, r.Scheme); err != nil {
@@ -183,7 +188,7 @@ func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, res
 		desiredSts.Spec.Template.Spec.Volumes = append(desiredSts.Spec.Template.Spec.Volumes, emptyDirDataVolume())
 	}
 
-	if cc.Spec.Encryption.Server.InternodeEncryption != internodeEncryptionNone {
+	if cc.Spec.Encryption.Server.InternodeEncryption != dbv1alpha1.InternodeEncryptionNone {
 		desiredSts.Spec.Template.Spec.Volumes = append(desiredSts.Spec.Template.Spec.Volumes, cassandraServerTLSVolume(cc))
 	}
 

@@ -60,7 +60,7 @@ func (r *CassandraClusterReconciler) reconcileCassandraConfigMap(ctx context.Con
 		cassandraYaml["commitlog_directory"] = cassandraCommitLogDir
 	}
 
-	if cc.Spec.Encryption.Server.InternodeEncryption != internodeEncryptionNone {
+	if cc.Spec.Encryption.Server.InternodeEncryption != v1alpha1.InternodeEncryptionNone {
 
 		encryptionOptions := make(map[string]interface{})
 

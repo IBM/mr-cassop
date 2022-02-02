@@ -187,20 +187,19 @@ func (r *CassandraClusterReconciler) toReaperRepair(repair dbv1alpha1.RepairSche
 	output: 2020-11-29T02:00:00
 */
 func rescheduleTimestamp(repair *dbv1alpha1.RepairSchedule) error {
-	hms := "15:04:05"
-	isoFormat := "2006-01-02T" + hms // YYYY-MM-DDThh:mm:ss format (reaper API dates do not include timezone)
+
 	now := time.Now()
 	unixToday := now.Unix()
 	if len(repair.ScheduleTriggerTime) == 0 {
 		return nil
 	}
-	scheduleTriggerTime, err := time.Parse(isoFormat, repair.ScheduleTriggerTime)
+	scheduleTriggerTime, err := time.Parse(dbv1alpha1.ISOFormat, repair.ScheduleTriggerTime)
 	if err != nil {
 		return err
 	}
 	unixScheduler := scheduleTriggerTime.Unix()
-	timestampScheduler := scheduleTriggerTime.Format(hms)
-	timestampActual := now.Format(hms)
+	timestampScheduler := scheduleTriggerTime.Format(dbv1alpha1.HMS)
+	timestampActual := now.Format(dbv1alpha1.HMS)
 	dateShift := 0
 	if unixToday > unixScheduler {
 		dowNow := checkSunday(int(now.Weekday())) // Weekday specifies a day of the week (Sunday = 0, ...)
@@ -218,7 +217,7 @@ func rescheduleTimestamp(repair *dbv1alpha1.RepairSchedule) error {
 			dateShift = 7 - dowDiff
 		}
 		shiftedDate := now.AddDate(0, 0, dateShift)
-		formattedDate := shiftedDate.Format("2006-01-02T" + hms)
+		formattedDate := shiftedDate.Format("2006-01-02T" + dbv1alpha1.HMS)
 		repair.ScheduleTriggerTime = fmt.Sprintf("%sT%s", strings.Split(formattedDate, "T")[0], timestampScheduler)
 	}
 	return nil
