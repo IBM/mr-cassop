@@ -121,7 +121,7 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, resta
 			container.VolumeMounts = append(container.VolumeMounts, collectdVolumeMount())
 		}
 		container.Env = append(container.Env, v1.EnvVar{
-			Name:  "JVM_OPTS",
+			Name:  "JVM_EXTRA_OPTS",
 			Value: getJavaAgent(cc.Spec.Cassandra.Monitoring.Agent),
 		})
 	}
@@ -134,13 +134,15 @@ func cassandraContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, resta
 		container.VolumeMounts = append(container.VolumeMounts, cassandraServerTLSVolumeMount())
 	}
 
+	tlsArg := ""
 	if cc.Spec.Encryption.Client.Enabled {
 		container.VolumeMounts = append(container.VolumeMounts, cassandraClientTLSVolumeMount())
-		container.Env = append(container.Env, v1.EnvVar{
-			Name:  "TLS_ARG",
-			Value: "--ssl",
-		})
+		tlsArg = "--ssl"
 	}
+	container.Env = append(container.Env, v1.EnvVar{
+		Name:  "TLS_ARG",
+		Value: tlsArg,
+	})
 
 	return container
 }
