@@ -43,7 +43,7 @@ func (r *CassandraClusterReconciler) reconcileAdminRole(ctx context.Context, cc 
 	}
 
 	r.Log.Debug("Establishing cql session with role " + cassandraOperatorAdminRole)
-	cqlClient, err := r.CqlClient(newCassandraConfig(cc, cassandraOperatorAdminRole, cassandraOperatorAdminPassword))
+	cqlClient, err := r.CqlClient(newCassandraConfig(cc, cassandraOperatorAdminRole, cassandraOperatorAdminPassword, r.Log))
 	if err == nil { // operator admin role exists
 		if err = r.reconcileSystemAuthKeyspace(ctx, cc, cqlClient, allDCs); err != nil {
 			return nil, err
@@ -57,7 +57,7 @@ func (r *CassandraClusterReconciler) reconcileAdminRole(ctx context.Context, cc 
 		return cqlClient, nil
 	}
 
-	defaultUserCQLClient, err := r.CqlClient(newCassandraConfig(cc, dbv1alpha1.CassandraDefaultRole, dbv1alpha1.CassandraDefaultPassword))
+	defaultUserCQLClient, err := r.CqlClient(newCassandraConfig(cc, dbv1alpha1.CassandraDefaultRole, dbv1alpha1.CassandraDefaultPassword, r.Log))
 	if err != nil {
 		return nil, errors.Wrap(err, "can't establish cql connection both with default and desired admin roles")
 	}
@@ -71,7 +71,7 @@ func (r *CassandraClusterReconciler) reconcileAdminRole(ctx context.Context, cc 
 
 	r.Log.Debug("Establishing cql session with role " + cassandraOperatorAdminRole)
 	err = r.doWithRetry(func() error {
-		cqlClient, err = r.CqlClient(newCassandraConfig(cc, cassandraOperatorAdminRole, cassandraOperatorAdminPassword))
+		cqlClient, err = r.CqlClient(newCassandraConfig(cc, cassandraOperatorAdminRole, cassandraOperatorAdminPassword, r.Log))
 		if err != nil {
 			return err
 		}
@@ -89,7 +89,7 @@ func (r *CassandraClusterReconciler) reconcileAdminRole(ctx context.Context, cc 
 
 func (r *CassandraClusterReconciler) createAdminRoleInCassandra(ctx context.Context, cc *dbv1alpha1.CassandraCluster, roleName, password string, allDCs []dbv1alpha1.DC) error {
 	r.Log.Info("Establishing cql session with role " + dbv1alpha1.CassandraDefaultRole)
-	cqlClient, err := r.CqlClient(newCassandraConfig(cc, dbv1alpha1.CassandraDefaultRole, dbv1alpha1.CassandraDefaultPassword))
+	cqlClient, err := r.CqlClient(newCassandraConfig(cc, dbv1alpha1.CassandraDefaultRole, dbv1alpha1.CassandraDefaultPassword, r.Log))
 	if err != nil {
 		return errors.Wrap(err, "Can't create cql session with role "+dbv1alpha1.CassandraDefaultRole)
 	}

@@ -55,6 +55,11 @@ func (in *Cassandra) DeepCopyInto(out *Cassandra) {
 		*out = new(int64)
 		**out = **in
 	}
+	if in.PurgeGossip != nil {
+		in, out := &in.PurgeGossip, &out.PurgeGossip
+		*out = new(bool)
+		**out = **in
+	}
 	in.Persistence.DeepCopyInto(&out.Persistence)
 	if in.JVMOptions != nil {
 		in, out := &in.JVMOptions, &out.JVMOptions

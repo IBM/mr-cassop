@@ -30,6 +30,8 @@ func TestDefaultingFunction(t *testing.T) {
 	g.Expect(cc.Spec.Cassandra.Image).To(Equal("cassandra/image"))
 	g.Expect(cc.Spec.Cassandra.ImagePullPolicy).To(Equal(v1.PullIfNotPresent))
 	g.Expect(cc.Spec.Cassandra.NumSeeds).To(Equal(int32(2)))
+	g.Expect(cc.Spec.Cassandra.PurgeGossip).ToNot(BeNil())
+	g.Expect(*cc.Spec.Cassandra.PurgeGossip).To(Equal(true))
 	g.Expect(cc.Spec.Prober.Image).To(Equal("prober/image"))
 	g.Expect(cc.Spec.Prober.ImagePullPolicy).To(Equal(v1.PullIfNotPresent))
 	g.Expect(cc.Spec.Prober.Jolokia.Image).To(Equal("jolokia/image"))
@@ -83,6 +85,7 @@ func TestDefaultingFunction(t *testing.T) {
 					"fs.file-max":      "1000000000",
 					"vm.max_map_count": "1000000000",
 				},
+				PurgeGossip: proto.Bool(false),
 				Monitoring: v1alpha1.Monitoring{
 					Enabled: true,
 					ServiceMonitor: v1alpha1.ServiceMonitor{
@@ -157,6 +160,8 @@ func TestDefaultingFunction(t *testing.T) {
 	g.Expect(cc.Spec.SystemKeyspaces.DCs).To(BeNil())
 	g.Expect(cc.Spec.TopologySpreadByZone).ToNot(BeNil())
 	g.Expect(*cc.Spec.TopologySpreadByZone).To(BeFalse())
+	g.Expect(cc.Spec.Cassandra.PurgeGossip).ToNot(BeNil())
+	g.Expect(*cc.Spec.Cassandra.PurgeGossip).To(Equal(false))
 	g.Expect(cc.Spec.Cassandra.Sysctls).To(Equal(map[string]string{
 		"net.ipv4.ip_local_port_range": "1025 65535",
 		"net.ipv4.tcp_rmem":            "4096 87380 16777216",

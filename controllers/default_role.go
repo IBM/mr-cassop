@@ -28,7 +28,7 @@ func (r *CassandraClusterReconciler) removeDefaultRoleIfExists(ctx context.Conte
 		return nil
 	}
 
-	defaultUserSession, err := r.CqlClient(newCassandraConfig(cc, v1alpha1.CassandraDefaultRole, v1alpha1.CassandraDefaultPassword))
+	defaultUserSession, err := r.CqlClient(newCassandraConfig(cc, v1alpha1.CassandraDefaultRole, v1alpha1.CassandraDefaultPassword, nil))
 	if err != nil { // can't connect so the default user exists but with changed password which is fine
 		return nil
 	}

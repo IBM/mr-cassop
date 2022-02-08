@@ -18,17 +18,15 @@ func initContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 	args := []string{
 		`config_path=/etc/pods-config/${POD_NAME}_${POD_UID}.sh
 COUNT=1
-until stat $config_path; do
-  echo Could not access mount $config_path. Attempt $(( COUNT++ ))...
+until [ -f "$config_path" ]; do
+  echo Waiting for the operator to mount pod config $config_path. Attempt $(( COUNT++ ))...
   sleep 10
 done
 
 source $config_path
-echo PAUSE_INIT=$PAUSE_INIT
 
 until [[ "$PAUSE_INIT" == "false" ]]; do
-  echo PAUSE_INIT=$PAUSE_INIT
-  echo -n "."
+  echo Pod init is paused by the operator: ${PAUSE_REASON}
   sleep 10
   source $config_path
 done

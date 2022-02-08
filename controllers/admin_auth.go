@@ -143,10 +143,14 @@ func (r *CassandraClusterReconciler) createClusterAdminSecrets(ctx context.Conte
 		}
 	}
 
+	r.Log.Infof("storage exists: %t; join unmanaged region: %t; join existing managed region: %t", storageExists, len(cc.Spec.ExternalRegions.Unmanaged) > 0, joiningExistingManagedRegion)
 	if storageExists || len(cc.Spec.ExternalRegions.Unmanaged) > 0 || joiningExistingManagedRegion {
+		r.Log.Info("using user provided credentials to bootstrap the region")
 		//use the user provided credentials, not cassandra/cassandra
 		desiredRoleName = secretRoleName
 		desiredRolePassword = secretRolePassword
+	} else {
+		r.Log.Info("using cassandra/cassandra user to bootstrap the region")
 	}
 
 	desiredSecretData[dbv1alpha1.CassandraOperatorAdminRole] = []byte(desiredRoleName)
@@ -202,7 +206,7 @@ func (r *CassandraClusterReconciler) handleAdminRoleChange(ctx context.Context, 
 
 	var cqlClientTestCon cql.CqlClient
 	err = r.doWithRetry(func() error {
-		cqlClientTestCon, err = r.CqlClient(newCassandraConfig(cc, newCassandraOperatorAdminRole, newCassandraOperatorAdminPassword))
+		cqlClientTestCon, err = r.CqlClient(newCassandraConfig(cc, newCassandraOperatorAdminRole, newCassandraOperatorAdminPassword, r.Log))
 		if err != nil {
 			return err
 		}
@@ -233,7 +237,7 @@ func (r *CassandraClusterReconciler) handleAdminRoleChange(ctx context.Context, 
 }
 
 func (r *CassandraClusterReconciler) updateAdminRoleInCassandra(cc *dbv1alpha1.CassandraCluster, oldAdminRoleName, newAdminRoleName, oldAdminPassword, newAdminPassword string) error {
-	cqlClient, err := r.CqlClient(newCassandraConfig(cc, newAdminRoleName, newAdminPassword))
+	cqlClient, err := r.CqlClient(newCassandraConfig(cc, newAdminRoleName, newAdminPassword, r.Log))
 	if err == nil {
 		r.Log.Info("Admin role has been already updated by a different region")
 		cqlClient.CloseSession()
@@ -242,7 +246,7 @@ func (r *CassandraClusterReconciler) updateAdminRoleInCassandra(cc *dbv1alpha1.C
 	}
 
 	r.Log.Info("Establishing cql session with role " + oldAdminRoleName)
-	cqlClient, err = r.CqlClient(newCassandraConfig(cc, oldAdminRoleName, oldAdminPassword))
+	cqlClient, err = r.CqlClient(newCassandraConfig(cc, oldAdminRoleName, oldAdminPassword, r.Log))
 	if err != nil {
 		return errors.Wrap(err, "Could not log in with existing credentials")
 	}

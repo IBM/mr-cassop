@@ -116,18 +116,21 @@ export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.3
 export CASSANDRA_SEEDS=test-cluster-cassandra-dc1-0.test-cluster-cassandra-dc1.default.svc.cluster.local,test-cluster-cassandra-dc1-1.test-cluster-cassandra-dc1.default.svc.cluster.local
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 				"test-cluster-cassandra-dc1-1_uid2.sh": `export CASSANDRA_BROADCAST_ADDRESS=10.1.1.4
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.4
 export CASSANDRA_SEEDS=test-cluster-cassandra-dc1-0.test-cluster-cassandra-dc1.default.svc.cluster.local,test-cluster-cassandra-dc1-1.test-cluster-cassandra-dc1.default.svc.cluster.local
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 				"test-cluster-cassandra-dc1-2_uid3.sh": `export CASSANDRA_BROADCAST_ADDRESS=10.1.1.5
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.5
 export CASSANDRA_SEEDS=test-cluster-cassandra-dc1-0.test-cluster-cassandra-dc1.default.svc.cluster.local,test-cluster-cassandra-dc1-1.test-cluster-cassandra-dc1.default.svc.cluster.local
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=true
+export PAUSE_REASON="waiting for seed nodes to init"
 `,
 			},
 			expectedError: nil,
@@ -174,36 +177,42 @@ export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.3
 export CASSANDRA_SEEDS=test-cluster-cassandra-dc1-0.test-cluster-cassandra-dc1.default.svc.cluster.local,test-cluster-cassandra-dc1-1.test-cluster-cassandra-dc1.default.svc.cluster.local
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 				"test-cluster-cassandra-dc1-1_uid2.sh": `export CASSANDRA_BROADCAST_ADDRESS=10.1.1.4
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.4
 export CASSANDRA_SEEDS=test-cluster-cassandra-dc1-0.test-cluster-cassandra-dc1.default.svc.cluster.local,test-cluster-cassandra-dc1-1.test-cluster-cassandra-dc1.default.svc.cluster.local
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 				"test-cluster-cassandra-dc1-2_uid3.sh": `export CASSANDRA_BROADCAST_ADDRESS=10.1.1.5
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.5
 export CASSANDRA_SEEDS=test-cluster-cassandra-dc1-0.test-cluster-cassandra-dc1.default.svc.cluster.local,test-cluster-cassandra-dc1-1.test-cluster-cassandra-dc1.default.svc.cluster.local
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 				"test-cluster-cassandra-dc1-3_uid4.sh": `export CASSANDRA_BROADCAST_ADDRESS=10.1.1.6
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.6
 export CASSANDRA_SEEDS=test-cluster-cassandra-dc1-0.test-cluster-cassandra-dc1.default.svc.cluster.local,test-cluster-cassandra-dc1-1.test-cluster-cassandra-dc1.default.svc.cluster.local
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 				"test-cluster-cassandra-dc1-4_uid5.sh": `export CASSANDRA_BROADCAST_ADDRESS=10.1.1.7
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.7
 export CASSANDRA_SEEDS=test-cluster-cassandra-dc1-0.test-cluster-cassandra-dc1.default.svc.cluster.local,test-cluster-cassandra-dc1-1.test-cluster-cassandra-dc1.default.svc.cluster.local
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=true
+export PAUSE_REASON="waiting for other non seed nodes since only one non seed node can start at a time"
 `,
 				"test-cluster-cassandra-dc1-5_uid6.sh": `export CASSANDRA_BROADCAST_ADDRESS=10.1.1.8
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.8
 export CASSANDRA_SEEDS=test-cluster-cassandra-dc1-0.test-cluster-cassandra-dc1.default.svc.cluster.local,test-cluster-cassandra-dc1-1.test-cluster-cassandra-dc1.default.svc.cluster.local
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=true
+export PAUSE_REASON="waiting for other non seed nodes since only one non seed node can start at a time"
 `,
 			},
 			expectedError: nil,
@@ -265,18 +274,21 @@ export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.3
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 				`test-cluster-cassandra-dc1-1_uid2.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.153
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.4
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 				`test-cluster-cassandra-dc1-2_uid3.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.142
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.5
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 			},
 			expectedError: nil,
@@ -330,18 +342,21 @@ export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.3
 export CASSANDRA_SEEDS=54.32.141.231,54.32.141.232
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 				`test-cluster-cassandra-dc1-1_uid2.sh`: `export CASSANDRA_BROADCAST_ADDRESS=54.32.141.232
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.4
 export CASSANDRA_SEEDS=54.32.141.231,54.32.141.232
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 				`test-cluster-cassandra-dc1-2_uid3.sh`: `export CASSANDRA_BROADCAST_ADDRESS=54.32.141.233
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.5
 export CASSANDRA_SEEDS=54.32.141.231,54.32.141.232
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 			},
 			expectedError: nil,
@@ -396,18 +411,21 @@ export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.3
 export CASSANDRA_SEEDS=54.32.141.231,54.32.141.232,10.10.10.121,10.10.9.121,10.11.10.121,10.11.9.121
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 				`test-cluster-cassandra-dc1-1_uid2.sh`: `export CASSANDRA_BROADCAST_ADDRESS=54.32.141.232
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.4
 export CASSANDRA_SEEDS=54.32.141.231,54.32.141.232,10.10.10.121,10.10.9.121,10.11.10.121,10.11.9.121
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 				`test-cluster-cassandra-dc1-2_uid3.sh`: `export CASSANDRA_BROADCAST_ADDRESS=54.32.141.233
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.5
 export CASSANDRA_SEEDS=54.32.141.231,54.32.141.232,10.10.10.121,10.10.9.121,10.11.10.121,10.11.9.121
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 			},
 			expectedError: nil,
@@ -622,18 +640,21 @@ export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.3
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 				`test-cluster-cassandra-dc1-1_uid2.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.153
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.4
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 				`test-cluster-cassandra-dc1-2_uid3.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.142
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.5
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 			},
 			expectedError: nil,
@@ -731,36 +752,42 @@ export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.3
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 				`test-cluster-cassandra-dc1-1_uid2.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.153
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.4
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 				`test-cluster-cassandra-dc1-2_uid3.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.142
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.5
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=true
+export PAUSE_REASON="waiting for seed nodes to init"
 `,
 				`test-cluster-cassandra-dc3-0_uid1.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.143
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.2.3
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=true
+export PAUSE_REASON="waiting for other DCs to init"
 `,
 				`test-cluster-cassandra-dc3-1_uid2.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.153
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.2.4
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=true
+export PAUSE_REASON="waiting for other DCs to init"
 `,
 				`test-cluster-cassandra-dc3-2_uid3.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.142
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.2.5
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=true
+export PAUSE_REASON="waiting for other DCs to init"
 `,
 			},
 			expectedError: nil,
@@ -858,36 +885,42 @@ export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.5
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 				`test-cluster-cassandra-dc3-0_uid1.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.143
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.2.3
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 				`test-cluster-cassandra-dc3-1_uid2.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.153
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.2.4
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 				`test-cluster-cassandra-dc3-2_uid3.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.142
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.2.5
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 				`test-cluster-cassandra-dc1-0_uid1.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.143
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.3
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 				`test-cluster-cassandra-dc1-1_uid2.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.153
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.4
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 			},
 			expectedError: nil,
@@ -985,36 +1018,42 @@ export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.5
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=true
+export PAUSE_REASON="waiting for other regions to init"
 `,
 				`test-cluster-cassandra-dc3-0_uid1.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.143
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.2.3
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=true
+export PAUSE_REASON="waiting for other regions to init"
 `,
 				`test-cluster-cassandra-dc3-1_uid2.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.153
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.2.4
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=true
+export PAUSE_REASON="waiting for other regions to init"
 `,
 				`test-cluster-cassandra-dc3-2_uid3.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.142
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.2.5
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=true
+export PAUSE_REASON="waiting for other regions to init"
 `,
 				`test-cluster-cassandra-dc1-0_uid1.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.143
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.3
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=true
+export PAUSE_REASON="waiting for other regions to init"
 `,
 				`test-cluster-cassandra-dc1-1_uid2.sh`: `export CASSANDRA_BROADCAST_ADDRESS=12.43.22.153
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.4
 export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153,12.43.22.143,12.43.22.153,42.32.34.111,42.32.34.113
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=true
+export PAUSE_REASON="waiting for other regions to init"
 `,
 			},
 			expectedError: nil,
@@ -1101,7 +1140,7 @@ export PAUSE_INIT=true
 				},
 			},
 			expectedCMData: nil,
-			expectedError:  errors.New("error getting broadcast addresses: cannot get pod's broadcast address: Cannot get node: node3: nodes \"node3\" not found"),
+			expectedError:  errors.New("error getting broadcast addresses: cannot get pod's broadcast address: Node \"node3\" not found"),
 		},
 		{
 			name: "zone as racks enabled",
@@ -1118,7 +1157,7 @@ export PAUSE_INIT=true
 						},
 					},
 					HostPort: v1alpha1.HostPort{
-						Enabled: true,
+						Enabled: false,
 					},
 					Cassandra: &v1alpha1.Cassandra{
 						ZonesAsRacks: true,
@@ -1145,30 +1184,121 @@ export PAUSE_INIT=true
 			expectedCMData: map[string]string{
 				`test-cluster-cassandra-dc1-0_uid1.sh`: `export CASSANDRA_RACK=zone1
 export CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch
-export CASSANDRA_BROADCAST_ADDRESS=12.43.22.143
+export CASSANDRA_BROADCAST_ADDRESS=10.1.1.3
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.3
-export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153
+export CASSANDRA_SEEDS=test-cluster-cassandra-dc1-0.test-cluster-cassandra-dc1.default.svc.cluster.local,test-cluster-cassandra-dc1-1.test-cluster-cassandra-dc1.default.svc.cluster.local
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 				`test-cluster-cassandra-dc1-1_uid2.sh`: `export CASSANDRA_RACK=zone1
 export CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch
-export CASSANDRA_BROADCAST_ADDRESS=12.43.22.153
+export CASSANDRA_BROADCAST_ADDRESS=10.1.1.4
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.4
-export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153
+export CASSANDRA_SEEDS=test-cluster-cassandra-dc1-0.test-cluster-cassandra-dc1.default.svc.cluster.local,test-cluster-cassandra-dc1-1.test-cluster-cassandra-dc1.default.svc.cluster.local
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 				`test-cluster-cassandra-dc1-2_uid3.sh`: `export CASSANDRA_RACK=zone2
 export CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch
-export CASSANDRA_BROADCAST_ADDRESS=12.43.22.142
+export CASSANDRA_BROADCAST_ADDRESS=10.1.1.5
 export CASSANDRA_BROADCAST_RPC_ADDRESS=10.1.1.5
-export CASSANDRA_SEEDS=12.43.22.143,12.43.22.153
+export CASSANDRA_SEEDS=test-cluster-cassandra-dc1-0.test-cluster-cassandra-dc1.default.svc.cluster.local,test-cluster-cassandra-dc1-1.test-cluster-cassandra-dc1.default.svc.cluster.local
 export CASSANDRA_NODE_PREVIOUS_IP=
 export PAUSE_INIT=false
+export PAUSE_REASON="pod is not paused"
 `,
 			},
 			expectedError: nil,
+		},
+		{
+			name: "region returns zero seeds",
+			cc: &v1alpha1.CassandraCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-cluster",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.CassandraClusterSpec{
+					DCs: []v1alpha1.DC{
+						{
+							Name:     "dc1",
+							Replicas: proto.Int(3),
+						},
+						{
+							Name:     "dc3",
+							Replicas: proto.Int(3),
+						},
+					},
+					HostPort: v1alpha1.HostPort{
+						Enabled: true,
+					},
+					Ingress: v1alpha1.Ingress{
+						Domain: "region2.ingress.domain",
+						Secret: "region2.ingress.domain-secret",
+					},
+					ExternalRegions: v1alpha1.ExternalRegions{
+						Managed: []v1alpha1.ManagedRegion{
+							{
+								Domain: "region1.ingress.domain",
+							},
+						},
+					},
+				},
+			},
+			externalRegionsSeeds: map[string][]string{
+				"default-test-cluster-cassandra-prober.region1.ingress.domain": nil, //no seeds yet, should fail
+			},
+			externalRegionsReadiness: map[string]bool{},
+			k8sLists: []client.ObjectList{
+				&v1.PodList{
+					Items: []v1.Pod{
+						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", false, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", false, cLabels(ccName, "dc1", true)),
+						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", false, cLabels(ccName, "dc1", false)),
+						createTestPod("test-cluster-cassandra-dc3-0", ccNamespace, "uid1", "10.1.2.3", "node1", false, cLabels(ccName, "dc3", true)),
+						createTestPod("test-cluster-cassandra-dc3-1", ccNamespace, "uid2", "10.1.2.4", "node2", false, cLabels(ccName, "dc3", true)),
+						createTestPod("test-cluster-cassandra-dc3-2", ccNamespace, "uid3", "10.1.2.5", "node3", false, cLabels(ccName, "dc3", false)),
+					},
+				},
+				&v1.NodeList{
+					Items: []v1.Node{
+						createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
+						createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
+						createTestNode("node3", "12.43.22.155", "54.32.141.233", nil),
+					},
+				},
+				&appsv1.StatefulSetList{
+					Items: []appsv1.StatefulSet{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      "test-cluster-cassandra-dc1",
+								Namespace: "default",
+							},
+							Spec: appsv1.StatefulSetSpec{
+								Replicas: proto.Int(3),
+							},
+							Status: appsv1.StatefulSetStatus{
+								ReadyReplicas: 0,
+							},
+						},
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      "test-cluster-cassandra-dc3",
+								Namespace: "default",
+							},
+							Spec: appsv1.StatefulSetSpec{
+								Replicas: proto.Int(3),
+							},
+							Status: appsv1.StatefulSetStatus{
+								ReadyReplicas: 0,
+							},
+						},
+					},
+				},
+			},
+			expectedCMData: nil,
+			expectedError:  errors.New("failed to get seeds list: One of the regions is not ready"),
 		},
 	}
 
@@ -1207,7 +1337,7 @@ export PAUSE_INIT=false
 		} else {
 			asserts.Expect(err.Error()).To(Equal(c.expectedError.Error()), "match error message")
 		}
-		asserts.Expect(cmData).To(BeEquivalentTo(c.expectedCMData), cmp.Diff(cmData, c.expectedCMData))
+		asserts.Expect(cmData).To(BeEquivalentTo(c.expectedCMData), cmp.Diff(c.expectedCMData, cmData))
 	}
 
 }

@@ -174,9 +174,6 @@ var _ = Describe("auth logic", func() {
 			By("Recreate cluster with created PVCs to check if the new password is picked up")
 			Expect(kubeClient.Delete(ctx, cc)).To(Succeed())
 
-			By("Removing cassandra cluster...")
-			Expect(kubeClient.DeleteAllOf(ctx, &dbv1alpha1.CassandraCluster{}, client.InNamespace(cc.Namespace))).To(Succeed())
-
 			By("Wait until all pods are terminated...")
 			waitForPodsTermination(cc.Namespace, map[string]string{dbv1alpha1.CassandraClusterInstance: cc.Name})
 

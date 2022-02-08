@@ -202,6 +202,10 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 
 	allDCs, err := r.getAllDCs(ctx, cc, proberClient)
 	if err != nil {
+		if errors.Cause(err) == ErrRegionNotReady {
+			r.Log.Warnf("%s. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
+			return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
+		}
 		return ctrl.Result{}, errors.Wrap(err, "can't get all dcs across regions")
 	}
 

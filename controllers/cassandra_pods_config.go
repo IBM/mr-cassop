@@ -17,7 +17,6 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -58,7 +57,16 @@ func (r *CassandraClusterReconciler) podsConfigMapData(ctx context.Context, cc *
 		return nil, nil // the statefulset may not be created yet
 	}
 
-	broadcastAddresses, err := r.getBroadcastAddresses(ctx, cc)
+	nodeList := &v1.NodeList{}
+	//optimization - node info needed only if hostport or zoneAsRacks enabled
+	if cc.Spec.HostPort.Enabled || cc.Spec.Cassandra.ZonesAsRacks {
+		err = r.List(ctx, nodeList)
+		if err != nil {
+			return nil, errors.Wrap(err, "can't get list of nodes")
+		}
+	}
+
+	broadcastAddresses, err := getBroadcastAddresses(cc, podList.Items, nodeList.Items)
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting broadcast addresses")
 	}
@@ -90,11 +98,9 @@ func (r *CassandraClusterReconciler) podsConfigMapData(ctx context.Context, cc *
 		}
 
 		if cc.Spec.Cassandra.ZonesAsRacks {
-			// Get the node where the pod was started
-			nodeName := pod.Spec.NodeName
-			node := &v1.Node{}
-			if err := r.Get(ctx, client.ObjectKey{Name: nodeName}, node); err != nil {
-				return nil, errors.Wrap(err, "Cannot get node: "+nodeName)
+			node, found := getNodeByName(nodeList.Items, pod.Spec.NodeName)
+			if !found {
+				return nil, errors.Errorf("Node %q not found", pod.Spec.NodeName)
 			}
 			cmData[entryName] += fmt.Sprintln("export CASSANDRA_RACK=" + node.Labels[v1.LabelTopologyZone])
 			// GossipingPropertyFileSnitch: rack and datacenter for the local node are defined in cassandra-rackdc.properties.
@@ -111,29 +117,9 @@ func (r *CassandraClusterReconciler) podsConfigMapData(ctx context.Context, cc *
 		cmData[entryName] += fmt.Sprintln("export CASSANDRA_SEEDS=" + strings.Join(seedsList, ","))
 		cmData[entryName] += fmt.Sprintln("export CASSANDRA_NODE_PREVIOUS_IP=" + originalPodIPs[pod.Name])
 
-		pausePodInit := false
-		if currentRegionPaused { // should pause all pods if the region is on pause
-			pausePodInit = true
-		} else if nextDCToInit == "" { // should not pause any pod if all DCs are ready
-			pausePodInit = false
-		} else { // start pod if it's in the next selected DC
-			pausePodInit = nextDCToInit != pod.Labels[v1alpha1.CassandraClusterDC] //start the node if it's in the next DC to init
-			if !seedNodesReady && !isSeedPod(pod) {                                //pause non-seed nodes until seed nodes are up and running
-				pausePodInit = true
-			}
-
-			if seedNodesReady && !isSeedPod(pod) { //start non-seed nodes one by one
-				if len(nextNonSeedPodName) != 0 { // if not all seed nodes are ready
-					if nextNonSeedPodName == pod.Name || podReady(pod) { // don't pause if that's the next pod to init or an already initialized one
-						pausePodInit = false
-					} else {
-						pausePodInit = true
-					}
-				}
-			}
-		}
-
-		cmData[entryName] += fmt.Sprintln("export PAUSE_INIT=" + fmt.Sprint(pausePodInit))
+		pauseInit, pauseReason := pausePodInit(pod, nextDCToInit, currentRegionPaused, seedNodesReady, nextNonSeedPodName)
+		cmData[entryName] += fmt.Sprintln("export PAUSE_INIT=" + fmt.Sprint(pauseInit))
+		cmData[entryName] += fmt.Sprintf("export PAUSE_REASON=\"%s\"\n", pauseReason)
 	}
 
 	return cmData, nil
@@ -210,15 +196,13 @@ func (r *CassandraClusterReconciler) getInitOrderInfo(ctx context.Context, cc *v
 func (r *CassandraClusterReconciler) getRemoteClusterRegionsStatuses(ctx context.Context, cc *v1alpha1.CassandraCluster, proberClient prober.ProberClient) (clusterRegionsStatuses map[string]bool, err error) {
 	clusterRegionsStatuses = make(map[string]bool)
 	for _, externalRegion := range cc.Spec.ExternalRegions.Managed {
-		if len(externalRegion.Domain) > 0 {
-			proberHost := names.ProberIngressDomain(cc, externalRegion)
-			regionsReady, err := proberClient.RegionReady(ctx, proberHost)
-			if err != nil {
-				r.Log.Warnf(fmt.Sprintf("Unable to get region readiness status from prober %q. Err: %#v", proberHost, err))
-				return nil, ErrRegionNotReady
-			}
-			clusterRegionsStatuses[proberHost] = regionsReady
+		proberHost := names.ProberIngressDomain(cc, externalRegion)
+		regionsReady, err := proberClient.RegionReady(ctx, proberHost)
+		if err != nil {
+			r.Log.Warnf("unable to get region readiness status from prober %q. Err: %#v", proberHost, err)
+			return nil, ErrRegionNotReady
 		}
+		clusterRegionsStatuses[proberHost] = regionsReady
 	}
 
 	return clusterRegionsStatuses, nil
@@ -272,6 +256,12 @@ func (r *CassandraClusterReconciler) getSeedsList(ctx context.Context, cc *v1alp
 				r.Log.Warnf("can't get seeds from region %s", regionsHost)
 				return nil, ErrRegionNotReady
 			}
+
+			if len(seeds) == 0 {
+				r.Log.Warnf("region %s is not ready - returned zero seeds", regionsHost)
+				return nil, ErrRegionNotReady
+			}
+
 			cassandraSeeds = append(cassandraSeeds, seeds...)
 		}
 
@@ -283,15 +273,11 @@ func (r *CassandraClusterReconciler) getSeedsList(ctx context.Context, cc *v1alp
 	return cassandraSeeds, nil
 }
 
-func (r *CassandraClusterReconciler) getBroadcastAddresses(ctx context.Context, cc *v1alpha1.CassandraCluster) (map[string]string, error) {
-	podList, err := r.getCassandraPods(ctx, cc)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot get Cassandra pods list")
-	}
+func getBroadcastAddresses(cc *v1alpha1.CassandraCluster, pods []v1.Pod, nodes []v1.Node) (map[string]string, error) {
 	broadcastAddresses := make(map[string]string)
 
-	for _, pod := range podList.Items {
-		addr, err := r.getPodBroadcastAddress(ctx, cc, pod)
+	for _, pod := range pods {
+		addr, err := getPodBroadcastAddress(cc, pod, nodes)
 		if err != nil { // Error until pod is scheduled and ip is assigned
 			return nil, errors.Wrap(err, "cannot get pod's broadcast address")
 		}
@@ -301,7 +287,7 @@ func (r *CassandraClusterReconciler) getBroadcastAddresses(ctx context.Context, 
 	return broadcastAddresses, nil
 }
 
-func (r *CassandraClusterReconciler) getPodBroadcastAddress(ctx context.Context, cc *v1alpha1.CassandraCluster, pod v1.Pod) (string, error) {
+func getPodBroadcastAddress(cc *v1alpha1.CassandraCluster, pod v1.Pod, nodes []v1.Node) (string, error) {
 	if !cc.Spec.HostPort.Enabled {
 		if len(pod.Status.PodIP) == 0 {
 			return "", ErrPodNotScheduled
@@ -314,9 +300,10 @@ func (r *CassandraClusterReconciler) getPodBroadcastAddress(ctx context.Context,
 	if nodeName == "" {
 		return "", ErrPodNotScheduled
 	}
-	node := &v1.Node{}
-	if err := r.Get(ctx, client.ObjectKey{Name: nodeName}, node); err != nil {
-		return "", errors.Wrap(err, "Cannot get node: "+nodeName)
+
+	node, found := getNodeByName(nodes, nodeName)
+	if !found {
+		return "", errors.Errorf("Node %q not found", nodeName)
 	}
 
 	if cc.Spec.HostPort.UseExternalHostIP {
@@ -392,4 +379,48 @@ func getSeedHostname(cc *v1alpha1.CassandraCluster, dcName string, podSuffix int
 		return fmt.Sprintf("%s-%d.%s.%s.svc.cluster.local", svc, podSuffix, svc, cc.Namespace)
 	}
 	return fmt.Sprintf("%s-%d", svc, podSuffix)
+}
+
+func pausePodInit(pod v1.Pod, nextDCToInit string, currentRegionPaused bool, seedNodesReady bool, nextNonSeedPodName string) (bool, string) {
+	pauseInit := false
+	pauseReason := "pod is not paused"
+	if currentRegionPaused { // should pause all pods if the region is on pause
+		pauseReason = "waiting for other regions to init"
+		pauseInit = true
+	} else if nextDCToInit == "" { // should not pause any pod if all DCs are ready
+		pauseInit = false
+	} else { // start pod if it's in the next selected DC
+		pauseInit = nextDCToInit != pod.Labels[v1alpha1.CassandraClusterDC] //start the node if it's in the next DC to init
+		if pauseInit {
+			pauseReason = "waiting for other DCs to init"
+		} else {
+			if !seedNodesReady && !isSeedPod(pod) { //pause non-seed nodes until seed nodes are up and running
+				pauseReason = "waiting for seed nodes to init"
+				pauseInit = true
+			}
+
+			if seedNodesReady && !isSeedPod(pod) { //start non-seed nodes one by one
+				if len(nextNonSeedPodName) != 0 { // if not all seed nodes are ready
+					if nextNonSeedPodName == pod.Name || podReady(pod) { // don't pause if that's the next pod to init or an already initialized one
+						pauseInit = false
+					} else {
+						pauseReason = "waiting for other non seed nodes since only one non seed node can start at a time"
+						pauseInit = true
+					}
+				}
+			}
+		}
+	}
+
+	return pauseInit, pauseReason
+}
+
+func getNodeByName(nodes []v1.Node, name string) (v1.Node, bool) {
+	for _, node := range nodes {
+		if node.Name == name {
+			return node, true
+		}
+	}
+
+	return v1.Node{}, false
 }

@@ -203,7 +203,7 @@ func cassandraContainerPorts(cc *dbv1alpha1.CassandraCluster) []v1.ContainerPort
 
 func getCassandraRunCommand(cc *dbv1alpha1.CassandraCluster, clientTLSSecret *v1.Secret) string {
 	var args []string
-	if cc.Spec.Cassandra.PurgeGossip {
+	if cc.Spec.Cassandra.PurgeGossip != nil && *cc.Spec.Cassandra.PurgeGossip {
 		args = append(args, "rm -rf /var/lib/cassandra/data/system/peers*")
 	}
 
@@ -222,8 +222,15 @@ fi
 		"source /etc/pods-config/${POD_NAME}_${POD_UID}.sh",
 		`replace_address=""
 old_ip=$CASSANDRA_NODE_PREVIOUS_IP
-if ([[ "${old_ip}" != "" ]]) && ([ ! -d "/var/lib/cassandra/data" ] || [ -z "$(ls -A /var/lib/cassandra/data)" ]); then
-  replace_address="-Dcassandra.replace_address_first_boot=${old_ip}"
+if [[ "${old_ip}" != "" ]]; then
+  if [ ! -d "/var/lib/cassandra/data" ] || [ -z "$(ls -A /var/lib/cassandra/data)" ]; then
+    replace_address="-Dcassandra.replace_address_first_boot=${old_ip}"
+    echo replacing old Cassandra node - adding arg $replace_address
+  else
+    echo not using replace address since the storage directory is not empty
+  fi
+else
+  echo not using replace address since the node IP hasn\'t changed
 fi`,
 	)
 

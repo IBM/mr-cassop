@@ -140,13 +140,18 @@ func (r *CassandraClusterReconciler) getAllDCs(ctx context.Context, cc *v1alpha1
 	}
 
 	for _, externalRegion := range cc.Spec.ExternalRegions.Managed {
-		externalDCs, err := proberClient.GetDCs(ctx, names.ProberIngressDomain(cc, externalRegion))
+		regionURL := names.ProberIngressDomain(cc, externalRegion)
+		externalDCs, err := proberClient.GetDCs(ctx, regionURL)
 		if err != nil {
-			return nil, errors.Wrapf(err, "can't get dcs list from dc %q", externalRegion.Domain)
+			return nil, errors.Wrapf(err, "can't get dcs list from region %q", regionURL)
+		}
+
+		if len(externalDCs) == 0 {
+			r.Log.Warnf("region %s returned zero DCs", names.ProberIngressDomain(cc, externalRegion))
+			return nil, ErrRegionNotReady
 		}
 
 		allDCs = append(allDCs, externalDCs...)
-
 	}
 
 	for _, unmanagedRegion := range cc.Spec.ExternalRegions.Unmanaged {

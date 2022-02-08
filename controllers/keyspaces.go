@@ -164,7 +164,7 @@ func (r CassandraClusterReconciler) reconcileSystemAuthIfReady(ctx context.Conte
 	}
 	cassandraOperatorAdminRole := string(adminRoleSecret.Data[dbv1alpha1.CassandraOperatorAdminRole])
 	cassandraOperatorAdminPassword := string(adminRoleSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword])
-	cqlClient, err := r.CqlClient(newCassandraConfig(cc, cassandraOperatorAdminRole, cassandraOperatorAdminPassword))
+	cqlClient, err := r.CqlClient(newCassandraConfig(cc, cassandraOperatorAdminRole, cassandraOperatorAdminPassword, r.Log))
 	if err == nil { // if the current region is the ready one it will succeed
 		defer cqlClient.CloseSession()
 		err = r.reconcileSystemAuthKeyspace(ctx, cc, cqlClient, allDCs)

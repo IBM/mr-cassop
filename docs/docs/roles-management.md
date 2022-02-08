@@ -43,8 +43,6 @@ metadata:
 spec:
   imagePullSecretName: "pull-secret"
   rolesSecretName: cassandra-roles
-  cassandra:
-    purgeGossip: true
   ...
 ```
 

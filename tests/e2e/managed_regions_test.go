@@ -128,6 +128,27 @@ var _ = Describe("managed multi region cluster", func() {
 		nodes := &v1.NodeList{}
 		Expect(kubeClient.List(ctx, nodes))
 		checkBroadcastAddressOnAllPods(cc1Pods, nodes, v1.NodeInternalIP, cmd)
+
+		By("Recreating cluster to check if multi region setup can start with existing PVCs")
+		By("Removing cluster")
+		Expect(kubeClient.Delete(ctx, cc1)).To(Succeed())
+		Expect(kubeClient.Delete(ctx, cc2)).To(Succeed())
+
+		waitForPodsTermination(cc1.Namespace, labels.Cassandra(cc1))
+		waitForPodsTermination(cc2.Namespace, labels.Cassandra(cc2))
+
+		cc1.ResourceVersion = ""
+		cc2.ResourceVersion = ""
+
+		By("Recreating regions")
+		Expect(kubeClient.Create(ctx, cc1)).To(Succeed())
+		Expect(kubeClient.Create(ctx, cc2)).To(Succeed())
+
+		waitForPodsReadiness(cc1.Namespace, labels.Cassandra(cc1), numberOfNodes(cc1))
+		waitForPodsReadiness(cc1.Namespace, labels.Reaper(cc1), 1)
+
+		waitForPodsReadiness(cc2.Namespace, labels.Cassandra(cc2), numberOfNodes(cc2))
+		waitForPodsReadiness(cc2.Namespace, labels.Reaper(cc2), 1)
 	})
 })
 

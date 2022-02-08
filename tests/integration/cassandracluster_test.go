@@ -96,14 +96,22 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 				Expect(sts.Spec.Template.Spec.Containers[0].Args).To(BeEquivalentTo([]string{
 					"bash",
 					"-c",
-					fmt.Sprintf("echo \"prefer_local=true\" >> $CASSANDRA_CONF/cassandra-rackdc.properties\n" +
+					fmt.Sprintf("rm -rf /var/lib/cassandra/data/system/peers*\n" +
+						"echo \"prefer_local=true\" >> $CASSANDRA_CONF/cassandra-rackdc.properties\n" +
 						"cp /etc/cassandra-configmaps/* $CASSANDRA_CONF/\n" +
 						"cp /etc/cassandra-configmaps/jvm.options $CASSANDRA_HOME/\n" +
 						"source /etc/pods-config/${POD_NAME}_${POD_UID}.sh\n" +
 						"replace_address=\"\"\n" +
 						"old_ip=$CASSANDRA_NODE_PREVIOUS_IP\n" +
-						"if ([[ \"${old_ip}\" != \"\" ]]) && ([ ! -d \"/var/lib/cassandra/data\" ] || [ -z \"$(ls -A /var/lib/cassandra/data)\" ]); then\n  " +
-						"replace_address=\"-Dcassandra.replace_address_first_boot=${old_ip}\"\n" +
+						"if [[ \"${old_ip}\" != \"\" ]]; then\n" +
+						"  if [ ! -d \"/var/lib/cassandra/data\" ] || [ -z \"$(ls -A /var/lib/cassandra/data)\" ]; then\n" +
+						"    replace_address=\"-Dcassandra.replace_address_first_boot=${old_ip}\"\n" +
+						"    echo replacing old Cassandra node - adding arg $replace_address\n" +
+						"  else\n" +
+						"    echo not using replace address since the storage directory is not empty\n" +
+						"  fi\n" +
+						"else\n" +
+						"  echo not using replace address since the node IP hasn\\'t changed\n" +
 						"fi\n" +
 						"/docker-entrypoint.sh -f -R " +
 						"-Dcassandra.jmx.remote.port=7199 " +

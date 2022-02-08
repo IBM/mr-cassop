@@ -172,6 +172,10 @@ func (r *CassandraClusterReconciler) defaultCassandra(cc *dbv1alpha1.CassandraCl
 		cc.Spec.Cassandra.NumSeeds = 2
 	}
 
+	if cc.Spec.Cassandra.PurgeGossip == nil {
+		cc.Spec.Cassandra.PurgeGossip = proto.Bool(true)
+	}
+
 	if cc.Spec.Cassandra.LogLevel == "" {
 		cc.Spec.Cassandra.LogLevel = "info"
 	}

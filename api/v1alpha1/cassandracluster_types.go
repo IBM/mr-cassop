@@ -267,7 +267,7 @@ type Cassandra struct {
 	NumSeeds int32 `json:"numSeeds,omitempty"`
 	// +kubebuilder:validation:Minimum:=0
 	TerminationGracePeriodSeconds *int64            `json:"terminationGracePeriodSeconds,omitempty"`
-	PurgeGossip                   bool              `json:"purgeGossip,omitempty"`
+	PurgeGossip                   *bool             `json:"purgeGossip,omitempty"`
 	Persistence                   Persistence       `json:"persistence,omitempty"`
 	ZonesAsRacks                  bool              `json:"zonesAsRacks,omitempty"`
 	JVMOptions                    []string          `json:"jvmOptions,omitempty"`
