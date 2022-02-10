@@ -16,7 +16,14 @@ func initContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 	cpu := resource.MustParse("0.5")
 
 	args := []string{
-		`config_path=/etc/pods-config/${POD_NAME}_${POD_UID}.sh
+		`function sigterm_handler {
+  echo -en "\nReceived SIGTERM; Exiting\n"
+  exit 0
+}
+
+trap sigterm_handler SIGTERM
+
+config_path=/etc/pods-config/${POD_NAME}_${POD_UID}.sh
 COUNT=1
 until [ -f "$config_path" ]; do
   echo Waiting for the operator to mount pod config $config_path. Attempt $(( COUNT++ ))...
