@@ -7,7 +7,13 @@ slug: /cql-configmaps
 
 The Cassandra operator supports running CQL queries through Configmaps by setting the appropriate label.
 
-The CQL Configmap can contain multiple entries with queries. The operator sets annotations on the CQL Configmap to prevent it from running multiple times. The CQL Configmap will be executed just after the Reaper deployment is up and running. You can also run repairs on a specific keyspace by setting the `cql-repairKeyspace` annotation.
+The CQL Configmap can contain multiple entries with queries. In that case they will be executed in lexicographical order. 
+
+To prevent script execution multiple times, the operator sets an annotation with the hash of the data in the ConfgiMap. If any of the scripts are changed the operator will run the whole set again.
+
+The CQL Configmaps are executed right after Reaper is up and running. 
+
+You can also run repairs on a specific keyspace by setting the `cql-repairKeyspace` annotation.
 
 ## Examples
 
@@ -70,3 +76,8 @@ test-cluster   60s
 ```bash
 kubectl annotate configmap/my-cql-queries cassandra-cluster-instance=test-cluster
 ```
+
+:::caution
+Under the hood, the operator uses https://github.com/gocql/gocql to execute CQL queries. That imposes restrictions on the kind of CQL queries you can run.
+For example, `USE` queries are not allowed, `INSERT` queries can't be executed (since the [Query](https://pkg.go.dev/github.com/gocql/gocql#Session.Query) function requires the values to be passed to the function), etc.
+:::

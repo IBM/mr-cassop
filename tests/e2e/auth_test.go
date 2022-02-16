@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/labels"
 	v1 "k8s.io/api/core/v1"
@@ -34,6 +36,38 @@ var _ = Describe("auth logic", func() {
 	Context("with persistence enabled, internal auth", func() {
 		It("should be up to date with the secret", func() {
 			cc := newCassandraClusterTmpl(ccName, cfg.operatorNamespace)
+			cqlConfigMapName := cc.Name + "-cql-script"
+
+			cqlConfigMap := &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      cqlConfigMapName,
+					Namespace: cc.Namespace,
+					Labels: map[string]string{
+						cc.Name: "",
+					},
+				},
+				// ordering the keys and scripts in a way to test our lexicographical order guarantee. Fails if the order is not lexicographical.
+				Data: map[string]string{
+					"3-second-script": `ALTER TABLE e2e_tests.e2e_tests_table 
+ADD another_field text;`,
+					"a-last-script": `DROP TABLE e2e_tests.e2e_tests_table;`,
+					"1-first-script": `CREATE KEYSPACE e2e_tests WITH replication = {'class': 'NetworkTopologyStrategy', 'dc1': 3, 'dc2': 3};
+CREATE TABLE e2e_tests.e2e_tests_table (
+  name text,
+  test_field text,
+  PRIMARY KEY (name, test_field)
+) WITH
+  compaction={'class': 'LeveledCompactionStrategy'} AND
+  compression={'sstable_compression': 'LZ4Compressor'};`,
+				},
+			}
+
+			Expect(kubeClient.Create(ctx, cqlConfigMap)).To(Succeed())
+			DeferCleanup(func() {
+				cmNamespacedName := types.NamespacedName{Namespace: cqlConfigMap.Namespace, Name: cqlConfigMap.Name}
+				Expect(kubeClient.Get(ctx, cmNamespacedName, cqlConfigMap)).To(Succeed())
+				Expect(kubeClient.Delete(ctx, cqlConfigMap)).To(Succeed())
+			})
 
 			createSecret(cc.Namespace, testAdminRoleSecretName, map[string][]byte{
 				dbv1alpha1.CassandraOperatorAdminRole:     []byte(testAdminRole),
@@ -46,6 +80,7 @@ var _ = Describe("auth logic", func() {
 				"fs.file-max":        "1073741824",
 			}
 			cc.Spec.AdminRoleSecretName = testAdminRoleSecretName
+			cc.Spec.CQLConfigMapLabelKey = cc.Name
 			cc.Spec.JMXAuth = "internal"
 			cc.Spec.Cassandra.Persistence = dbv1alpha1.Persistence{
 				Enabled: true,
@@ -76,6 +111,21 @@ var _ = Describe("auth logic", func() {
 
 			By("Secure admin role should be created")
 			testCQLLogin(cc, pod.Name, pod.Namespace, testAdminRole, testAdminPassword)
+
+			By("Check if CQL ConfigMap has been executed")
+			selectQueryCmd := []string{
+				"bash",
+				"-c",
+				fmt.Sprintf("cqlsh -u %s -p \"%s\" -e \"DESCRIBE KEYSPACES\"", testAdminRole, testAdminPassword),
+			}
+			Eventually(func() (string, error) {
+				execResult, err := execPod(pod.Name, pod.Namespace, selectQueryCmd)
+				if err != nil {
+					return "", err
+				}
+
+				return execResult.stdout, nil
+			}, 2*time.Minute, 10*time.Second).Should(ContainSubstring("e2e_tests"))
 
 			By("Add a new DC")
 			ccName := types.NamespacedName{Name: cc.Name, Namespace: cc.Namespace}

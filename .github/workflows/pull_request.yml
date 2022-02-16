@@ -297,7 +297,7 @@ jobs:
         ibmcloud config --check-version=false
         ibmcloud plugin install -f container-registry
     - name: Authenticate with IBM Cloud CLI
-      uses: nick-invision/retry@v2
+      uses: nick-fields/retry@v2
       id: retry
       continue-on-error: false
       with:
@@ -367,7 +367,7 @@ jobs:
         ibmcloud plugin install -f kubernetes-service
         ibmcloud plugin install -f container-registry
     - name: Authenticate with IBM Cloud CLI
-      uses: nick-invision/retry@v2
+      uses: nick-fields/retry@v2
       id: retry
       continue-on-error: false
       with:
@@ -382,7 +382,7 @@ jobs:
           kubectl config current-context
           kubectl config set-context --current --namespace $IKS_NAMESPACE
     - name: Deploy C* operator helm chart
-      uses: nick-invision/retry@v2
+      uses: nick-fields/retry@v2
       with:
         timeout_seconds: 60
         max_attempts: 3
