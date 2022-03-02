@@ -23,7 +23,7 @@ jobs:
       version: ${{ steps.meta.outputs.version }}
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Prepare image metadata
       uses: docker/metadata-action@v3
@@ -93,7 +93,7 @@ jobs:
       version: ${{ steps.meta.outputs.version }}
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Prepare image metadata
       uses: docker/metadata-action@v3
@@ -164,7 +164,7 @@ jobs:
       version: ${{ steps.meta.outputs.version }}
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Prepare image metadata
       uses: docker/metadata-action@v3
@@ -234,7 +234,7 @@ jobs:
       version: ${{ steps.meta.outputs.version }}
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Prepare image metadata
       uses: docker/metadata-action@v3
@@ -303,7 +303,7 @@ jobs:
     needs: [operator, cassandra, prober, jolokia]
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Setup Helm
       uses: azure/setup-helm@v2.0
@@ -354,7 +354,7 @@ jobs:
     needs: [helm-release]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Setup Node
       uses: actions/setup-node@v3.0.0
       with:
