@@ -126,6 +126,11 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, restartChecksum checksumContainer, clientTLSSecret *v1.Secret) *appsv1.StatefulSet {
 	stsLabels := labels.CombinedComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra)
 	stsLabels = labels.WithDCLabel(stsLabels, dc.Name)
+	if cc.Spec.Cassandra.Monitoring.Agent == dbv1alpha1.CassandraAgentTlp {
+		stsLabels["environment"] = cc.Namespace
+		stsLabels["datacenter"] = dc.Name
+		stsLabels["app.kubernetes.io/name"] = cc.Name
+	}
 	desiredSts := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      names.DC(cc.Name, dc.Name),
