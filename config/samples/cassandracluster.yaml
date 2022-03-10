@@ -94,10 +94,10 @@ spec:
   encryption:
     server:
       internodeEncryption: none # If set to `all` all internode traffic are encrypted
-      tlsSecret:
-        name: cassandra-cluster-tls
+      caTLSSecret:
+        name: cassandra-cluster-tls-ca
     client:
       enabled: false
-      tlsSecret:
-        name: cassandra-client-tls
+      caTLSSecret:
+        name: cassandra-client-tls-ca
 

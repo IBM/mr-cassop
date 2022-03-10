@@ -24,6 +24,30 @@ build:
   local:
     push: true
     concurrency: 4
+#build:
+#  artifacts:
+#  - image: "738806440043.dkr.ecr.us-east-1.amazonaws.com/cassandra-operator"
+#    context: .
+#    docker:
+#      dockerfile: Dockerfile
+#  - image: "738806440043.dkr.ecr.us-east-1.amazonaws.com/prober"
+#    context: prober/
+#    docker:
+#      dockerfile: Dockerfile
+#  - image: "738806440043.dkr.ecr.us-east-1.amazonaws.com/cassandra"
+#    context: cassandra/
+#    docker:
+#      dockerfile: Dockerfile
+#  - image: "738806440043.dkr.ecr.us-east-1.amazonaws.com/jolokia"
+#    context: jolokia/
+#    docker:
+#      dockerfile: Dockerfile
+#  tagPolicy:
+#    envTemplate:
+#      template: "{{.USER}}"
+#  local:
+#    push: true
+#    concurrency: 4
 deploy:
   helm:
     releases:

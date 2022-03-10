@@ -31,8 +31,7 @@ func (r *CassandraClusterReconciler) reconcileAdminAuth(ctx context.Context, cc 
 	actualActiveAdminSecret := &v1.Secret{}
 	err := r.Get(ctx, types.NamespacedName{Name: names.ActiveAdminSecret(cc.Name), Namespace: cc.Namespace}, actualActiveAdminSecret)
 	if err != nil && kerrors.IsNotFound(err) {
-		r.Log.Info("The Secret " + names.ActiveAdminSecret(cc.Name) + " doesn't exist. " +
-			"Assuming it's the first cluster deployment.")
+		r.Log.Infof("Secret `%s` doesn't exist. Assuming it's the first cluster deployment.", names.ActiveAdminSecret(cc.Name))
 
 		err := r.createClusterAdminSecrets(ctx, cc)
 		if err != nil {
@@ -40,7 +39,7 @@ func (r *CassandraClusterReconciler) reconcileAdminAuth(ctx context.Context, cc 
 		}
 		return nil
 	} else if err != nil {
-		return errors.Wrap(err, "failed to get active admin secret")
+		return errors.Wrapf(err, "failed to get active admin Secret `%s`", names.ActiveAdminSecret(cc.Name))
 	}
 
 	actualBaseAdminSecret := &v1.Secret{}
@@ -354,18 +353,18 @@ certfile = %s/%s
 ;; Optional, true by default
 validate = true
 version = SSLv23
-`, cassandraClientTLSDir, cc.Spec.Encryption.Client.TLSSecret.CAFileKey)
+`, cassandraClientTLSDir, cc.Spec.Encryption.Client.NodeTLSSecret.CACrtFileKey)
 
 		if *cc.Spec.Encryption.Client.RequireClientAuth {
 			cqlshConfig += fmt.Sprintf(`
 ;; The next 2 lines must be provided when require_client_auth = true in the cassandra.yaml file
 userkey = %s/%s
 usercert = %s/%s
-`, cassandraClientTLSDir, cc.Spec.Encryption.Client.TLSSecret.TLSFileKey,
-				cassandraClientTLSDir, cc.Spec.Encryption.Client.TLSSecret.TLSCrtFileKey)
+`, cassandraClientTLSDir, cc.Spec.Encryption.Client.NodeTLSSecret.FileKey,
+				cassandraClientTLSDir, cc.Spec.Encryption.Client.NodeTLSSecret.CrtFileKey)
 		}
 
-		clientTLSSecret, err := r.getSecret(ctx, cc.Spec.Encryption.Client.TLSSecret.Name, cc.Namespace)
+		clientTLSSecret, err := r.getSecret(ctx, cc.Spec.Encryption.Client.NodeTLSSecret.Name, cc.Namespace)
 		if err != nil {
 			return err
 		}
@@ -386,7 +385,7 @@ usercert = %s/%s
 	}
 
 	if err := r.reconcileSecret(ctx, desiredAdminAuthConfigSecret); err != nil {
-		return errors.Wrap(err, "Unable to create "+names.ActiveAdminSecret(cc.Name))
+		return errors.Wrapf(err, "Unable to create Secret %s", names.ActiveAdminSecret(cc.Name))
 	}
 
 	return nil

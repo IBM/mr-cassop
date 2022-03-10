@@ -1431,6 +1431,17 @@ spec:
                     properties:
                       algorithm:
                         type: string
+                      caTLSSecret:
+                        properties:
+                          crtFileKey:
+                            type: string
+                          fileKey:
+                            type: string
+                          name:
+                            type: string
+                        required:
+                        - name
+                        type: object
                       cipherSuites:
                         items:
                           type: string
@@ -1439,6 +1450,29 @@ spec:
                         description: ClientEncryption enables encryption between client
                           and server via CQL and JXM protocols.
                         type: boolean
+                      nodeTLSSecret:
+                        properties:
+                          caFileKey:
+                            type: string
+                          crtFileKey:
+                            type: string
+                          fileKey:
+                            type: string
+                          generateKeystorePassword:
+                            type: string
+                          keystoreFileKey:
+                            type: string
+                          keystorePasswordKey:
+                            type: string
+                          name:
+                            type: string
+                          truststoreFileKey:
+                            type: string
+                          truststorePasswordKey:
+                            type: string
+                        required:
+                        - name
+                        type: object
                       optional:
                         description: If enabled and optional is set to true both encrypted
                           and unencrypted connections are handled.
@@ -1449,26 +1483,6 @@ spec:
                         type: boolean
                       storeType:
                         type: string
-                      tlsSecret:
-                        description: TLS Secret fields configuration
-                        properties:
-                          caFileKey:
-                            type: string
-                          keystoreFileKey:
-                            type: string
-                          keystorePasswordKey:
-                            type: string
-                          name:
-                            type: string
-                          tlsCrtFileKey:
-                            type: string
-                          tlsFileKey:
-                            type: string
-                          truststoreFileKey:
-                            type: string
-                          truststorePasswordKey:
-                            type: string
-                        type: object
                     type: object
                   server:
                     description: ServerEncryption defines encryption between Cassandra
@@ -1476,6 +1490,17 @@ spec:
                     properties:
                       algorithm:
                         type: string
+                      caTLSSecret:
+                        properties:
+                          crtFileKey:
+                            type: string
+                          fileKey:
+                            type: string
+                          name:
+                            type: string
+                        required:
+                        - name
+                        type: object
                       cipherSuites:
                         items:
                           type: string
@@ -1490,17 +1515,16 @@ spec:
                         - dc
                         - all
                         type: string
-                      protocol:
-                        type: string
-                      requireClientAuth:
-                        type: boolean
-                      requireEndpointVerification:
-                        type: boolean
-                      storeType:
-                        type: string
-                      tlsSecret:
-                        description: TLS Secret fields configuration
+                      nodeTLSSecret:
                         properties:
+                          caFileKey:
+                            type: string
+                          crtFileKey:
+                            type: string
+                          fileKey:
+                            type: string
+                          generateKeystorePassword:
+                            type: string
                           keystoreFileKey:
                             type: string
                           keystorePasswordKey:
@@ -1511,7 +1535,17 @@ spec:
                             type: string
                           truststorePasswordKey:
                             type: string
+                        required:
+                        - name
                         type: object
+                      protocol:
+                        type: string
+                      requireClientAuth:
+                        type: boolean
+                      requireEndpointVerification:
+                        type: boolean
+                      storeType:
+                        type: string
                     type: object
                 type: object
               externalRegions:

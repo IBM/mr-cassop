@@ -35,11 +35,11 @@ func newCassandraConfig(cc *v1alpha1.CassandraCluster, adminRole string, adminPw
 	if cc.Spec.Encryption.Client.Enabled {
 		cassCfg.SslOpts = &gocql.SslOptions{
 			CertPath: fmt.Sprintf("%s/%s", names.OperatorClientTLSDir(cc),
-				cc.Spec.Encryption.Client.TLSSecret.TLSCrtFileKey),
+				cc.Spec.Encryption.Client.NodeTLSSecret.CrtFileKey),
 			KeyPath: fmt.Sprintf("%s/%s", names.OperatorClientTLSDir(cc),
-				cc.Spec.Encryption.Client.TLSSecret.TLSFileKey),
+				cc.Spec.Encryption.Client.NodeTLSSecret.FileKey),
 			CaPath: fmt.Sprintf("%s/%s", names.OperatorClientTLSDir(cc),
-				cc.Spec.Encryption.Client.TLSSecret.CAFileKey),
+				cc.Spec.Encryption.Client.NodeTLSSecret.CACrtFileKey),
 			EnableHostVerification: false,
 		}
 	}

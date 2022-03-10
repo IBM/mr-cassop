@@ -26,6 +26,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 )
 
 var (
@@ -493,4 +495,21 @@ func cleanupResources(ccName, ccNamespace string) {
 			Expect(kubeClient.Delete(ctx, roleSecret))
 		}
 	}
+
+	if cc.Spec.Encryption.Server.InternodeEncryption != dbv1alpha1.InternodeEncryptionNone {
+		serverCASecret := &v1.Secret{}
+		err := kubeClient.Get(ctx, types.NamespacedName{Name: cc.Spec.Encryption.Server.CATLSSecret.Name, Namespace: ccNamespace}, serverCASecret)
+		if err == nil {
+			Expect(kubeClient.Delete(ctx, serverCASecret))
+		}
+	}
+
+	if cc.Spec.Encryption.Client.Enabled == true {
+		clientCASecret := &v1.Secret{}
+		err := kubeClient.Get(ctx, types.NamespacedName{Name: cc.Spec.Encryption.Client.CATLSSecret.Name, Namespace: ccNamespace}, clientCASecret)
+		if err == nil {
+			Expect(kubeClient.Delete(ctx, clientCASecret))
+		}
+	}
+
 }

@@ -11,6 +11,7 @@ import (
 )
 
 func TestDefaultingFunction(t *testing.T) {
+	tlsEcdheRsaAes128GcmSha256 := "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
 	g := NewGomegaWithT(t)
 	reconciler := &CassandraClusterReconciler{
 		Cfg: config.Config{
@@ -115,12 +116,17 @@ func TestDefaultingFunction(t *testing.T) {
 			Encryption: v1alpha1.Encryption{
 				Server: v1alpha1.ServerEncryption{
 					InternodeEncryption: "dc",
-					TLSSecret: v1alpha1.TLSSecret{
+					NodeTLSSecret: v1alpha1.NodeTLSSecret{
 						Name:                  "server-tls-secret",
 						KeystoreFileKey:       "test.jks",
 						KeystorePasswordKey:   "test.txt",
 						TruststoreFileKey:     "test.jks",
 						TruststorePasswordKey: "test.txt",
+					},
+					CATLSSecret: v1alpha1.CATLSSecret{
+						Name:       "server-ca-tls-secret",
+						FileKey:    "ca.key",
+						CrtFileKey: "ca.crt",
 					},
 					RequireClientAuth:           proto.Bool(false),
 					RequireEndpointVerification: true,
@@ -132,17 +138,21 @@ func TestDefaultingFunction(t *testing.T) {
 				Client: v1alpha1.ClientEncryption{
 					Enabled:  true,
 					Optional: true,
-					TLSSecret: v1alpha1.ClientTLSSecret{
-						TLSSecret: v1alpha1.TLSSecret{
-							Name:                  "client-tls-secret",
-							KeystoreFileKey:       "test.jks",
-							KeystorePasswordKey:   "test.txt",
-							TruststoreFileKey:     "test.jks",
-							TruststorePasswordKey: "test.txt",
-						},
-						CAFileKey:     "ca.crt",
-						TLSFileKey:    "tls.key",
-						TLSCrtFileKey: "tls.crt",
+					NodeTLSSecret: v1alpha1.NodeTLSSecret{
+						Name:                     "client-tls-secret",
+						FileKey:                  "tls.key",
+						CrtFileKey:               "ca.crt",
+						CACrtFileKey:             "tls.crt",
+						KeystoreFileKey:          "test.jks",
+						KeystorePasswordKey:      "test.txt",
+						TruststoreFileKey:        "test.jks",
+						TruststorePasswordKey:    "test.txt",
+						GenerateKeystorePassword: "",
+					},
+					CATLSSecret: v1alpha1.CATLSSecret{
+						Name:       "client-ca-tls-secret",
+						FileKey:    "ca.key",
+						CrtFileKey: "ca.crt",
 					},
 					RequireClientAuth: proto.Bool(false),
 					Protocol:          "TLS",
@@ -193,11 +203,17 @@ func TestDefaultingFunction(t *testing.T) {
 
 	// Server encryption
 	g.Expect(cc.Spec.Encryption.Server.InternodeEncryption).To(Equal("dc"))
-	g.Expect(cc.Spec.Encryption.Server.TLSSecret.Name).To(Equal("server-tls-secret"))
-	g.Expect(cc.Spec.Encryption.Server.TLSSecret.KeystoreFileKey).To(Equal("test.jks"))
-	g.Expect(cc.Spec.Encryption.Server.TLSSecret.KeystorePasswordKey).To(Equal("test.txt"))
-	g.Expect(cc.Spec.Encryption.Server.TLSSecret.TruststoreFileKey).To(Equal("test.jks"))
-	g.Expect(cc.Spec.Encryption.Server.TLSSecret.TruststorePasswordKey).To(BeEquivalentTo("test.txt"))
+	g.Expect(cc.Spec.Encryption.Server.NodeTLSSecret.Name).To(Equal("server-tls-secret"))
+	g.Expect(cc.Spec.Encryption.Server.NodeTLSSecret.CACrtFileKey).To(Equal("ca.crt"))
+	g.Expect(cc.Spec.Encryption.Server.NodeTLSSecret.CrtFileKey).To(Equal("tls.crt"))
+	g.Expect(cc.Spec.Encryption.Server.NodeTLSSecret.FileKey).To(Equal("tls.key"))
+	g.Expect(cc.Spec.Encryption.Server.NodeTLSSecret.KeystoreFileKey).To(Equal("test.jks"))
+	g.Expect(cc.Spec.Encryption.Server.NodeTLSSecret.KeystorePasswordKey).To(Equal("test.txt"))
+	g.Expect(cc.Spec.Encryption.Server.NodeTLSSecret.TruststoreFileKey).To(Equal("test.jks"))
+	g.Expect(cc.Spec.Encryption.Server.NodeTLSSecret.TruststorePasswordKey).To(BeEquivalentTo("test.txt"))
+	g.Expect(cc.Spec.Encryption.Server.CATLSSecret.Name).To(BeEquivalentTo("server-ca-tls-secret"))
+	g.Expect(cc.Spec.Encryption.Server.CATLSSecret.CrtFileKey).To(BeEquivalentTo("ca.crt"))
+	g.Expect(cc.Spec.Encryption.Server.CATLSSecret.FileKey).To(BeEquivalentTo("ca.key"))
 	g.Expect(cc.Spec.Encryption.Server.Protocol).To(BeEquivalentTo("TLS"))
 	g.Expect(cc.Spec.Encryption.Server.Algorithm).To(BeEquivalentTo("SunX509"))
 	g.Expect(cc.Spec.Encryption.Server.StoreType).To(BeEquivalentTo("PKCS12"))
@@ -207,11 +223,14 @@ func TestDefaultingFunction(t *testing.T) {
 
 	// Client encryption
 	g.Expect(cc.Spec.Encryption.Client.Enabled).To(BeTrue())
-	g.Expect(cc.Spec.Encryption.Client.TLSSecret.Name).To(Equal("client-tls-secret"))
-	g.Expect(cc.Spec.Encryption.Client.TLSSecret.KeystoreFileKey).To(Equal("test.jks"))
-	g.Expect(cc.Spec.Encryption.Client.TLSSecret.KeystorePasswordKey).To(Equal("test.txt"))
-	g.Expect(cc.Spec.Encryption.Client.TLSSecret.TruststoreFileKey).To(Equal("test.jks"))
-	g.Expect(cc.Spec.Encryption.Client.TLSSecret.TruststorePasswordKey).To(BeEquivalentTo("test.txt"))
+	g.Expect(cc.Spec.Encryption.Client.NodeTLSSecret.Name).To(Equal("client-tls-secret"))
+	g.Expect(cc.Spec.Encryption.Client.NodeTLSSecret.KeystoreFileKey).To(Equal("test.jks"))
+	g.Expect(cc.Spec.Encryption.Client.NodeTLSSecret.KeystorePasswordKey).To(Equal("test.txt"))
+	g.Expect(cc.Spec.Encryption.Client.NodeTLSSecret.TruststoreFileKey).To(Equal("test.jks"))
+	g.Expect(cc.Spec.Encryption.Client.NodeTLSSecret.TruststorePasswordKey).To(BeEquivalentTo("test.txt"))
+	g.Expect(cc.Spec.Encryption.Client.CATLSSecret.Name).To(BeEquivalentTo("client-ca-tls-secret"))
+	g.Expect(cc.Spec.Encryption.Client.CATLSSecret.CrtFileKey).To(BeEquivalentTo("ca.crt"))
+	g.Expect(cc.Spec.Encryption.Client.CATLSSecret.FileKey).To(BeEquivalentTo("ca.key"))
 	g.Expect(cc.Spec.Encryption.Client.Protocol).To(BeEquivalentTo("TLS"))
 	g.Expect(cc.Spec.Encryption.Client.Algorithm).To(BeEquivalentTo("SunX509"))
 	g.Expect(cc.Spec.Encryption.Client.StoreType).To(BeEquivalentTo("PKCS12"))

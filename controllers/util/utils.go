@@ -66,7 +66,7 @@ func EmptySecretFields(secret *v1.Secret, fields []string) []string {
 	var emptyFields []string
 
 	if secret.Data == nil {
-		return []string{}
+		return fields
 	}
 
 	for _, field := range fields {

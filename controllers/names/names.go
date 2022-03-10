@@ -134,3 +134,19 @@ func ValidatingWebhookName() string {
 func WebhooksServiceName() string {
 	return cassandraOperator + "-webhooks"
 }
+
+func CassandraClusterTLSCA(clusterName string) string {
+	return clusterName + "-cluster-tls-ca"
+}
+
+func CassandraClusterTLSNode(clusterName string) string {
+	return clusterName + "-cluster-tls-node"
+}
+
+func CassandraClientTLSCA(clusterName string) string {
+	return clusterName + "-client-tls-ca"
+}
+
+func CassandraClientTLSNode(clusterName string) string {
+	return clusterName + "-client-tls-node"
+}

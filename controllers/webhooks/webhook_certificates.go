@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 )
 
-func setupWebhookTLS(operatorConfig *config.Config) (certs.Keypair, error) {
+func setupWebhookTLS(operatorConfig *config.Config) (*certs.Keypair, error) {
 	// Every time operator start we renew the certificates
 	opts := certs.MakeDefaultOptions()
 	opts.Org = "Cassandra Operator"
@@ -28,12 +28,12 @@ func setupWebhookTLS(operatorConfig *config.Config) (certs.Keypair, error) {
 		fmt.Sprintf("%s.%s.svc.cluster.local", names.WebhooksServiceName(), operatorConfig.Namespace),
 	}
 
-	kp, err := certs.CreateCertificate(caKp, opts)
+	kp, err := certs.CreateCertificate(*caKp, opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to crate Webhook keypair")
 	}
 
-	if err := writeWebhookTLS(names.OperatorWebhookTLSDir(), kp); err != nil {
+	if err := writeWebhookTLS(names.OperatorWebhookTLSDir(), *kp); err != nil {
 		return nil, errors.Wrap(err, "failed to write webhook TLS certificates")
 	}
 
@@ -47,11 +47,11 @@ func writeWebhookTLS(dir string, kp certs.Keypair) error {
 
 	fMode := os.FileMode(0600)
 
-	if err := ioutil.WriteFile(filepath.Join(dir, "tls.crt"), kp.Certificate(), fMode); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(dir, "tls.crt"), kp.Crt, fMode); err != nil {
 		return errors.Wrap(err, "failed to write Webhook TLS certificate to container's filesystem")
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(dir, "tls.key"), kp.PrivateKey(), fMode); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(dir, "tls.key"), kp.Pk, fMode); err != nil {
 		return errors.Wrap(err, "failed to write Webhook TLS key to container's filesystem")
 	}
 

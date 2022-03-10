@@ -17,12 +17,14 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on \
     -o prober .
 
 ARG DOCKER_PROXY_REGISTRY=""
-FROM ${DOCKER_PROXY_REGISTRY}debian:bullseye-slim
-
-RUN apt-get update && apt-get install -y curl net-tools jq && \
-    rm -rf /var/lib/apt/lists/*
+FROM ${DOCKER_PROXY_REGISTRY}debian:bookworm-slim
 
 WORKDIR /
+
+RUN apt-get update && \
+    apt-get install -y ca-certificates && \
+    update-ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
 RUN addgroup --gid 901 prober && adduser --uid 901 --gid 901 prober
 

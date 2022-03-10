@@ -13,28 +13,13 @@ import (
 
 var ErrInvalidPEMBlock = errors.New("Invalid PEM block")
 
-type Keypair interface {
-	// Certificate returns the PEM-encoded x509 certificate
-	Certificate() []byte
-	// PrivateKey returns the PEM-encoded PKCS1 private key
-	PrivateKey() []byte
-}
-
-type keypair struct {
-	crt []byte
-	pk  []byte
-}
-
-func (kp *keypair) Certificate() []byte {
-	return kp.crt
-}
-
-func (kp *keypair) PrivateKey() []byte {
-	return kp.pk
+type Keypair struct {
+	Crt []byte
+	Pk  []byte
 }
 
 // CreateCA generates a new self-signed CA keypair
-func CreateCA(options *CertOpts) (Keypair, error) {
+func CreateCA(options *CertOpts) (*Keypair, error) {
 
 	ca := &x509.Certificate{
 		IsCA:                  true,
@@ -59,21 +44,21 @@ func CreateCA(options *CertOpts) (Keypair, error) {
 
 	pkBytes := x509.MarshalPKCS1PrivateKey(pk)
 
-	return &keypair{
-		crt: encodeToPemFormat("CERTIFICATE", crtBytes),
-		pk:  encodeToPemFormat("RSA PRIVATE KEY", pkBytes),
+	return &Keypair{
+		Crt: encodeToPemFormat("CERTIFICATE", crtBytes),
+		Pk:  encodeToPemFormat("RSA PRIVATE KEY", pkBytes),
 	}, nil
 }
 
 // CreateCertificate generates a new keypair signed by self-signed CA
-func CreateCertificate(caKp Keypair, options *CertOpts) (Keypair, error) {
+func CreateCertificate(caKp Keypair, options *CertOpts) (*Keypair, error) {
 
-	caCrt, err := parseCertificate(caKp.Certificate())
+	caCrt, err := ParseCertificate(caKp.Crt)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse CA certificate")
 	}
 
-	caPk, err := parsePrivateKey(caKp.PrivateKey())
+	caPk, err := ParsePrivateKey(caKp.Pk)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse CA private key")
 	}
@@ -108,9 +93,9 @@ func CreateCertificate(caKp Keypair, options *CertOpts) (Keypair, error) {
 		return nil, errors.Wrap(err, "failed to create certificate")
 	}
 
-	return &keypair{
-		crt: encodeToPemFormat("CERTIFICATE", crtBytes),
-		pk:  encodeToPemFormat("RSA PRIVATE KEY", pkBytes),
+	return &Keypair{
+		Crt: encodeToPemFormat("CERTIFICATE", crtBytes),
+		Pk:  encodeToPemFormat("RSA PRIVATE KEY", pkBytes),
 	}, nil
 }
 
@@ -141,7 +126,7 @@ func encodeToPemFormat(kType string, data []byte) []byte {
 	})
 }
 
-func parseCertificate(pemBytes []byte) (*x509.Certificate, error) {
+func ParseCertificate(pemBytes []byte) (*x509.Certificate, error) {
 	block, _ := pem.Decode(pemBytes)
 	if block == nil {
 		return nil, errors.Wrap(ErrInvalidPEMBlock, "failed to decode CA certificate")
@@ -155,7 +140,7 @@ func parseCertificate(pemBytes []byte) (*x509.Certificate, error) {
 	return caCrt, nil
 }
 
-func parsePrivateKey(pemBytes []byte) (*rsa.PrivateKey, error) {
+func ParsePrivateKey(pemBytes []byte) (*rsa.PrivateKey, error) {
 	block, _ := pem.Decode(pemBytes)
 	if block == nil {
 		return nil, errors.Wrap(ErrInvalidPEMBlock, "failed to decode private key")

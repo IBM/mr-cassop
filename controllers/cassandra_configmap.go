@@ -61,10 +61,8 @@ func (r *CassandraClusterReconciler) reconcileCassandraConfigMap(ctx context.Con
 	}
 
 	if cc.Spec.Encryption.Server.InternodeEncryption != v1alpha1.InternodeEncryptionNone {
-
 		encryptionOptions := make(map[string]interface{})
-
-		serverTLSSecret, err := r.getSecret(ctx, cc.Spec.Encryption.Server.TLSSecret.Name, cc.Namespace)
+		serverTLSSecret, err := r.getSecret(ctx, cc.Spec.Encryption.Server.NodeTLSSecret.Name, cc.Namespace)
 		if err != nil {
 			return err
 		}
@@ -72,15 +70,14 @@ func (r *CassandraClusterReconciler) reconcileCassandraConfigMap(ctx context.Con
 		encryptionOptions["internode_encryption"] = cc.Spec.Encryption.Server.InternodeEncryption
 		encryptionOptions["require_client_auth"] = cc.Spec.Encryption.Server.RequireClientAuth
 		encryptionOptions["require_endpoint_verification"] = cc.Spec.Encryption.Server.RequireEndpointVerification
-		encryptionOptions["keystore"] = fmt.Sprintf("%s/%s", cassandraServerTLSDir, cc.Spec.Encryption.Server.TLSSecret.KeystoreFileKey)
-		encryptionOptions["keystore_password"] = strings.TrimRight(string(serverTLSSecret.Data[cc.Spec.Encryption.Server.TLSSecret.KeystorePasswordKey]), "\r\n")
-		encryptionOptions["truststore"] = fmt.Sprintf("%s/%s", cassandraServerTLSDir, cc.Spec.Encryption.Server.TLSSecret.TruststoreFileKey)
-		encryptionOptions["truststore_password"] = strings.TrimRight(string(serverTLSSecret.Data[cc.Spec.Encryption.Server.TLSSecret.TruststorePasswordKey]), "\r\n")
+		encryptionOptions["keystore"] = fmt.Sprintf("%s/%s", cassandraServerTLSDir, cc.Spec.Encryption.Server.NodeTLSSecret.KeystoreFileKey)
+		encryptionOptions["keystore_password"] = strings.TrimRight(string(serverTLSSecret.Data[cc.Spec.Encryption.Server.NodeTLSSecret.KeystorePasswordKey]), "\r\n")
+		encryptionOptions["truststore"] = fmt.Sprintf("%s/%s", cassandraServerTLSDir, cc.Spec.Encryption.Server.NodeTLSSecret.TruststoreFileKey)
+		encryptionOptions["truststore_password"] = strings.TrimRight(string(serverTLSSecret.Data[cc.Spec.Encryption.Server.NodeTLSSecret.TruststorePasswordKey]), "\r\n")
 		encryptionOptions["protocol"] = cc.Spec.Encryption.Server.Protocol
 		encryptionOptions["algorithm"] = cc.Spec.Encryption.Server.Algorithm
 		encryptionOptions["store_type"] = cc.Spec.Encryption.Server.StoreType
 		encryptionOptions["cipher_suites"] = cc.Spec.Encryption.Server.CipherSuites
-
 		cassandraYaml["server_encryption_options"] = encryptionOptions
 	}
 
@@ -88,7 +85,7 @@ func (r *CassandraClusterReconciler) reconcileCassandraConfigMap(ctx context.Con
 
 		encryptionOptions := make(map[string]interface{})
 
-		clientTLSSecret, err := r.getSecret(ctx, cc.Spec.Encryption.Client.TLSSecret.Name, cc.Namespace)
+		clientTLSSecret, err := r.getSecret(ctx, cc.Spec.Encryption.Client.NodeTLSSecret.Name, cc.Namespace)
 		if err != nil {
 			return err
 		}
@@ -96,15 +93,14 @@ func (r *CassandraClusterReconciler) reconcileCassandraConfigMap(ctx context.Con
 		encryptionOptions["enabled"] = cc.Spec.Encryption.Client.Enabled
 		encryptionOptions["optional"] = cc.Spec.Encryption.Client.Optional
 		encryptionOptions["require_client_auth"] = cc.Spec.Encryption.Client.RequireClientAuth
-		encryptionOptions["keystore"] = fmt.Sprintf("%s/%s", cassandraClientTLSDir, cc.Spec.Encryption.Client.TLSSecret.KeystoreFileKey)
-		encryptionOptions["keystore_password"] = strings.TrimRight(string(clientTLSSecret.Data[cc.Spec.Encryption.Client.TLSSecret.KeystorePasswordKey]), "\r\n")
-		encryptionOptions["truststore"] = fmt.Sprintf("%s/%s", cassandraClientTLSDir, cc.Spec.Encryption.Client.TLSSecret.TruststoreFileKey)
-		encryptionOptions["truststore_password"] = strings.TrimRight(string(clientTLSSecret.Data[cc.Spec.Encryption.Client.TLSSecret.TruststorePasswordKey]), "\r\n")
+		encryptionOptions["keystore"] = fmt.Sprintf("%s/%s", cassandraClientTLSDir, cc.Spec.Encryption.Client.NodeTLSSecret.KeystoreFileKey)
+		encryptionOptions["keystore_password"] = strings.TrimRight(string(clientTLSSecret.Data[cc.Spec.Encryption.Client.NodeTLSSecret.KeystorePasswordKey]), "\r\n")
+		encryptionOptions["truststore"] = fmt.Sprintf("%s/%s", cassandraClientTLSDir, cc.Spec.Encryption.Client.NodeTLSSecret.TruststoreFileKey)
+		encryptionOptions["truststore_password"] = strings.TrimRight(string(clientTLSSecret.Data[cc.Spec.Encryption.Client.NodeTLSSecret.TruststorePasswordKey]), "\r\n")
 		encryptionOptions["protocol"] = cc.Spec.Encryption.Client.Protocol
 		encryptionOptions["algorithm"] = cc.Spec.Encryption.Client.Algorithm
 		encryptionOptions["store_type"] = cc.Spec.Encryption.Client.StoreType
 		encryptionOptions["cipher_suites"] = cc.Spec.Encryption.Client.CipherSuites
-
 		cassandraYaml["client_encryption_options"] = encryptionOptions
 	}
 

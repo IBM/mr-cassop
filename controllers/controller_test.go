@@ -29,6 +29,7 @@ func createBasicMockedReconciler() *CassandraClusterReconciler {
 		Log:    zap.NewNop().Sugar(),
 		Scheme: scheme.Scheme,
 		Cfg:    config.Config{},
+		Events: events.NewEventRecorder(&record.FakeRecorder{}),
 	}
 }
 

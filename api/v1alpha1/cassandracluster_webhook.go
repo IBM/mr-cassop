@@ -149,16 +149,12 @@ func generalValidation(cc *CassandraCluster) (errors []error) {
 		}
 	}
 
-	if cc.Spec.Encryption.Server.InternodeEncryption != InternodeEncryptionNone && cc.Spec.Encryption.Server.InternodeEncryption != "" {
-		if cc.Spec.Encryption.Server.TLSSecret.Name == "" {
-			errors = append(errors, fmt.Errorf("if server encryption is enabled, `encryption.server.tlsSecret.name` must be set"))
-		}
+	if cc.Spec.Encryption.Server.NodeTLSSecret.Name != "" && cc.Spec.Encryption.Server.CATLSSecret.Name != "" {
+		errors = append(errors, fmt.Errorf("either `encryption.server.caTLSSecret.name` or `encryption.server.nodeTLSSecret.name` should be set"))
 	}
 
-	if cc.Spec.Encryption.Client.Enabled {
-		if cc.Spec.Encryption.Client.TLSSecret.Name == "" {
-			errors = append(errors, fmt.Errorf("if client encryption is enabled, `encryption.client.tlsSecret.name` must be set"))
-		}
+	if cc.Spec.Encryption.Client.CATLSSecret.Name != "" && cc.Spec.Encryption.Client.NodeTLSSecret.Name != "" {
+		errors = append(errors, fmt.Errorf("either `encryption.client.caTLSSecret.name` or `encryption.client.nodeTLSSecret.name` should be set"))
 	}
 
 	return

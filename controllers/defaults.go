@@ -10,6 +10,19 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
+var (
+	defaultCipherSuites = []string{
+		"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA",
+		"TLS_ECDH_RSA_WITH_AES_128_CBC_SHA",
+		"TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA",
+		"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA",
+		"TLS_RSA_WITH_AES_128_CBC_SHA",
+		"TLS_RSA_WITH_AES_256_CBC_SHA",
+		"TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA",
+		"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA",
+	}
+)
+
 func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.CassandraCluster) {
 	if cc.Spec.CQLConfigMapLabelKey == "" {
 		cc.Spec.CQLConfigMapLabelKey = defaultCQLConfigMapLabelKey
@@ -43,6 +56,7 @@ func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.Cass
 
 	r.defaultServerTLS(cc)
 	r.defaultClientTLS(cc)
+
 	r.defaultSysctls(cc)
 }
 
@@ -201,6 +215,50 @@ func (r *CassandraClusterReconciler) defaultCassandra(cc *dbv1alpha1.CassandraCl
 	r.defaultMonitoring(cc)
 }
 
+func (r *CassandraClusterReconciler) defaultCATLSKeys(caTLSSecret *dbv1alpha1.CATLSSecret) {
+	if caTLSSecret.FileKey == "" {
+		caTLSSecret.FileKey = "ca.key"
+	}
+
+	if caTLSSecret.CrtFileKey == "" {
+		caTLSSecret.CrtFileKey = "ca.crt"
+	}
+}
+
+func (r *CassandraClusterReconciler) defaultNodeTLSKeys(nodeTLSSecret *dbv1alpha1.NodeTLSSecret) {
+	if nodeTLSSecret.FileKey == "" {
+		nodeTLSSecret.FileKey = "tls.key"
+	}
+
+	if nodeTLSSecret.CrtFileKey == "" {
+		nodeTLSSecret.CrtFileKey = "tls.crt"
+	}
+
+	if nodeTLSSecret.CACrtFileKey == "" {
+		nodeTLSSecret.CACrtFileKey = "ca.crt"
+	}
+
+	if nodeTLSSecret.KeystoreFileKey == "" {
+		nodeTLSSecret.KeystoreFileKey = "keystore.p12"
+	}
+
+	if nodeTLSSecret.KeystorePasswordKey == "" {
+		nodeTLSSecret.KeystorePasswordKey = "keystore.password"
+	}
+
+	if nodeTLSSecret.TruststoreFileKey == "" {
+		nodeTLSSecret.TruststoreFileKey = "truststore.p12"
+	}
+
+	if nodeTLSSecret.TruststorePasswordKey == "" {
+		nodeTLSSecret.TruststorePasswordKey = "truststore.password"
+	}
+
+	if nodeTLSSecret.GenerateKeystorePassword == "" {
+		nodeTLSSecret.GenerateKeystorePassword = "cassandra"
+	}
+}
+
 func (r *CassandraClusterReconciler) defaultServerTLS(cc *dbv1alpha1.CassandraCluster) {
 	if cc.Spec.Encryption.Server.InternodeEncryption == "" {
 		cc.Spec.Encryption.Server.InternodeEncryption = dbv1alpha1.InternodeEncryptionNone
@@ -209,8 +267,6 @@ func (r *CassandraClusterReconciler) defaultServerTLS(cc *dbv1alpha1.CassandraCl
 	if cc.Spec.Encryption.Server.RequireClientAuth == nil {
 		cc.Spec.Encryption.Server.RequireClientAuth = proto.Bool(true)
 	}
-
-	r.defaultTLSSecret(&cc.Spec.Encryption.Server.TLSSecret)
 
 	if cc.Spec.Encryption.Server.Protocol == "" {
 		cc.Spec.Encryption.Server.Protocol = "TLS"
@@ -221,20 +277,21 @@ func (r *CassandraClusterReconciler) defaultServerTLS(cc *dbv1alpha1.CassandraCl
 	}
 
 	if cc.Spec.Encryption.Server.StoreType == "" {
-		cc.Spec.Encryption.Server.StoreType = "JKS"
+		cc.Spec.Encryption.Server.StoreType = "PKCS12"
 	}
 
 	if len(cc.Spec.Encryption.Server.CipherSuites) == 0 {
-		cc.Spec.Encryption.Server.CipherSuites = []string{tlsEcdheRsaAes256GcmSha384, tlsEcdheRsaAes128GcmSha256}
+		cc.Spec.Encryption.Server.CipherSuites = defaultCipherSuites
 	}
+
+	r.defaultCATLSKeys(&cc.Spec.Encryption.Server.CATLSSecret)
+	r.defaultNodeTLSKeys(&cc.Spec.Encryption.Server.NodeTLSSecret)
 }
 
 func (r *CassandraClusterReconciler) defaultClientTLS(cc *dbv1alpha1.CassandraCluster) {
 	if cc.Spec.Encryption.Client.RequireClientAuth == nil {
 		cc.Spec.Encryption.Client.RequireClientAuth = proto.Bool(true)
 	}
-
-	r.defaultTLSSecret(&cc.Spec.Encryption.Client.TLSSecret.TLSSecret)
 
 	if cc.Spec.Encryption.Client.Protocol == "" {
 		cc.Spec.Encryption.Client.Protocol = "TLS"
@@ -245,42 +302,15 @@ func (r *CassandraClusterReconciler) defaultClientTLS(cc *dbv1alpha1.CassandraCl
 	}
 
 	if cc.Spec.Encryption.Client.StoreType == "" {
-		cc.Spec.Encryption.Client.StoreType = "JKS"
+		cc.Spec.Encryption.Client.StoreType = "PKCS12"
 	}
 
 	if len(cc.Spec.Encryption.Client.CipherSuites) == 0 {
-		cc.Spec.Encryption.Client.CipherSuites = []string{tlsEcdheRsaAes256GcmSha384, tlsEcdheRsaAes128GcmSha256}
+		cc.Spec.Encryption.Client.CipherSuites = defaultCipherSuites
 	}
 
-	if cc.Spec.Encryption.Client.TLSSecret.CAFileKey == "" {
-		cc.Spec.Encryption.Client.TLSSecret.CAFileKey = "ca.crt"
-	}
-
-	if cc.Spec.Encryption.Client.TLSSecret.TLSCrtFileKey == "" {
-		cc.Spec.Encryption.Client.TLSSecret.TLSCrtFileKey = "tls.crt"
-	}
-
-	if cc.Spec.Encryption.Client.TLSSecret.TLSFileKey == "" {
-		cc.Spec.Encryption.Client.TLSSecret.TLSFileKey = "tls.key"
-	}
-}
-
-func (r *CassandraClusterReconciler) defaultTLSSecret(tlsSecret *dbv1alpha1.TLSSecret) {
-	if tlsSecret.KeystoreFileKey == "" {
-		tlsSecret.KeystoreFileKey = "keystore.jks"
-	}
-
-	if tlsSecret.KeystorePasswordKey == "" {
-		tlsSecret.KeystorePasswordKey = "keystore.password"
-	}
-
-	if tlsSecret.TruststoreFileKey == "" {
-		tlsSecret.TruststoreFileKey = "truststore.jks"
-	}
-
-	if tlsSecret.TruststorePasswordKey == "" {
-		tlsSecret.TruststorePasswordKey = "truststore.password"
-	}
+	r.defaultCATLSKeys(&cc.Spec.Encryption.Client.CATLSSecret)
+	r.defaultNodeTLSKeys(&cc.Spec.Encryption.Client.NodeTLSSecret)
 }
 
 func (r *CassandraClusterReconciler) defaultMonitoring(cc *dbv1alpha1.CassandraCluster) {

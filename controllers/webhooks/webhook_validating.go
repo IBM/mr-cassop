@@ -26,7 +26,7 @@ func setupValidatingWebhookConfig(kubeClient *kubernetes.Clientset, operatorConf
 		return errors.Wrapf(err, "failed to get ClusterRole: %s", clusterRoleName)
 	}
 
-	desiredValidatingWebhookConfig := CreateValidatingWebhookConf(operatorConfig.Namespace, clusterRole, caKeypair.Certificate())
+	desiredValidatingWebhookConfig := CreateValidatingWebhookConf(operatorConfig.Namespace, clusterRole, caKeypair.Crt)
 
 	// If container crashes or restarted Validating WebhookConfig preserves in namespace
 	webhookAPI := kubeClient.AdmissionregistrationV1()

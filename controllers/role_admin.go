@@ -132,9 +132,9 @@ func (r *CassandraClusterReconciler) reconcileAdminSecrets(ctx context.Context, 
 
 func (r *CassandraClusterReconciler) setupClientTLSFiles(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
 	clientTLSSecret := &v1.Secret{}
-	err := r.Get(ctx, types.NamespacedName{Namespace: cc.Namespace, Name: cc.Spec.Encryption.Client.TLSSecret.Name}, clientTLSSecret)
+	err := r.Get(ctx, types.NamespacedName{Namespace: cc.Namespace, Name: cc.Spec.Encryption.Client.NodeTLSSecret.Name}, clientTLSSecret)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get Client TLS Secret: %s", cc.Spec.Encryption.Client.TLSSecret.Name)
+		return errors.Wrapf(err, "failed to get Client TLS Secret: %s", cc.Spec.Encryption.Client.NodeTLSSecret.Name)
 	}
 
 	err = os.MkdirAll(names.OperatorClientTLSDir(cc), 0700)
@@ -142,19 +142,19 @@ func (r *CassandraClusterReconciler) setupClientTLSFiles(ctx context.Context, cc
 		return errors.Wrapf(err, "failed to create directory: %s", names.OperatorClientTLSDir(cc))
 	}
 
-	err = ioutil.WriteFile(fmt.Sprintf("%s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.TLSSecret.CAFileKey), clientTLSSecret.Data[cc.Spec.Encryption.Client.TLSSecret.CAFileKey], 0600)
+	err = ioutil.WriteFile(fmt.Sprintf("%s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.NodeTLSSecret.CACrtFileKey), clientTLSSecret.Data[cc.Spec.Encryption.Client.NodeTLSSecret.CACrtFileKey], 0600)
 	if err != nil {
-		return errors.Wrapf(err, "failed to write into file %s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.TLSSecret.CAFileKey)
+		return errors.Wrapf(err, "failed to write CA certificate into file %s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.NodeTLSSecret.CACrtFileKey)
 	}
 
-	err = ioutil.WriteFile(fmt.Sprintf("%s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.TLSSecret.TLSFileKey), clientTLSSecret.Data[cc.Spec.Encryption.Client.TLSSecret.TLSFileKey], 0600)
+	err = ioutil.WriteFile(fmt.Sprintf("%s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.NodeTLSSecret.FileKey), clientTLSSecret.Data[cc.Spec.Encryption.Client.NodeTLSSecret.FileKey], 0600)
 	if err != nil {
-		return errors.Wrapf(err, "failed to write into file %s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.TLSSecret.TLSFileKey)
+		return errors.Wrapf(err, "failed to write private key into file %s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.NodeTLSSecret.FileKey)
 	}
 
-	err = ioutil.WriteFile(fmt.Sprintf("%s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.TLSSecret.TLSCrtFileKey), clientTLSSecret.Data[cc.Spec.Encryption.Client.TLSSecret.TLSCrtFileKey], 0600)
+	err = ioutil.WriteFile(fmt.Sprintf("%s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.NodeTLSSecret.CrtFileKey), clientTLSSecret.Data[cc.Spec.Encryption.Client.NodeTLSSecret.CrtFileKey], 0600)
 	if err != nil {
-		return errors.Wrapf(err, "failed to write into file %s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.TLSSecret.TLSCrtFileKey)
+		return errors.Wrapf(err, "failed to write certificate into file %s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.NodeTLSSecret.CrtFileKey)
 	}
 
 	return nil

@@ -158,6 +158,7 @@ type test struct {
 func TestReconcileMaintenance(t *testing.T) {
 	asserts := NewGomegaWithT(t)
 	reconciler := initializeReconciler(baseCC)
+
 	k8sResources := []client.Object{
 		baseCC,
 		mockedMaintenanceConfigMap(baseCC),

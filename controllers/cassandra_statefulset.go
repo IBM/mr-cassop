@@ -23,60 +23,19 @@ import (
 
 func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context, cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, restartChecksum checksumContainer) error {
 	var err error
-	clientTLSSecret := &v1.Secret{}
 
 	if cc.Spec.Encryption.Server.InternodeEncryption != dbv1alpha1.InternodeEncryptionNone {
-		serverTLSSecret, err := r.getSecret(ctx, cc.Spec.Encryption.Server.TLSSecret.Name, cc.Namespace)
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				errMsg := fmt.Sprintf("server TLS secret %s is not found", cc.Spec.Encryption.Server.TLSSecret.Name)
-				r.Events.Warning(cc, events.EventTLSSecretNotFound, errMsg)
-				r.Log.Warn(errMsg)
-				return errTLSSecretNotFound
-			}
-			return errors.Wrapf(err, "failed to get TLS Secret %s", cc.Spec.Encryption.Server.TLSSecret.Name)
+		if _, err := r.reconcileNodeTLSSecret(ctx, cc, restartChecksum, serverNode); err != nil {
+			return err
 		}
-
-		err = r.validateTLSFields(cc, serverTLSSecret, tlsServerRequireFields(cc))
-		if err != nil {
-			return errors.Wrap(err, "failed to validate Server TLS Secret fields")
-		}
-
-		annotations := make(map[string]string)
-		annotations[dbv1alpha1.CassandraClusterInstance] = cc.Name
-		err = r.reconcileAnnotations(ctx, serverTLSSecret, annotations)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to reconcile Annotations for Secret %s", serverTLSSecret.Name)
-		}
-
-		restartChecksum["server-tls-secret"] = fmt.Sprintf("%v", serverTLSSecret.Data)
 	}
 
+	clientTLSSecret := &v1.Secret{}
 	if cc.Spec.Encryption.Client.Enabled {
-		clientTLSSecret, err = r.getSecret(ctx, cc.Spec.Encryption.Client.TLSSecret.Name, cc.Namespace)
+		clientTLSSecret, err = r.reconcileNodeTLSSecret(ctx, cc, restartChecksum, clientNode)
 		if err != nil {
-			if apierrors.IsNotFound(err) {
-				errMsg := fmt.Sprintf("client TLS secret %s is not found", cc.Spec.Encryption.Client.TLSSecret.Name)
-				r.Events.Warning(cc, events.EventTLSSecretNotFound, errMsg)
-				r.Log.Warn(errMsg)
-				return errTLSSecretNotFound
-			}
-			return errors.Wrapf(err, "failed to get TLS Secret %s", cc.Spec.Encryption.Client.TLSSecret.Name)
+			return err
 		}
-
-		err = r.validateTLSFields(cc, clientTLSSecret, tlsClientRequiredFields(cc))
-		if err != nil {
-			return errors.Wrap(err, "failed to validate Client TLS Secret fields")
-		}
-
-		annotations := make(map[string]string)
-		annotations[dbv1alpha1.CassandraClusterInstance] = cc.Name
-		err := r.reconcileAnnotations(ctx, clientTLSSecret, annotations)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to reconcile Annotations for Secret %s", clientTLSSecret.Name)
-		}
-
-		restartChecksum["client-tls-secret"] = fmt.Sprintf("%v", clientTLSSecret.Data)
 	}
 
 	if cc.Spec.HostPort.Enabled && util.Contains(cc.Spec.HostPort.Ports, "cql") && !cc.Spec.Encryption.Client.Enabled {
@@ -353,15 +312,15 @@ func cassandraServerTLSVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
 		Name: cassandraServerTLSVolumeName,
 		VolumeSource: v1.VolumeSource{
 			Secret: &v1.SecretVolumeSource{
-				SecretName: cc.Spec.Encryption.Server.TLSSecret.Name,
+				SecretName: cc.Spec.Encryption.Server.NodeTLSSecret.Name,
 				Items: []v1.KeyToPath{
 					{
-						Key:  cc.Spec.Encryption.Server.TLSSecret.KeystoreFileKey,
-						Path: cc.Spec.Encryption.Server.TLSSecret.KeystoreFileKey,
+						Key:  cc.Spec.Encryption.Server.NodeTLSSecret.KeystoreFileKey,
+						Path: cc.Spec.Encryption.Server.NodeTLSSecret.KeystoreFileKey,
 					},
 					{
-						Key:  cc.Spec.Encryption.Server.TLSSecret.TruststoreFileKey,
-						Path: cc.Spec.Encryption.Server.TLSSecret.TruststoreFileKey,
+						Key:  cc.Spec.Encryption.Server.NodeTLSSecret.TruststoreFileKey,
+						Path: cc.Spec.Encryption.Server.NodeTLSSecret.TruststoreFileKey,
 					},
 				},
 				DefaultMode: proto.Int32(v1.SecretVolumeSourceDefaultMode),
@@ -375,27 +334,27 @@ func cassandraClientTLSVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
 		Name: cassandraClientTLSVolumeName,
 		VolumeSource: v1.VolumeSource{
 			Secret: &v1.SecretVolumeSource{
-				SecretName: cc.Spec.Encryption.Client.TLSSecret.Name,
+				SecretName: cc.Spec.Encryption.Client.NodeTLSSecret.Name,
 				Items: []v1.KeyToPath{
 					{
-						Key:  cc.Spec.Encryption.Client.TLSSecret.CAFileKey,
-						Path: cc.Spec.Encryption.Client.TLSSecret.CAFileKey,
+						Key:  cc.Spec.Encryption.Client.NodeTLSSecret.CACrtFileKey,
+						Path: cc.Spec.Encryption.Client.NodeTLSSecret.CACrtFileKey,
 					},
 					{
-						Key:  cc.Spec.Encryption.Client.TLSSecret.TLSCrtFileKey,
-						Path: cc.Spec.Encryption.Client.TLSSecret.TLSCrtFileKey,
+						Key:  cc.Spec.Encryption.Client.NodeTLSSecret.CrtFileKey,
+						Path: cc.Spec.Encryption.Client.NodeTLSSecret.CrtFileKey,
 					},
 					{
-						Key:  cc.Spec.Encryption.Client.TLSSecret.TLSFileKey,
-						Path: cc.Spec.Encryption.Client.TLSSecret.TLSFileKey,
+						Key:  cc.Spec.Encryption.Client.NodeTLSSecret.FileKey,
+						Path: cc.Spec.Encryption.Client.NodeTLSSecret.FileKey,
 					},
 					{
-						Key:  cc.Spec.Encryption.Client.TLSSecret.KeystoreFileKey,
-						Path: cc.Spec.Encryption.Client.TLSSecret.KeystoreFileKey,
+						Key:  cc.Spec.Encryption.Client.NodeTLSSecret.KeystoreFileKey,
+						Path: cc.Spec.Encryption.Client.NodeTLSSecret.KeystoreFileKey,
 					},
 					{
-						Key:  cc.Spec.Encryption.Client.TLSSecret.TruststoreFileKey,
-						Path: cc.Spec.Encryption.Client.TLSSecret.TruststoreFileKey,
+						Key:  cc.Spec.Encryption.Client.NodeTLSSecret.TruststoreFileKey,
+						Path: cc.Spec.Encryption.Client.NodeTLSSecret.TruststoreFileKey,
 					},
 				},
 				DefaultMode: proto.Int32(v1.SecretVolumeSourceDefaultMode),
@@ -406,38 +365,6 @@ func cassandraClientTLSVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
 
 func tlsJVMArgs(cc *dbv1alpha1.CassandraCluster, clientTLSSecret *v1.Secret) string {
 	return fmt.Sprintf("-Djavax.net.ssl.keyStore=%s/%s -Djavax.net.ssl.keyStorePassword=%s -Djavax.net.ssl.trustStore=%s/%s -Djavax.net.ssl.trustStorePassword=%s",
-		cassandraClientTLSDir, cc.Spec.Encryption.Client.TLSSecret.KeystoreFileKey, strings.TrimRight(string(clientTLSSecret.Data[cc.Spec.Encryption.Client.TLSSecret.KeystorePasswordKey]), "\r\n"),
-		cassandraClientTLSDir, cc.Spec.Encryption.Client.TLSSecret.TruststoreFileKey, strings.TrimRight(string(clientTLSSecret.Data[cc.Spec.Encryption.Client.TLSSecret.TruststorePasswordKey]), "\r\n"))
-}
-
-func tlsServerRequireFields(cc *dbv1alpha1.CassandraCluster) []string {
-	return []string{
-		cc.Spec.Encryption.Server.TLSSecret.KeystoreFileKey,
-		cc.Spec.Encryption.Server.TLSSecret.KeystorePasswordKey,
-		cc.Spec.Encryption.Server.TLSSecret.TruststoreFileKey,
-		cc.Spec.Encryption.Server.TLSSecret.TruststorePasswordKey,
-	}
-}
-
-func tlsClientRequiredFields(cc *dbv1alpha1.CassandraCluster) []string {
-	return []string{
-		cc.Spec.Encryption.Client.TLSSecret.KeystoreFileKey,
-		cc.Spec.Encryption.Client.TLSSecret.KeystorePasswordKey,
-		cc.Spec.Encryption.Client.TLSSecret.TruststoreFileKey,
-		cc.Spec.Encryption.Client.TLSSecret.TruststorePasswordKey,
-		cc.Spec.Encryption.Client.TLSSecret.CAFileKey,
-		cc.Spec.Encryption.Client.TLSSecret.TLSCrtFileKey,
-		cc.Spec.Encryption.Client.TLSSecret.TLSFileKey,
-	}
-}
-
-func (r *CassandraClusterReconciler) validateTLSFields(cc *dbv1alpha1.CassandraCluster, tlsSecret *v1.Secret, requiredFields []string) error {
-	emptyFields := util.EmptySecretFields(tlsSecret, requiredFields)
-	if tlsSecret.Data == nil || len(emptyFields) != 0 {
-		errMsg := fmt.Sprintf("TLS Secret %s has some empty or missing fields: %v", tlsSecret.Name, emptyFields)
-		r.Log.Warnf(errMsg)
-		r.Events.Warning(cc, events.EventTLSSecretInvalid, errMsg)
-		return errors.Errorf(errMsg)
-	}
-	return nil
+		cassandraClientTLSDir, cc.Spec.Encryption.Client.NodeTLSSecret.KeystoreFileKey, strings.TrimRight(string(clientTLSSecret.Data[cc.Spec.Encryption.Client.NodeTLSSecret.KeystorePasswordKey]), "\r\n"),
+		cassandraClientTLSDir, cc.Spec.Encryption.Client.NodeTLSSecret.TruststoreFileKey, strings.TrimRight(string(clientTLSSecret.Data[cc.Spec.Encryption.Client.NodeTLSSecret.TruststorePasswordKey]), "\r\n"))
 }

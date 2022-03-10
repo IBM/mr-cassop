@@ -23,7 +23,7 @@ import (
 )
 
 // We call init function from assigned `Describe` function, in such way we can avoid using init() {} in this file
-var _ = Describe("Cassandra cluster", func() {
+var _ = Describe("Reaper test", func() {
 	ccName := "reaper"
 	AfterEach(func() {
 		cleanupResources(ccName, cfg.operatorNamespace)
@@ -85,7 +85,7 @@ var _ = Describe("Cassandra cluster", func() {
 			By("Running cql query: checking Cassandra version...")
 			err = session.Query(`SELECT release_version FROM system.local`).Consistency(gocql.LocalQuorum).Scan(&releaseVersion)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(releaseVersion).To(Equal("3.11.9"))
+			Expect(releaseVersion).To(Equal("3.11.12"))
 
 			By("Running cql query: creating test keyspace...")
 			cqlQuery := `CREATE KEYSPACE IF NOT EXISTS %s WITH REPLICATION = { 'class' : 'NetworkTopologyStrategy', '%s' : %v }`

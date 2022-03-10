@@ -601,19 +601,4 @@ var _ = Describe("cassandracluster validation", func() {
 			Expect(err.(*errors.StatusError).ErrStatus.Reason).To(BeEquivalentTo("replication factor (4) is greater than number of replicas (3) for dc dc1"))
 		})
 	})
-	Context("with invalid server and client encryption configs", func() {
-		It("should fail the validation", func() {
-			cc := validCluster.DeepCopy()
-			cc.Spec.Encryption.Server = v1alpha1.ServerEncryption{
-				InternodeEncryption: "dc",
-			}
-			cc.Spec.Encryption.Client = v1alpha1.ClientEncryption{
-				Enabled: true,
-			}
-			markMocksAsReady(cc)
-			err := k8sClient.Create(ctx, cc)
-			Expect(err).To(BeAssignableToTypeOf(&errors.StatusError{}))
-			Expect(err.(*errors.StatusError).ErrStatus.Reason).To(BeEquivalentTo("[if server encryption is enabled, `encryption.server.tlsSecret.name` must be set, if client encryption is enabled, `encryption.client.tlsSecret.name` must be set]"))
-		})
-	})
 })

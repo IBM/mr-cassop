@@ -72,7 +72,7 @@ func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Conte
 	clientTLSSecret := &v1.Secret{}
 
 	if cc.Spec.Encryption.Client.Enabled {
-		clientTLSSecret, err = r.getSecret(ctx, cc.Spec.Encryption.Client.TLSSecret.Name, cc.Namespace)
+		clientTLSSecret, err = r.getSecret(ctx, cc.Spec.Encryption.Client.NodeTLSSecret.Name, cc.Namespace)
 		if err != nil {
 			return err
 		}
@@ -315,15 +315,15 @@ func reaperVolumes(cc *dbv1alpha1.CassandraCluster) []v1.Volume {
 			Name: cassandraClientTLSVolumeName,
 			VolumeSource: v1.VolumeSource{
 				Secret: &v1.SecretVolumeSource{
-					SecretName: cc.Spec.Encryption.Client.TLSSecret.Name,
+					SecretName: cc.Spec.Encryption.Client.NodeTLSSecret.Name,
 					Items: []v1.KeyToPath{
 						{
-							Key:  cc.Spec.Encryption.Client.TLSSecret.KeystoreFileKey,
-							Path: cc.Spec.Encryption.Client.TLSSecret.KeystoreFileKey,
+							Key:  cc.Spec.Encryption.Client.NodeTLSSecret.KeystoreFileKey,
+							Path: cc.Spec.Encryption.Client.NodeTLSSecret.KeystoreFileKey,
 						},
 						{
-							Key:  cc.Spec.Encryption.Client.TLSSecret.TruststoreFileKey,
-							Path: cc.Spec.Encryption.Client.TLSSecret.TruststoreFileKey,
+							Key:  cc.Spec.Encryption.Client.NodeTLSSecret.TruststoreFileKey,
+							Path: cc.Spec.Encryption.Client.NodeTLSSecret.TruststoreFileKey,
 						},
 					},
 

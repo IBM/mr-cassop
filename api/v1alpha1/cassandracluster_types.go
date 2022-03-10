@@ -172,15 +172,15 @@ type Encryption struct {
 type ServerEncryption struct {
 	// InternodeEncryption enables server encryption and by default is set to `none`. Available options: `none`, `rack`, `dc`, `all`.
 	// +kubebuilder:validation:Enum:=none;rack;dc;all
-	InternodeEncryption string `json:"internodeEncryption,omitempty"`
-	// TLS Secret fields configuration
-	TLSSecret                   TLSSecret `json:"tlsSecret,omitempty"`
-	RequireEndpointVerification bool      `json:"requireEndpointVerification,omitempty"`
-	RequireClientAuth           *bool     `json:"requireClientAuth,omitempty"`
-	Protocol                    string    `json:"protocol,omitempty"`
-	Algorithm                   string    `json:"algorithm,omitempty"`
-	StoreType                   string    `json:"storeType,omitempty"`
-	CipherSuites                []string  `json:"cipherSuites,omitempty"`
+	InternodeEncryption         string        `json:"internodeEncryption,omitempty"`
+	CATLSSecret                 CATLSSecret   `json:"caTLSSecret,omitempty"`
+	NodeTLSSecret               NodeTLSSecret `json:"nodeTLSSecret,omitempty"`
+	RequireEndpointVerification bool          `json:"requireEndpointVerification,omitempty"`
+	RequireClientAuth           *bool         `json:"requireClientAuth,omitempty"`
+	Protocol                    string        `json:"protocol,omitempty"`
+	Algorithm                   string        `json:"algorithm,omitempty"`
+	StoreType                   string        `json:"storeType,omitempty"`
+	CipherSuites                []string      `json:"cipherSuites,omitempty"`
 }
 
 // ClientEncryption defines encryption between Cassandra nodes and clients via CQL and JMX protocols for tools like reaper, cqlsh, nodetool and others.
@@ -188,29 +188,32 @@ type ClientEncryption struct {
 	// ClientEncryption enables encryption between client and server via CQL and JXM protocols.
 	Enabled bool `json:"enabled,omitempty"`
 	// If enabled and optional is set to true both encrypted and unencrypted connections are handled.
-	Optional bool `json:"optional,omitempty"`
-	// TLS Secret fields configuration
-	TLSSecret         ClientTLSSecret `json:"tlsSecret,omitempty"`
-	RequireClientAuth *bool           `json:"requireClientAuth,omitempty"`
-	Protocol          string          `json:"protocol,omitempty"`
-	Algorithm         string          `json:"algorithm,omitempty"`
-	StoreType         string          `json:"storeType,omitempty"`
-	CipherSuites      []string        `json:"cipherSuites,omitempty"`
+	Optional          bool          `json:"optional,omitempty"`
+	CATLSSecret       CATLSSecret   `json:"caTLSSecret,omitempty"`
+	NodeTLSSecret     NodeTLSSecret `json:"nodeTLSSecret,omitempty"`
+	RequireClientAuth *bool         `json:"requireClientAuth,omitempty"`
+	Protocol          string        `json:"protocol,omitempty"`
+	Algorithm         string        `json:"algorithm,omitempty"`
+	StoreType         string        `json:"storeType,omitempty"`
+	CipherSuites      []string      `json:"cipherSuites,omitempty"`
 }
 
-type TLSSecret struct {
-	Name                  string `json:"name,omitempty"`
-	KeystoreFileKey       string `json:"keystoreFileKey,omitempty"`
-	KeystorePasswordKey   string `json:"keystorePasswordKey,omitempty"`
-	TruststoreFileKey     string `json:"truststoreFileKey,omitempty"`
-	TruststorePasswordKey string `json:"truststorePasswordKey,omitempty"`
+type CATLSSecret struct {
+	Name       string `json:"name"`
+	FileKey    string `json:"fileKey,omitempty"`
+	CrtFileKey string `json:"crtFileKey,omitempty"`
 }
 
-type ClientTLSSecret struct {
-	TLSSecret     `json:",inline"`
-	CAFileKey     string `json:"caFileKey,omitempty"`
-	TLSFileKey    string `json:"tlsFileKey,omitempty"`
-	TLSCrtFileKey string `json:"tlsCrtFileKey,omitempty"`
+type NodeTLSSecret struct {
+	Name                     string `json:"name"`
+	FileKey                  string `json:"fileKey,omitempty"`
+	CrtFileKey               string `json:"crtFileKey,omitempty"`
+	CACrtFileKey             string `json:"caFileKey,omitempty"`
+	KeystoreFileKey          string `json:"keystoreFileKey,omitempty"`
+	KeystorePasswordKey      string `json:"keystorePasswordKey,omitempty"`
+	TruststoreFileKey        string `json:"truststoreFileKey,omitempty"`
+	TruststorePasswordKey    string `json:"truststorePasswordKey,omitempty"`
+	GenerateKeystorePassword string `json:"generateKeystorePassword,omitempty"`
 }
 
 type RepairSchedules struct {

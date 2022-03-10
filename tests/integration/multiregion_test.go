@@ -71,7 +71,6 @@ var _ = Describe("multiple regions", func() {
 				"dc1":   "3",
 			},
 		}}
-
 		for i, managedRegion := range cc.Spec.ExternalRegions.Managed {
 			ingressHost := names.ProberIngressDomain(cc, managedRegion)
 			mockProberClient.readyClusters[ingressHost] = false
@@ -93,6 +92,7 @@ var _ = Describe("multiple regions", func() {
 		}
 
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cc.Name, Namespace: cc.Namespace}, cc)).To(Succeed())
+
 		createCassandraPods(cc)
 		markAllDCsReady(cc)
 

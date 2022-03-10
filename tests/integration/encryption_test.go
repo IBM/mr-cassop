@@ -32,39 +32,32 @@ var _ = Describe("Cassandra TLS encryption", func() {
 		},
 	}
 
-	tlsSecret := &v1.Secret{}
 	configConfigmap := &v1.ConfigMap{}
+	caTLSSecret := &v1.Secret{}
+	nodeTLSSecret := &v1.Secret{}
 
 	Context("when server encryption is enabled", func() {
-		It("server TLS Secret should be used", func() {
-
-			tlsSecretName := "cassandra-cluster-tls"
-
-			tlsSecretData := make(map[string][]byte)
-			tlsSecretData["keystore.jks"] = []byte("keystore.jks")
-			tlsSecretData["keystore.password"] = []byte("somePassword")
-			tlsSecretData["truststore.jks"] = []byte("truststore.jks")
-			tlsSecretData["truststore.password"] = []byte("somePassword")
-
-			tlsSecret = &v1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      tlsSecretName,
-					Namespace: cassandraObjectMeta.Namespace,
-				},
-				Data: tlsSecretData,
-			}
-
-			Expect(k8sClient.Create(ctx, tlsSecret)).To(Succeed())
-
+		It("when user doesn't provide Cluster TLS Secrets", func() {
 			cc := baseCC.DeepCopy()
 			cc.Spec.Encryption.Server = v1alpha1.ServerEncryption{
 				InternodeEncryption: "dc",
-				TLSSecret: v1alpha1.TLSSecret{
-					Name: tlsSecretName,
-				},
 			}
 
 			createReadyCluster(cc)
+
+			// Check C* TLS Secret fields
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.CassandraClusterTLSCA(cassandraObjectMeta.Name), Namespace: cassandraObjectMeta.Namespace}, caTLSSecret)).To(Succeed())
+			Expect(caTLSSecret.Data).To(HaveKey("ca.crt"))
+			Expect(caTLSSecret.Data).To(HaveKey("ca.key"))
+
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.CassandraClusterTLSNode(cassandraObjectMeta.Name), Namespace: cassandraObjectMeta.Namespace}, nodeTLSSecret)).To(Succeed())
+			Expect(nodeTLSSecret.Data).To(HaveKey("ca.crt"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("tls.crt"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("tls.key"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("keystore.p12"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("keystore.password"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("truststore.p12"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("truststore.password"))
 
 			// Check C* configuration
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.ConfigMap(cassandraObjectMeta.Name), Namespace: cassandraObjectMeta.Namespace}, configConfigmap)).To(Succeed())
@@ -73,53 +66,125 @@ var _ = Describe("Cassandra TLS encryption", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			encryptionOptions := cassandraYaml["server_encryption_options"].(map[string]interface{})
-			Expect(encryptionOptions["keystore"]).To(BeEquivalentTo("/etc/cassandra-server-tls/keystore.jks"))
-			Expect(encryptionOptions["keystore"]).To(BeEquivalentTo("/etc/cassandra-server-tls/keystore.jks"))
-			Expect(encryptionOptions["keystore_password"]).To(BeEquivalentTo("somePassword"))
-			Expect(encryptionOptions["truststore"]).To(BeEquivalentTo("/etc/cassandra-server-tls/truststore.jks"))
-			Expect(encryptionOptions["truststore_password"]).To(BeEquivalentTo("somePassword"))
+			Expect(encryptionOptions["keystore"]).To(BeEquivalentTo("/etc/cassandra-server-tls/keystore.p12"))
+			Expect(encryptionOptions["keystore_password"]).To(BeEquivalentTo(keystorePass))
+			Expect(encryptionOptions["truststore"]).To(BeEquivalentTo("/etc/cassandra-server-tls/truststore.p12"))
+			Expect(encryptionOptions["truststore_password"]).To(BeEquivalentTo(keystorePass))
 			Expect(encryptionOptions["protocol"]).To(BeEquivalentTo("TLS"))
-			Expect(encryptionOptions["store_type"]).To(BeEquivalentTo("JKS"))
+			Expect(encryptionOptions["store_type"]).To(BeEquivalentTo("PKCS12"))
 
 			checkVolume("server-keystore", "dc1")
 		})
-	})
 
-	Context("when client encryption is enabled", func() {
-		It("client TLS Secret should be used", func() {
+		It("when user provided cluster TLS CA Secret", func() {
+			caTLSSecretName := "my-cluster-tls-ca"
 
-			tlsSecretName := "cassandra-client-tls"
+			caTLSSecretData := make(map[string][]byte)
+			caTLSSecretData["ca.crt"] = caCrtBytes
+			caTLSSecretData["ca.key"] = caKeyBytes
 
-			tlsSecretData := make(map[string][]byte)
-			tlsSecretData["keystore.jks"] = []byte("keystore.jks")
-			tlsSecretData["keystore.password"] = []byte("somePassword")
-			tlsSecretData["truststore.jks"] = []byte("truststore.jks")
-			tlsSecretData["truststore.password"] = []byte("somePassword")
-			tlsSecretData["ca.crt"] = []byte("some_data")
-			tlsSecretData["tls.crt"] = []byte("some_data")
-			tlsSecretData["tls.key"] = []byte("some_data")
-
-			tlsSecret = &v1.Secret{
+			caTLSSecret := &v1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      tlsSecretName,
+					Name:      caTLSSecretName,
 					Namespace: cassandraObjectMeta.Namespace,
 				},
-				Data: tlsSecretData,
+				Data: caTLSSecretData,
+				Type: v1.SecretTypeOpaque,
 			}
 
-			Expect(k8sClient.Create(ctx, tlsSecret)).To(Succeed())
+			Expect(k8sClient.Create(ctx, caTLSSecret)).To(Succeed())
 
 			cc := baseCC.DeepCopy()
-			cc.Spec.Encryption.Client = v1alpha1.ClientEncryption{
-				Enabled: true,
-				TLSSecret: v1alpha1.ClientTLSSecret{
-					TLSSecret: v1alpha1.TLSSecret{
-						Name: tlsSecretName,
-					},
+			cc.Spec.Encryption.Server = v1alpha1.ServerEncryption{
+				InternodeEncryption: "dc",
+				CATLSSecret: v1alpha1.CATLSSecret{
+					Name: caTLSSecretName,
 				},
 			}
 
 			createReadyCluster(cc)
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.CassandraClusterTLSNode(cassandraObjectMeta.Name), Namespace: cassandraObjectMeta.Namespace}, nodeTLSSecret))
+			Expect(nodeTLSSecret.Data).To(HaveKey("ca.crt"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("tls.crt"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("tls.key"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("keystore.p12"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("keystore.password"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("truststore.p12"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("truststore.password"))
+
+			checkVolume("server-keystore", "dc1")
+
+			Expect(k8sClient.Delete(ctx, caTLSSecret)).To(Succeed())
+		})
+		It("when user provided Cluster TLS Node Secret", func() {
+			nodeTLSSecretName := "my-cluster-tls-node"
+
+			nodeTLSSecretData := make(map[string][]byte)
+			nodeTLSSecretData["ca.crt"] = caCrtBytes
+			nodeTLSSecretData["tls.crt"] = tlsCrtBytes
+			nodeTLSSecretData["tls.key"] = tlsKeyBytes
+			nodeTLSSecretData["keystore.p12"] = keystoreBytes
+			nodeTLSSecretData["truststore.p12"] = truststoreBytes
+			nodeTLSSecretData["keystore.password"] = []byte(keystorePass)
+			nodeTLSSecretData["truststore.password"] = []byte(keystorePass)
+
+			nodeTLSSecret := &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      nodeTLSSecretName,
+					Namespace: cassandraObjectMeta.Namespace,
+				},
+				Data: nodeTLSSecretData,
+				Type: v1.SecretTypeOpaque,
+			}
+
+			Expect(k8sClient.Create(ctx, nodeTLSSecret)).To(Succeed())
+
+			cc := baseCC.DeepCopy()
+			cc.Spec.Encryption.Server = v1alpha1.ServerEncryption{
+				InternodeEncryption: "dc",
+				NodeTLSSecret: v1alpha1.NodeTLSSecret{
+					Name: nodeTLSSecretName,
+				},
+			}
+
+			createReadyCluster(cc)
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.CassandraClusterTLSNode(cassandraObjectMeta.Name), Namespace: cassandraObjectMeta.Namespace}, nodeTLSSecret))
+			Expect(nodeTLSSecret.Data).To(HaveKey("ca.crt"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("tls.crt"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("tls.key"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("keystore.p12"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("keystore.password"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("truststore.p12"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("truststore.password"))
+
+			checkVolume("server-keystore", "dc1")
+
+			Expect(k8sClient.Delete(ctx, nodeTLSSecret)).To(Succeed())
+		})
+	})
+
+	Context("when client encryption is enabled", func() {
+		It("when user didn't provide Client TLS Secrets", func() {
+			cc := baseCC.DeepCopy()
+			cc.Spec.Encryption.Client = v1alpha1.ClientEncryption{
+				Enabled: true,
+			}
+
+			createReadyCluster(cc)
+
+			// Check C* TLS Secret fields
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.CassandraClientTLSCA(cassandraObjectMeta.Name), Namespace: cassandraObjectMeta.Namespace}, caTLSSecret)).To(Succeed())
+			Expect(caTLSSecret.Data).To(HaveKey("ca.crt"))
+			Expect(caTLSSecret.Data).To(HaveKey("ca.key"))
+
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.CassandraClientTLSNode(cassandraObjectMeta.Name), Namespace: cassandraObjectMeta.Namespace}, nodeTLSSecret)).To(Succeed())
+			Expect(nodeTLSSecret.Data).To(HaveKey("ca.crt"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("tls.crt"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("tls.key"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("keystore.p12"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("keystore.password"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("truststore.p12"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("truststore.password"))
 
 			// Check C* configuration
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.ConfigMap(cassandraObjectMeta.Name), Namespace: cassandraObjectMeta.Namespace}, configConfigmap)).To(Succeed())
@@ -130,19 +195,120 @@ var _ = Describe("Cassandra TLS encryption", func() {
 			encryptionOptions := cassandraYaml["client_encryption_options"].(map[string]interface{})
 			Expect(encryptionOptions["enabled"]).To(BeTrue())
 			Expect(encryptionOptions["optional"]).To(BeFalse())
-			Expect(encryptionOptions["keystore"]).To(BeEquivalentTo("/etc/cassandra-client-tls/keystore.jks"))
-			Expect(encryptionOptions["keystore_password"]).To(BeEquivalentTo("somePassword"))
-			Expect(encryptionOptions["truststore"]).To(BeEquivalentTo("/etc/cassandra-client-tls/truststore.jks"))
-			Expect(encryptionOptions["truststore_password"]).To(BeEquivalentTo("somePassword"))
+			Expect(encryptionOptions["keystore"]).To(BeEquivalentTo("/etc/cassandra-client-tls/keystore.p12"))
+			Expect(encryptionOptions["keystore_password"]).To(BeEquivalentTo(keystorePass))
+			Expect(encryptionOptions["truststore"]).To(BeEquivalentTo("/etc/cassandra-client-tls/truststore.p12"))
+			Expect(encryptionOptions["truststore_password"]).To(BeEquivalentTo(keystorePass))
 			Expect(encryptionOptions["protocol"]).To(BeEquivalentTo("TLS"))
-			Expect(encryptionOptions["store_type"]).To(BeEquivalentTo("JKS"))
+			Expect(encryptionOptions["store_type"]).To(BeEquivalentTo("PKCS12"))
 
 			checkVolume("client-keystore", "dc1")
 		})
-	})
+		It("when user provided client TLS CA Secret", func() {
+			cc := baseCC.DeepCopy()
+			cc.Spec.Encryption.Client = v1alpha1.ClientEncryption{
+				Enabled: true,
+			}
 
-	var _ = AfterEach(func() {
-		Expect(k8sClient.Delete(ctx, tlsSecret)).To(Succeed())
+			createReadyCluster(cc)
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.CassandraClientTLSNode(cassandraObjectMeta.Name), Namespace: cassandraObjectMeta.Namespace}, nodeTLSSecret))
+			Expect(nodeTLSSecret.Data).To(HaveKey("ca.crt"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("tls.crt"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("tls.key"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("keystore.p12"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("keystore.password"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("truststore.p12"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("truststore.password"))
+
+			checkVolume("client-keystore", "dc1")
+		})
+		It("when user provided Client TLS Node Secret", func() {
+			nodeTLSSecretName := "my-client-tls-node"
+
+			nodeTLSSecretData := make(map[string][]byte)
+			nodeTLSSecretData["ca.crt"] = caCrtBytes
+			nodeTLSSecretData["tls.crt"] = tlsCrtBytes
+			nodeTLSSecretData["tls.key"] = tlsKeyBytes
+			nodeTLSSecretData["keystore.p12"] = keystoreBytes
+			nodeTLSSecretData["truststore.p12"] = truststoreBytes
+			nodeTLSSecretData["keystore.password"] = []byte(keystorePass)
+			nodeTLSSecretData["truststore.password"] = []byte(keystorePass)
+
+			nodeTLSSecret = &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      nodeTLSSecretName,
+					Namespace: cassandraObjectMeta.Namespace,
+				},
+				Data: nodeTLSSecretData,
+				Type: v1.SecretTypeOpaque,
+			}
+
+			Expect(k8sClient.Create(ctx, nodeTLSSecret)).To(Succeed())
+
+			cc := baseCC.DeepCopy()
+			cc.Spec.Encryption.Client = v1alpha1.ClientEncryption{
+				Enabled: true,
+				NodeTLSSecret: v1alpha1.NodeTLSSecret{
+					Name: nodeTLSSecretName,
+				},
+			}
+
+			createReadyCluster(cc)
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.CassandraClientTLSNode(cassandraObjectMeta.Name), Namespace: cassandraObjectMeta.Namespace}, nodeTLSSecret))
+			Expect(nodeTLSSecret.Data).To(HaveKey("ca.crt"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("tls.crt"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("tls.key"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("keystore.p12"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("keystore.password"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("truststore.p12"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("truststore.password"))
+
+			checkVolume("client-keystore", "dc1")
+
+			Expect(k8sClient.Delete(ctx, nodeTLSSecret)).To(Succeed())
+		})
+	})
+	Context("when both server and client encryption are enabled", func() {
+		It("when user didn't provide both Cluster and Client TLS Secrets", func() {
+			cc := baseCC.DeepCopy()
+			cc.Spec.Encryption.Server = v1alpha1.ServerEncryption{
+				InternodeEncryption: "dc",
+			}
+			cc.Spec.Encryption.Client = v1alpha1.ClientEncryption{
+				Enabled: true,
+			}
+
+			createReadyCluster(cc)
+
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.CassandraClusterTLSCA(cassandraObjectMeta.Name), Namespace: cassandraObjectMeta.Namespace}, caTLSSecret)).To(Succeed())
+			Expect(caTLSSecret.Data).To(HaveKey("ca.crt"))
+			Expect(caTLSSecret.Data).To(HaveKey("ca.key"))
+
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.CassandraClusterTLSNode(cassandraObjectMeta.Name), Namespace: cassandraObjectMeta.Namespace}, nodeTLSSecret)).To(Succeed())
+			Expect(nodeTLSSecret.Data).To(HaveKey("ca.crt"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("tls.crt"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("tls.key"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("keystore.p12"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("keystore.password"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("truststore.p12"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("truststore.password"))
+
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.CassandraClientTLSCA(cassandraObjectMeta.Name), Namespace: cassandraObjectMeta.Namespace}, caTLSSecret)).To(Succeed())
+			Expect(caTLSSecret.Data).To(HaveKey("ca.crt"))
+			Expect(caTLSSecret.Data).To(HaveKey("ca.key"))
+
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.CassandraClientTLSNode(cassandraObjectMeta.Name), Namespace: cassandraObjectMeta.Namespace}, nodeTLSSecret))
+			Expect(nodeTLSSecret.Data).To(HaveKey("ca.crt"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("tls.crt"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("tls.key"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("keystore.p12"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("keystore.password"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("truststore.p12"))
+			Expect(nodeTLSSecret.Data).To(HaveKey("truststore.password"))
+
+			checkVolume("server-keystore", "dc1")
+			checkVolume("client-keystore", "dc1")
+		})
 	})
 })
 
@@ -150,12 +316,12 @@ func checkVolume(volumeName string, dc string) {
 	sts := &appsv1.StatefulSet{}
 	Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.DC(cassandraObjectMeta.Name, dc), Namespace: cassandraObjectMeta.Namespace}, sts)).To(Succeed())
 
-	cassandraContainer, found := getContainerByName(sts.Spec.Template.Spec, "cassandra")
-	Expect(found).To(BeTrue())
+	//cassandraContainer, found := getContainerByName(sts.Spec.Template.Spec, keystorePass)
+	//Expect(found).To(BeTrue())
 
-	_, found = getVolumeByName(sts.Spec.Template.Spec.Volumes, volumeName)
-	Expect(found).To(BeTrue())
+	//_, found = getVolumeByName(sts.Spec.Template.Spec.Volumes, volumeName)
+	//Expect(found).To(BeTrue())
 
-	_, found = getVolumeMountByName(cassandraContainer.VolumeMounts, volumeName)
-	Expect(found).To(BeTrue())
+	//_, found = getVolumeMountByName(cassandraContainer.VolumeMounts, volumeName)
+	//Expect(found).To(BeTrue())
 }
