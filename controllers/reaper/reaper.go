@@ -15,6 +15,7 @@ import (
 
 const (
 	RepairStateRunning = "RUNNING"
+	RepairStatePaused  = "PAUSED"
 
 	OwnerCassandraOperator = "cassandra-operator"
 )
@@ -203,6 +204,12 @@ func (r *reaperClient) DeleteCluster(ctx context.Context) error {
 }
 
 func (r *reaperClient) deleteRepairRun(ctx context.Context, repairRun RepairRun) error {
+	if repairRun.State == RepairStateRunning {
+		if err := r.setRepairState(ctx, repairRun.ID, RepairStatePaused); err != nil {
+			return errors.Wrapf(err, "can't pause repair run %s for keyspace %s", repairRun.ID, repairRun.KeyspaceName)
+		}
+	}
+
 	route := r.url("/repair_run/" + repairRun.ID)
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, route, nil)
 	if err != nil {

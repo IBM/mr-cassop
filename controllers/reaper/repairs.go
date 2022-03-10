@@ -89,10 +89,10 @@ func (r *reaperClient) getRepairRuns(ctx context.Context, keyspace string) ([]Re
 	}
 	req.Header.Set("Accept", "application/json")
 	urlParams := url.Values{}
-	urlParams.Add("clusterName", r.clusterName)
+	urlParams.Add("cluster_name", r.clusterName)
 
 	if len(keyspace) > 0 {
-		urlParams.Add("keyspace", keyspace)
+		urlParams.Add("keyspace_name", keyspace)
 	}
 
 	req.URL.RawQuery = urlParams.Encode()
