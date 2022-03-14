@@ -28,6 +28,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ibm/cassandra-operator/controllers/nodectl"
+
+	"sigs.k8s.io/controller-runtime/pkg/event"
+
 	"github.com/ibm/cassandra-operator/controllers/webhooks"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	nwv1 "k8s.io/api/networking/v1"
@@ -75,6 +79,7 @@ var shutdown = false                //to track if the shutdown process has been 
 var waitGroup = &sync.WaitGroup{}   //waits until the reconcile loops finish. Used to gracefully shutdown the environment
 var mgrStopCh = make(chan struct{}) //stops the manager by sending a value to the channel
 var mockProberClient = &proberMock{}
+var mockNodectlClient = &nodectlMock{}
 var mockNodetoolClient = &nodetoolMock{}
 var mockCQLClient = &cqlMock{}
 var mockReaperClient = &reaperMock{}
@@ -221,10 +226,13 @@ var _ = BeforeSuite(func() {
 			mockReaperClient.clusterName = clusterName
 			return mockReaperClient
 		},
+		NodectlClient: func(jolokiaAddr, jmxUser, jmxPassword string, logr *zap.SugaredLogger) nodectl.Nodectl {
+			return mockNodectlClient
+		},
 	}
 
 	testReconciler := SetupTestReconcile(cassandraCtrl)
-	err = controllers.SetupCassandraReconciler(testReconciler, mgr, zap.NewNop().Sugar())
+	err = controllers.SetupCassandraReconciler(testReconciler, mgr, zap.NewNop().Sugar(), make(chan event.GenericEvent))
 	Expect(err).ToNot(HaveOccurred())
 
 	mgrStopCh = StartTestManager(mgr)
@@ -249,6 +257,7 @@ var _ = AfterEach(func() {
 	}, longTimeout, mediumRetry).Should(BeFalse(), "Test didn't stop triggering reconcile events. See operator logs for more details.")
 	CleanUpCreatedResources(cassandraObjectMeta.Name, cassandraObjectMeta.Namespace)
 	mockProberClient = &proberMock{}
+	mockNodectlClient = &nodectlMock{}
 	mockNodetoolClient = &nodetoolMock{}
 	mockCQLClient = &cqlMock{}
 	mockReaperClient = &reaperMock{}

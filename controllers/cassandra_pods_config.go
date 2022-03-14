@@ -6,14 +6,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ibm/cassandra-operator/controllers/events"
-
-	"github.com/ibm/cassandra-operator/controllers/prober"
-	"github.com/ibm/cassandra-operator/controllers/util"
-
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
+	"github.com/ibm/cassandra-operator/controllers/events"
 	"github.com/ibm/cassandra-operator/controllers/labels"
 	"github.com/ibm/cassandra-operator/controllers/names"
+	"github.com/ibm/cassandra-operator/controllers/prober"
+	"github.com/ibm/cassandra-operator/controllers/util"
 	"github.com/pkg/errors"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,7 +23,7 @@ var (
 	ErrRegionNotReady  = errors.New("One of the regions is not ready")
 )
 
-func (r *CassandraClusterReconciler) reconcileCassandraPodsConfigMap(ctx context.Context, cc *v1alpha1.CassandraCluster, proberClient prober.ProberClient) error {
+func (r *CassandraClusterReconciler) reconcileCassandraPodsConfigMap(ctx context.Context, cc *v1alpha1.CassandraCluster, podList *v1.PodList, nodesList *v1.NodeList, proberClient prober.ProberClient) error {
 	desiredCM := &v1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
@@ -38,7 +36,7 @@ func (r *CassandraClusterReconciler) reconcileCassandraPodsConfigMap(ctx context
 		return errors.Wrap(err, "Cannot set controller reference")
 	}
 
-	podsConfigMapData, err := r.podsConfigMapData(ctx, cc, proberClient)
+	podsConfigMapData, err := r.podsConfigMapData(ctx, cc, podList, nodesList, proberClient)
 	if err != nil {
 		return err
 	}
@@ -47,26 +45,12 @@ func (r *CassandraClusterReconciler) reconcileCassandraPodsConfigMap(ctx context
 	return r.reconcileConfigMap(ctx, desiredCM)
 }
 
-func (r *CassandraClusterReconciler) podsConfigMapData(ctx context.Context, cc *v1alpha1.CassandraCluster, proberClient prober.ProberClient) (map[string]string, error) {
-	podList, err := r.getCassandraPods(ctx, cc)
-	if err != nil {
-		return nil, errors.Wrap(err, "Cannot get Cassandra pods list")
-	}
-
+func (r *CassandraClusterReconciler) podsConfigMapData(ctx context.Context, cc *v1alpha1.CassandraCluster, podList *v1.PodList, nodesList *v1.NodeList, proberClient prober.ProberClient) (map[string]string, error) {
 	if len(podList.Items) == 0 {
 		return nil, nil // the statefulset may not be created yet
 	}
 
-	nodeList := &v1.NodeList{}
-	//optimization - node info needed only if hostport or zoneAsRacks enabled
-	if cc.Spec.HostPort.Enabled || cc.Spec.Cassandra.ZonesAsRacks {
-		err = r.List(ctx, nodeList)
-		if err != nil {
-			return nil, errors.Wrap(err, "can't get list of nodes")
-		}
-	}
-
-	broadcastAddresses, err := getBroadcastAddresses(cc, podList.Items, nodeList.Items)
+	broadcastAddresses, err := getBroadcastAddresses(cc, podList.Items, nodesList.Items)
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting broadcast addresses")
 	}
@@ -98,7 +82,7 @@ func (r *CassandraClusterReconciler) podsConfigMapData(ctx context.Context, cc *
 		}
 
 		if cc.Spec.Cassandra.ZonesAsRacks {
-			node, found := getNodeByName(nodeList.Items, pod.Spec.NodeName)
+			node, found := getNodeByName(nodesList.Items, pod.Spec.NodeName)
 			if !found {
 				return nil, errors.Errorf("Node %q not found", pod.Spec.NodeName)
 			}

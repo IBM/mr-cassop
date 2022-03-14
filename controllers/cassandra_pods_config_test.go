@@ -70,6 +70,8 @@ func TestPodsConfigMapData(t *testing.T) {
 		name                     string
 		k8sObjects               []client.Object
 		k8sLists                 []client.ObjectList
+		podList                  *v1.PodList
+		nodeList                 *v1.NodeList
 		cc                       *v1alpha1.CassandraCluster
 		externalSeeds            map[string][]string
 		expectedCMData           map[string]string
@@ -90,15 +92,14 @@ func TestPodsConfigMapData(t *testing.T) {
 					},
 				},
 			},
-			k8sLists: []client.ObjectList{
-				&v1.PodList{
-					Items: []v1.Pod{
-						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", false, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", false, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", false, cLabels(ccName, "dc1", false)),
-					},
+			podList: &v1.PodList{
+				Items: []v1.Pod{
+					createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", false, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", false, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", false, cLabels(ccName, "dc1", false)),
 				},
 			},
+			nodeList: &v1.NodeList{},
 			k8sObjects: []client.Object{&appsv1.StatefulSet{
 				ObjectMeta: stsObjectMeta,
 				Spec: appsv1.StatefulSetSpec{
@@ -148,18 +149,17 @@ export PAUSE_REASON="waiting for seed nodes to init"
 					},
 				},
 			},
-			k8sLists: []client.ObjectList{
-				&v1.PodList{
-					Items: []v1.Pod{
-						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", true, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", true, cLabels(ccName, "dc1", false)),
-						createTestPod("test-cluster-cassandra-dc1-3", ccNamespace, "uid4", "10.1.1.6", "node4", false, cLabels(ccName, "dc1", false)),
-						createTestPod("test-cluster-cassandra-dc1-4", ccNamespace, "uid5", "10.1.1.7", "node5", false, cLabels(ccName, "dc1", false)),
-						createTestPod("test-cluster-cassandra-dc1-5", ccNamespace, "uid6", "10.1.1.8", "node6", false, cLabels(ccName, "dc1", false)),
-					},
+			podList: &v1.PodList{
+				Items: []v1.Pod{
+					createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", true, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", true, cLabels(ccName, "dc1", false)),
+					createTestPod("test-cluster-cassandra-dc1-3", ccNamespace, "uid4", "10.1.1.6", "node4", false, cLabels(ccName, "dc1", false)),
+					createTestPod("test-cluster-cassandra-dc1-4", ccNamespace, "uid5", "10.1.1.7", "node5", false, cLabels(ccName, "dc1", false)),
+					createTestPod("test-cluster-cassandra-dc1-5", ccNamespace, "uid6", "10.1.1.8", "node6", false, cLabels(ccName, "dc1", false)),
 				},
 			},
+			nodeList: &v1.NodeList{},
 			k8sObjects: []client.Object{&appsv1.StatefulSet{
 				ObjectMeta: stsObjectMeta,
 				Spec: appsv1.StatefulSetSpec{
@@ -222,6 +222,8 @@ export PAUSE_REASON="waiting for other non seed nodes since only one non seed no
 			cc: &v1alpha1.CassandraCluster{
 				ObjectMeta: ccObjMeta,
 			},
+			podList:        &v1.PodList{},
+			nodeList:       &v1.NodeList{},
 			k8sLists:       []client.ObjectList{},
 			expectedCMData: nil,
 			expectedError:  nil,
@@ -252,20 +254,18 @@ export PAUSE_REASON="waiting for other non seed nodes since only one non seed no
 					ReadyReplicas: 3,
 				},
 			}},
-			k8sLists: []client.ObjectList{
-				&v1.PodList{
-					Items: []v1.Pod{
-						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", true, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", true, cLabels(ccName, "dc1", false)),
-					},
+			podList: &v1.PodList{
+				Items: []v1.Pod{
+					createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", true, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", true, cLabels(ccName, "dc1", false)),
 				},
-				&v1.NodeList{
-					Items: []v1.Node{
-						createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
-						createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
-						createTestNode("node3", "12.43.22.142", "54.32.141.233", nil),
-					},
+			},
+			nodeList: &v1.NodeList{
+				Items: []v1.Node{
+					createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
+					createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
+					createTestNode("node3", "12.43.22.142", "54.32.141.233", nil),
 				},
 			},
 			expectedCMData: map[string]string{
@@ -320,20 +320,18 @@ export PAUSE_REASON="pod is not paused"
 					ReadyReplicas: 3,
 				},
 			}},
-			k8sLists: []client.ObjectList{
-				&v1.PodList{
-					Items: []v1.Pod{
-						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", true, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", true, cLabels(ccName, "dc1", false)),
-					},
+			podList: &v1.PodList{
+				Items: []v1.Pod{
+					createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", true, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", true, cLabels(ccName, "dc1", false)),
 				},
-				&v1.NodeList{
-					Items: []v1.Node{
-						createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
-						createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
-						createTestNode("node3", "12.43.22.142", "54.32.141.233", nil),
-					},
+			},
+			nodeList: &v1.NodeList{
+				Items: []v1.Node{
+					createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
+					createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
+					createTestNode("node3", "12.43.22.142", "54.32.141.233", nil),
 				},
 			},
 			expectedCMData: map[string]string{
@@ -389,20 +387,18 @@ export PAUSE_REASON="pod is not paused"
 				},
 			},
 			k8sObjects: []client.Object{readyStatefulSet},
-			k8sLists: []client.ObjectList{
-				&v1.PodList{
-					Items: []v1.Pod{
-						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", true, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", true, cLabels(ccName, "dc1", false)),
-					},
+			podList: &v1.PodList{
+				Items: []v1.Pod{
+					createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", true, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", true, cLabels(ccName, "dc1", false)),
 				},
-				&v1.NodeList{
-					Items: []v1.Node{
-						createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
-						createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
-						createTestNode("node3", "12.43.22.142", "54.32.141.233", nil),
-					},
+			},
+			nodeList: &v1.NodeList{
+				Items: []v1.Node{
+					createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
+					createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
+					createTestNode("node3", "12.43.22.142", "54.32.141.233", nil),
 				},
 			},
 			expectedCMData: map[string]string{
@@ -447,20 +443,18 @@ export PAUSE_REASON="pod is not paused"
 					},
 				},
 			},
-			k8sLists: []client.ObjectList{
-				&v1.PodList{
-					Items: []v1.Pod{
-						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", true, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "", true, cLabels(ccName, "dc1", false)),
-					},
+			podList: &v1.PodList{
+				Items: []v1.Pod{
+					createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", true, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "", true, cLabels(ccName, "dc1", false)),
 				},
-				&v1.NodeList{
-					Items: []v1.Node{
-						createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
-						createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
-						createTestNode("node3", "12.43.22.142", "54.32.141.233", nil),
-					},
+			},
+			nodeList: &v1.NodeList{
+				Items: []v1.Node{
+					createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
+					createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
+					createTestNode("node3", "12.43.22.142", "54.32.141.233", nil),
 				},
 			},
 			expectedCMData: nil,
@@ -485,78 +479,76 @@ export PAUSE_REASON="pod is not paused"
 					},
 				},
 			},
-			k8sLists: []client.ObjectList{
-				&v1.PodList{
-					Items: []v1.Pod{
-						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "", "node1", false, map[string]string{
-							v1alpha1.CassandraClusterInstance:  "test-cluster",
-							v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-							v1alpha1.CassandraClusterSeed:      "test-cluster-cassandra-dc1-0",
-							v1alpha1.CassandraClusterDC:        "dc1",
-						}),
-						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, map[string]string{
-							v1alpha1.CassandraClusterInstance:  "test-cluster",
-							v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-							v1alpha1.CassandraClusterSeed:      "test-cluster-cassandra-dc1-1",
-							v1alpha1.CassandraClusterDC:        "dc1",
-						}),
-						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", true, map[string]string{
-							v1alpha1.CassandraClusterInstance:  "test-cluster",
-							v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
-							v1alpha1.CassandraClusterDC:        "dc1",
-						}),
-					},
+			podList: &v1.PodList{
+				Items: []v1.Pod{
+					createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "", "node1", false, map[string]string{
+						v1alpha1.CassandraClusterInstance:  "test-cluster",
+						v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
+						v1alpha1.CassandraClusterSeed:      "test-cluster-cassandra-dc1-0",
+						v1alpha1.CassandraClusterDC:        "dc1",
+					}),
+					createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, map[string]string{
+						v1alpha1.CassandraClusterInstance:  "test-cluster",
+						v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
+						v1alpha1.CassandraClusterSeed:      "test-cluster-cassandra-dc1-1",
+						v1alpha1.CassandraClusterDC:        "dc1",
+					}),
+					createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", true, map[string]string{
+						v1alpha1.CassandraClusterInstance:  "test-cluster",
+						v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentCassandra,
+						v1alpha1.CassandraClusterDC:        "dc1",
+					}),
 				},
-				&v1.NodeList{
-					Items: []v1.Node{
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node1",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.143",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.231",
-									},
+			},
+			nodeList: &v1.NodeList{
+				Items: []v1.Node{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "node1",
+						},
+						Status: v1.NodeStatus{
+							Addresses: []v1.NodeAddress{
+								{
+									Type:    v1.NodeInternalIP,
+									Address: "12.43.22.143",
+								},
+								{
+									Type:    v1.NodeExternalIP,
+									Address: "54.32.141.231",
 								},
 							},
 						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node2",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.153",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.232",
-									},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "node2",
+						},
+						Status: v1.NodeStatus{
+							Addresses: []v1.NodeAddress{
+								{
+									Type:    v1.NodeInternalIP,
+									Address: "12.43.22.153",
+								},
+								{
+									Type:    v1.NodeExternalIP,
+									Address: "54.32.141.232",
 								},
 							},
 						},
-						{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "node3",
-							},
-							Status: v1.NodeStatus{
-								Addresses: []v1.NodeAddress{
-									{
-										Type:    v1.NodeInternalIP,
-										Address: "12.43.22.142",
-									},
-									{
-										Type:    v1.NodeExternalIP,
-										Address: "54.32.141.233",
-									},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "node3",
+						},
+						Status: v1.NodeStatus{
+							Addresses: []v1.NodeAddress{
+								{
+									Type:    v1.NodeInternalIP,
+									Address: "12.43.22.142",
+								},
+								{
+									Type:    v1.NodeExternalIP,
+									Address: "54.32.141.233",
 								},
 							},
 						},
@@ -602,21 +594,21 @@ export PAUSE_REASON="pod is not paused"
 			externalRegionsSeeds: map[string][]string{
 				"default-test-cluster-cassandra-prober.region2.ingress.domain": {"42.32.34.111", "42.32.34.113"},
 			},
+			podList: &v1.PodList{
+				Items: []v1.Pod{
+					createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", true, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", true, cLabels(ccName, "dc1", false)),
+				},
+			},
+			nodeList: &v1.NodeList{
+				Items: []v1.Node{
+					createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
+					createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
+					createTestNode("node3", "12.43.22.142", "54.32.141.233", nil),
+				},
+			},
 			k8sLists: []client.ObjectList{
-				&v1.PodList{
-					Items: []v1.Pod{
-						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", true, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", true, cLabels(ccName, "dc1", false)),
-					},
-				},
-				&v1.NodeList{
-					Items: []v1.Node{
-						createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
-						createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
-						createTestNode("node3", "12.43.22.142", "54.32.141.233", nil),
-					},
-				},
 				&appsv1.StatefulSetList{
 					Items: []appsv1.StatefulSet{
 						{
@@ -699,24 +691,24 @@ export PAUSE_REASON="pod is not paused"
 			externalRegionsSeeds: map[string][]string{
 				"default-test-cluster-cassandra-prober.region2.ingress.domain": {"42.32.34.111", "42.32.34.113"},
 			},
+			podList: &v1.PodList{
+				Items: []v1.Pod{
+					createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", false, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", false, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", false, cLabels(ccName, "dc1", false)),
+					createTestPod("test-cluster-cassandra-dc3-0", ccNamespace, "uid1", "10.1.2.3", "node1", false, cLabels(ccName, "dc3", true)),
+					createTestPod("test-cluster-cassandra-dc3-1", ccNamespace, "uid2", "10.1.2.4", "node2", false, cLabels(ccName, "dc3", true)),
+					createTestPod("test-cluster-cassandra-dc3-2", ccNamespace, "uid3", "10.1.2.5", "node3", false, cLabels(ccName, "dc3", false)),
+				},
+			},
+			nodeList: &v1.NodeList{
+				Items: []v1.Node{
+					createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
+					createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
+					createTestNode("node3", "12.43.22.142", "54.32.141.233", nil),
+				},
+			},
 			k8sLists: []client.ObjectList{
-				&v1.PodList{
-					Items: []v1.Pod{
-						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", false, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", false, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", false, cLabels(ccName, "dc1", false)),
-						createTestPod("test-cluster-cassandra-dc3-0", ccNamespace, "uid1", "10.1.2.3", "node1", false, cLabels(ccName, "dc3", true)),
-						createTestPod("test-cluster-cassandra-dc3-1", ccNamespace, "uid2", "10.1.2.4", "node2", false, cLabels(ccName, "dc3", true)),
-						createTestPod("test-cluster-cassandra-dc3-2", ccNamespace, "uid3", "10.1.2.5", "node3", false, cLabels(ccName, "dc3", false)),
-					},
-				},
-				&v1.NodeList{
-					Items: []v1.Node{
-						createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
-						createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
-						createTestNode("node3", "12.43.22.142", "54.32.141.233", nil),
-					},
-				},
 				&appsv1.StatefulSetList{
 					Items: []appsv1.StatefulSet{
 						{
@@ -832,24 +824,24 @@ export PAUSE_REASON="waiting for other DCs to init"
 			externalRegionsSeeds: map[string][]string{
 				"default-test-cluster-cassandra-prober.region2.ingress.domain": {"42.32.34.111", "42.32.34.113"},
 			},
+			podList: &v1.PodList{
+				Items: []v1.Pod{
+					createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", true, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", true, cLabels(ccName, "dc1", false)),
+					createTestPod("test-cluster-cassandra-dc3-0", ccNamespace, "uid1", "10.1.2.3", "node1", true, cLabels(ccName, "dc3", true)),
+					createTestPod("test-cluster-cassandra-dc3-1", ccNamespace, "uid2", "10.1.2.4", "node2", true, cLabels(ccName, "dc3", true)),
+					createTestPod("test-cluster-cassandra-dc3-2", ccNamespace, "uid3", "10.1.2.5", "node3", true, cLabels(ccName, "dc3", false)),
+				},
+			},
+			nodeList: &v1.NodeList{
+				Items: []v1.Node{
+					createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
+					createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
+					createTestNode("node3", "12.43.22.142", "54.32.141.233", nil),
+				},
+			},
 			k8sLists: []client.ObjectList{
-				&v1.PodList{
-					Items: []v1.Pod{
-						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", true, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", true, cLabels(ccName, "dc1", false)),
-						createTestPod("test-cluster-cassandra-dc3-0", ccNamespace, "uid1", "10.1.2.3", "node1", true, cLabels(ccName, "dc3", true)),
-						createTestPod("test-cluster-cassandra-dc3-1", ccNamespace, "uid2", "10.1.2.4", "node2", true, cLabels(ccName, "dc3", true)),
-						createTestPod("test-cluster-cassandra-dc3-2", ccNamespace, "uid3", "10.1.2.5", "node3", true, cLabels(ccName, "dc3", false)),
-					},
-				},
-				&v1.NodeList{
-					Items: []v1.Node{
-						createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
-						createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
-						createTestNode("node3", "12.43.22.142", "54.32.141.233", nil),
-					},
-				},
 				&appsv1.StatefulSetList{
 					Items: []appsv1.StatefulSet{
 						{
@@ -965,24 +957,24 @@ export PAUSE_REASON="pod is not paused"
 			externalRegionsSeeds: map[string][]string{
 				"default-test-cluster-cassandra-prober.region1.ingress.domain": {"42.32.34.111", "42.32.34.113"},
 			},
+			podList: &v1.PodList{
+				Items: []v1.Pod{
+					createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", false, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", false, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", false, cLabels(ccName, "dc1", false)),
+					createTestPod("test-cluster-cassandra-dc3-0", ccNamespace, "uid1", "10.1.2.3", "node1", false, cLabels(ccName, "dc3", true)),
+					createTestPod("test-cluster-cassandra-dc3-1", ccNamespace, "uid2", "10.1.2.4", "node2", false, cLabels(ccName, "dc3", true)),
+					createTestPod("test-cluster-cassandra-dc3-2", ccNamespace, "uid3", "10.1.2.5", "node3", false, cLabels(ccName, "dc3", false)),
+				},
+			},
+			nodeList: &v1.NodeList{
+				Items: []v1.Node{
+					createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
+					createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
+					createTestNode("node3", "12.43.22.142", "54.32.141.233", nil),
+				},
+			},
 			k8sLists: []client.ObjectList{
-				&v1.PodList{
-					Items: []v1.Pod{
-						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", false, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", false, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", false, cLabels(ccName, "dc1", false)),
-						createTestPod("test-cluster-cassandra-dc3-0", ccNamespace, "uid1", "10.1.2.3", "node1", false, cLabels(ccName, "dc3", true)),
-						createTestPod("test-cluster-cassandra-dc3-1", ccNamespace, "uid2", "10.1.2.4", "node2", false, cLabels(ccName, "dc3", true)),
-						createTestPod("test-cluster-cassandra-dc3-2", ccNamespace, "uid3", "10.1.2.5", "node3", false, cLabels(ccName, "dc3", false)),
-					},
-				},
-				&v1.NodeList{
-					Items: []v1.Node{
-						createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
-						createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
-						createTestNode("node3", "12.43.22.142", "54.32.141.233", nil),
-					},
-				},
 				&appsv1.StatefulSetList{
 					Items: []appsv1.StatefulSet{
 						{
@@ -1092,24 +1084,24 @@ export PAUSE_REASON="waiting for other regions to init"
 					},
 				},
 			},
+			podList: &v1.PodList{
+				Items: []v1.Pod{
+					createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", false, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", false, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", false, cLabels(ccName, "dc1", false)),
+					createTestPod("test-cluster-cassandra-dc3-0", ccNamespace, "uid1", "10.1.2.3", "node1", false, cLabels(ccName, "dc3", true)),
+					createTestPod("test-cluster-cassandra-dc3-1", ccNamespace, "uid2", "10.1.2.4", "node2", false, cLabels(ccName, "dc3", true)),
+					createTestPod("test-cluster-cassandra-dc3-2", ccNamespace, "uid3", "10.1.2.5", "node3", false, cLabels(ccName, "dc3", false)),
+				},
+			},
+			nodeList: &v1.NodeList{
+				Items: []v1.Node{
+					createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
+					createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
+					// node3 is missing
+				},
+			},
 			k8sLists: []client.ObjectList{
-				&v1.PodList{
-					Items: []v1.Pod{
-						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", false, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", false, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", false, cLabels(ccName, "dc1", false)),
-						createTestPod("test-cluster-cassandra-dc3-0", ccNamespace, "uid1", "10.1.2.3", "node1", false, cLabels(ccName, "dc3", true)),
-						createTestPod("test-cluster-cassandra-dc3-1", ccNamespace, "uid2", "10.1.2.4", "node2", false, cLabels(ccName, "dc3", true)),
-						createTestPod("test-cluster-cassandra-dc3-2", ccNamespace, "uid3", "10.1.2.5", "node3", false, cLabels(ccName, "dc3", false)),
-					},
-				},
-				&v1.NodeList{
-					Items: []v1.Node{
-						createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
-						createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
-						// node3 is missing
-					},
-				},
 				&appsv1.StatefulSetList{
 					Items: []appsv1.StatefulSet{
 						{
@@ -1165,20 +1157,18 @@ export PAUSE_REASON="waiting for other regions to init"
 				},
 			},
 			k8sObjects: []client.Object{readyStatefulSet},
-			k8sLists: []client.ObjectList{
-				&v1.PodList{
-					Items: []v1.Pod{
-						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", true, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", true, cLabels(ccName, "dc1", false)),
-					},
+			podList: &v1.PodList{
+				Items: []v1.Pod{
+					createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", true, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", true, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", true, cLabels(ccName, "dc1", false)),
 				},
-				&v1.NodeList{
-					Items: []v1.Node{
-						createTestNode("node1", "12.43.22.143", "54.32.141.231", map[string]string{v1.LabelTopologyZone: "zone1"}),
-						createTestNode("node2", "12.43.22.153", "54.32.141.232", map[string]string{v1.LabelTopologyZone: "zone1"}),
-						createTestNode("node3", "12.43.22.142", "54.32.141.233", map[string]string{v1.LabelTopologyZone: "zone2"}),
-					},
+			},
+			nodeList: &v1.NodeList{
+				Items: []v1.Node{
+					createTestNode("node1", "12.43.22.143", "54.32.141.231", map[string]string{v1.LabelTopologyZone: "zone1"}),
+					createTestNode("node2", "12.43.22.153", "54.32.141.232", map[string]string{v1.LabelTopologyZone: "zone1"}),
+					createTestNode("node3", "12.43.22.142", "54.32.141.233", map[string]string{v1.LabelTopologyZone: "zone2"}),
 				},
 			},
 			expectedCMData: map[string]string{
@@ -1250,24 +1240,24 @@ export PAUSE_REASON="pod is not paused"
 				"default-test-cluster-cassandra-prober.region1.ingress.domain": nil, //no seeds yet, should fail
 			},
 			externalRegionsReadiness: map[string]bool{},
+			podList: &v1.PodList{
+				Items: []v1.Pod{
+					createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", false, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", false, cLabels(ccName, "dc1", true)),
+					createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", false, cLabels(ccName, "dc1", false)),
+					createTestPod("test-cluster-cassandra-dc3-0", ccNamespace, "uid1", "10.1.2.3", "node1", false, cLabels(ccName, "dc3", true)),
+					createTestPod("test-cluster-cassandra-dc3-1", ccNamespace, "uid2", "10.1.2.4", "node2", false, cLabels(ccName, "dc3", true)),
+					createTestPod("test-cluster-cassandra-dc3-2", ccNamespace, "uid3", "10.1.2.5", "node3", false, cLabels(ccName, "dc3", false)),
+				},
+			},
+			nodeList: &v1.NodeList{
+				Items: []v1.Node{
+					createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
+					createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
+					createTestNode("node3", "12.43.22.155", "54.32.141.233", nil),
+				},
+			},
 			k8sLists: []client.ObjectList{
-				&v1.PodList{
-					Items: []v1.Pod{
-						createTestPod("test-cluster-cassandra-dc1-0", ccNamespace, "uid1", "10.1.1.3", "node1", false, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-1", ccNamespace, "uid2", "10.1.1.4", "node2", false, cLabels(ccName, "dc1", true)),
-						createTestPod("test-cluster-cassandra-dc1-2", ccNamespace, "uid3", "10.1.1.5", "node3", false, cLabels(ccName, "dc1", false)),
-						createTestPod("test-cluster-cassandra-dc3-0", ccNamespace, "uid1", "10.1.2.3", "node1", false, cLabels(ccName, "dc3", true)),
-						createTestPod("test-cluster-cassandra-dc3-1", ccNamespace, "uid2", "10.1.2.4", "node2", false, cLabels(ccName, "dc3", true)),
-						createTestPod("test-cluster-cassandra-dc3-2", ccNamespace, "uid3", "10.1.2.5", "node3", false, cLabels(ccName, "dc3", false)),
-					},
-				},
-				&v1.NodeList{
-					Items: []v1.Node{
-						createTestNode("node1", "12.43.22.143", "54.32.141.231", nil),
-						createTestNode("node2", "12.43.22.153", "54.32.141.232", nil),
-						createTestNode("node3", "12.43.22.155", "54.32.141.233", nil),
-					},
-				},
 				&appsv1.StatefulSetList{
 					Items: []appsv1.StatefulSet{
 						{
@@ -1331,7 +1321,7 @@ export PAUSE_REASON="pod is not paused"
 
 		reconciler.defaultCassandraCluster(c.cc)
 
-		cmData, err := reconciler.podsConfigMapData(context.Background(), c.cc, proberClient)
+		cmData, err := reconciler.podsConfigMapData(context.Background(), c.cc, c.podList, c.nodeList, proberClient)
 		if c.expectedError == nil {
 			asserts.Expect(err).To(BeNil())
 		} else {

@@ -182,6 +182,10 @@ func newCassandraClusterTmpl(name, namespace string) *v1alpha1.CassandraCluster 
 						v1.ResourceMemory: resource.MustParse("512Mi"),
 					},
 				},
+				MaxParallelRepairs:  20,
+				RepairRunThreads:    4,
+				RepairThreadCount:   4,
+				SegmentCountPerNode: 1, // speeds up repairs
 			},
 		},
 	}

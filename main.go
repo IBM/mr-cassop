@@ -18,7 +18,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/ibm/cassandra-operator/controllers/names"
 	"net/http"
 	"net/url"
 	"os"
@@ -26,26 +25,31 @@ import (
 
 	"github.com/go-logr/zapr"
 	"github.com/gocql/gocql"
-	"github.com/ibm/cassandra-operator/controllers/webhooks"
 	"go.uber.org/zap"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
-	operatorCfg "github.com/ibm/cassandra-operator/controllers/config"
-	"github.com/ibm/cassandra-operator/controllers/cql"
-	"github.com/ibm/cassandra-operator/controllers/events"
-	"github.com/ibm/cassandra-operator/controllers/logger"
-	"github.com/ibm/cassandra-operator/controllers/prober"
-	"github.com/ibm/cassandra-operator/controllers/reaper"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers"
-	// +kubebuilder:scaffold:imports
+	operatorCfg "github.com/ibm/cassandra-operator/controllers/config"
+	"github.com/ibm/cassandra-operator/controllers/cql"
+	"github.com/ibm/cassandra-operator/controllers/events"
+	"github.com/ibm/cassandra-operator/controllers/jobs"
+	"github.com/ibm/cassandra-operator/controllers/logger"
+	"github.com/ibm/cassandra-operator/controllers/names"
+	"github.com/ibm/cassandra-operator/controllers/nodectl"
+	"github.com/ibm/cassandra-operator/controllers/prober"
+	"github.com/ibm/cassandra-operator/controllers/reaper"
+	"github.com/ibm/cassandra-operator/controllers/webhooks"
 )
 
 var (
@@ -115,6 +119,7 @@ func main() {
 	}
 
 	eventRecorder := events.NewEventRecorder(mgr.GetEventRecorderFor(events.EventRecorderNameCassandraCluster))
+	reconcileChan := make(chan event.GenericEvent)
 
 	cassandraReconciler := &controllers.CassandraClusterReconciler{
 		Client:       mgr.GetClient(),
@@ -124,11 +129,15 @@ func main() {
 		Events:       eventRecorder,
 		ProberClient: func(url *url.URL) prober.ProberClient { return prober.NewProberClient(url, httpClient) },
 		CqlClient:    func(cluster *gocql.ClusterConfig) (cql.CqlClient, error) { return cql.NewCQLClient(cluster) },
+		NodectlClient: func(jolokiaAddr, jmxUser, jmxPassword string, logr *zap.SugaredLogger) nodectl.Nodectl {
+			return nodectl.NewClient(jolokiaAddr, jmxUser, jmxPassword, logr)
+		},
 		ReaperClient: func(url *url.URL, clusterName string, defaultRepairThreadCount int32) reaper.ReaperClient {
 			return reaper.NewReaperClient(url, clusterName, httpClient, defaultRepairThreadCount)
 		},
+		Jobs: jobs.NewJobManager(reconcileChan, logr),
 	}
-	err = controllers.SetupCassandraReconciler(cassandraReconciler, mgr, logr)
+	err = controllers.SetupCassandraReconciler(cassandraReconciler, mgr, logr, reconcileChan)
 	if err != nil {
 		logr.With(zap.Error(err)).Error("unable to create controller", "controller", "CassandraCluster")
 		os.Exit(1)

@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"strconv"
 
+	"github.com/ibm/cassandra-operator/controllers/nodectl"
+
 	"github.com/gogo/protobuf/proto"
 
 	"github.com/ibm/cassandra-operator/controllers/reaper"
@@ -259,6 +261,31 @@ func (r *reaperMock) SetRepairScheduleState(ctx context.Context, repairScheduleI
 
 func (r *reaperMock) RunRepair(ctx context.Context, keyspace, cause string) error {
 	return r.err
+}
+
+type mockNode struct {
+	clusterView nodectl.ClusterView
+	opMode      nodectl.OperationMode
+}
+
+type nodectlMock struct {
+	nodesState map[string]mockNode
+}
+
+func (n *nodectlMock) Decommission(nodeIP string) error {
+	return nil
+}
+
+func (n *nodectlMock) Version(nodeIP string) (major, minor, patch int, err error) {
+	return 3, 11, 11, nil
+}
+
+func (n *nodectlMock) ClusterView(nodeIP string) (nodectl.ClusterView, error) {
+	return n.nodesState[nodeIP].clusterView, nil
+}
+
+func (n *nodectlMock) OperationMode(nodeIP string) (nodectl.OperationMode, error) {
+	return n.nodesState[nodeIP].opMode, nil
 }
 
 func markMocksAsReady(cc *dbv1alpha1.CassandraCluster) {

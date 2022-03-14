@@ -66,6 +66,8 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 		desiredSts.Spec.Template.Labels = actualSts.Spec.Template.Labels
 		// annotation can be used by things like `kubectl rollout sts restart` so don't overwrite it
 		desiredSts.Spec.Template.Annotations = actualSts.Spec.Template.Annotations
+		// scaling is handled by the scaling logic
+		desiredSts.Spec.Replicas = actualSts.Spec.Replicas
 		if !compare.EqualStatefulSet(desiredSts, actualSts) {
 			r.Log.Info("Updating cassandra statefulset")
 			r.Log.Debug(compare.DiffStatefulSet(actualSts, desiredSts))

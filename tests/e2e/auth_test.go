@@ -93,12 +93,6 @@ CREATE TABLE e2e_tests.e2e_tests_table (
 					},
 				},
 			}
-			cc.Spec.Reaper = &dbv1alpha1.Reaper{
-				MaxParallelRepairs:  20,
-				RepairRunThreads:    4,
-				RepairThreadCount:   4,
-				SegmentCountPerNode: 1, // speeds up repairs
-			}
 			cc.Spec.Cassandra.Sysctls = sysctls
 
 			deployCassandraCluster(cc)

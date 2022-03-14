@@ -16,29 +16,38 @@ import (
 	"context"
 	"net/url"
 
-	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"github.com/ibm/cassandra-operator/controllers/nodectl"
 
-	"github.com/gocql/gocql"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/config"
 	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/ibm/cassandra-operator/controllers/eventhandler"
 	"github.com/ibm/cassandra-operator/controllers/events"
+	"github.com/ibm/cassandra-operator/controllers/jobs"
 	"github.com/ibm/cassandra-operator/controllers/prober"
 	"github.com/ibm/cassandra-operator/controllers/reaper"
+
+	"github.com/gocql/gocql"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+
+	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
+
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -66,13 +75,15 @@ const (
 // CassandraClusterReconciler reconciles a CassandraCluster object
 type CassandraClusterReconciler struct {
 	client.Client
-	Log          *zap.SugaredLogger
-	Scheme       *runtime.Scheme
-	Cfg          config.Config
-	Events       *events.EventRecorder
-	ProberClient func(url *url.URL) prober.ProberClient
-	CqlClient    func(cluster *gocql.ClusterConfig) (cql.CqlClient, error)
-	ReaperClient func(url *url.URL, clusterName string, defaultRepairThreadCount int32) reaper.ReaperClient
+	Log           *zap.SugaredLogger
+	Scheme        *runtime.Scheme
+	Cfg           config.Config
+	Events        *events.EventRecorder
+	Jobs          *jobs.JobManager
+	ProberClient  func(url *url.URL) prober.ProberClient
+	CqlClient     func(cluster *gocql.ClusterConfig) (cql.CqlClient, error)
+	ReaperClient  func(url *url.URL, clusterName string, defaultRepairThreadCount int32) reaper.ReaperClient
+	NodectlClient func(jolokiaAddr, jmxUser, jmxPassword string, logr *zap.SugaredLogger) nodectl.Nodectl
 }
 
 // +kubebuilder:rbac:groups=db.ibm.com,resources=cassandraclusters,verbs=get;list;watch;create;update;patch;delete
@@ -180,9 +191,23 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling cassandra configmaps")
 	}
 
+	podList, err := r.getCassandraPods(ctx, cc)
+	if err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Cannot get Cassandra pods list")
+	}
+
+	nodeList := &v1.NodeList{}
+	//optimization - node info needed only if hostport or zoneAsRacks enabled
+	if cc.Spec.HostPort.Enabled || cc.Spec.Cassandra.ZonesAsRacks {
+		err := r.List(ctx, nodeList)
+		if err != nil {
+			return ctrl.Result{}, errors.Wrap(err, "can't get list of nodes")
+		}
+	}
+
 	// although the pods don't exist yet on the first run, we still need to create the configmap (even empty)
 	// so that the pods won't fail trying to mount an empty configmap
-	if err = r.reconcileCassandraPodsConfigMap(ctx, cc, proberClient); err != nil {
+	if err = r.reconcileCassandraPodsConfigMap(ctx, cc, podList, nodeList, proberClient); err != nil {
 		if errors.Cause(err) == ErrPodNotScheduled || errors.Cause(err) == errors.Cause(ErrRegionNotReady) {
 			r.Log.Warnf("%s. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
 			return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
@@ -195,6 +220,10 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 			return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 		}
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling statefulsets")
+	}
+
+	if err = r.reconcileCassandraScaling(ctx, cc, podList, nodeList); err != nil {
+		return ctrl.Result{}, nil
 	}
 
 	if err = r.reconcileMaintenance(ctx, cc); err != nil {
@@ -314,7 +343,7 @@ func needsRequeue(result ctrl.Result, err error) bool {
 	return result.Requeue || result.RequeueAfter.Nanoseconds() > 0 || err != nil
 }
 
-func SetupCassandraReconciler(r reconcile.Reconciler, mgr manager.Manager, logr *zap.SugaredLogger) error {
+func SetupCassandraReconciler(r reconcile.Reconciler, mgr manager.Manager, logr *zap.SugaredLogger, reconcileChan chan event.GenericEvent) error {
 	builder := ctrl.NewControllerManagedBy(mgr).
 		Named("cassandracluster").
 		For(&v1alpha1.CassandraCluster{}).
@@ -327,7 +356,9 @@ func SetupCassandraReconciler(r reconcile.Reconciler, mgr manager.Manager, logr 
 		Owns(&rbac.RoleBinding{}).
 		Owns(&v1.ServiceAccount{}).
 		Watches(&source.Kind{Type: &v1.Secret{}}, eventhandler.NewAnnotationEventHandler()).
-		Watches(&source.Kind{Type: &v1.ConfigMap{}}, eventhandler.NewAnnotationEventHandler())
+		Watches(&source.Kind{Type: &v1.ConfigMap{}}, eventhandler.NewAnnotationEventHandler()).
+		Watches(&source.Channel{Source: reconcileChan}, &handler.EnqueueRequestForObject{})
+
 	// WithEventFilter(predicate.NewPredicate(logr)) // uncomment to see kubernetes events in the logs, e.g. ConfigMap updates
 
 	serviceMonitorList := &unstructured.UnstructuredList{}

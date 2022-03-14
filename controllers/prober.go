@@ -181,6 +181,12 @@ func (r *CassandraClusterReconciler) reconcileProberService(ctx context.Context,
 					TargetPort: intstr.FromString("prober-server"),
 					Protocol:   v1.ProtocolTCP,
 				},
+				{
+					Port:       dbv1alpha1.JolokiaContainerPort,
+					Name:       "jolokia",
+					TargetPort: intstr.FromString("jolokia"),
+					Protocol:   v1.ProtocolTCP,
+				},
 			},
 			SessionAffinity: v1.ServiceAffinityNone,
 		},
@@ -323,4 +329,9 @@ func jolokiaContainer(cc *dbv1alpha1.CassandraCluster, clientTLSSecret *v1.Secre
 func proberURL(cc *dbv1alpha1.CassandraCluster) *url.URL {
 	proberUrl, _ := url.Parse(fmt.Sprintf("http://%s.%s.svc.cluster.local", names.ProberService(cc.Name), cc.Namespace))
 	return proberUrl
+}
+
+func jolokiaURL(cc *dbv1alpha1.CassandraCluster) *url.URL {
+	jURL, _ := url.Parse(fmt.Sprintf("http://%s.%s.svc.cluster.local:%d/jolokia", names.ProberService(cc.Name), cc.Namespace, dbv1alpha1.JolokiaContainerPort))
+	return jURL
 }
