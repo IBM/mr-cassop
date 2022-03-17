@@ -33,7 +33,32 @@ OPTIONS:
   -h, --help              Display this help.
 ```
 
-### How to create TLS CA Secret
+### How to create TLS CA Secret with existing CA keypair
+
+This way is most common when you have an already running C* cluster and want to join a new one.
+
+Use `utils/tls.sh` to generate CA TLS Secret with CA keypair. `openssl` is required to be installed in your system.
+```bash
+./utils/tls.sh create-ca-tls-secret --secret-name cluster-tls-ca --ca-cert ./rootca.crt --ca-key ./rootca.key
+```
+
+Check the Secret
+```bash
+kubectl get secret cluster-tls-ca
+NAME             TYPE     DATA   AGE
+cluster-tls-ca   Opaque   2      4m30s
+```
+
+Hook in the CA Secret in the CR
+```yaml
+  encryption:
+    server:
+      internodeEncryption: dc
+      caTLSSecret:
+        name: cluster-tls-ca
+```
+
+### How to create TLS CA Secret from scratch
 
 This is the most common way to connect multiple regions protected by TLS.
 
