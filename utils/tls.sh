@@ -33,11 +33,12 @@ function ca_keypair() {
 }
 
 function create_ca_tls_secret() {
+  prepare
+
   if [ "$ca_cert" != "" ] && [ "$ca_key" != "" ]; then
     ca_crt=$(cat $ca_cert | base64)
     ca_key=$(cat $ca_key | base64)
   else
-    prepare
     ca_keypair
     ca_crt=$(cat ${tmp_dir}/ca_crt.pem | base64)
     ca_key=$(cat ${tmp_dir}/ca_key.pem | base64)

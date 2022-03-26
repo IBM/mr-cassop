@@ -14,6 +14,7 @@ package controllers
 
 import (
 	"context"
+	"github.com/ibm/cassandra-operator/controllers/names"
 	"net/url"
 
 	"github.com/ibm/cassandra-operator/controllers/nodectl"
@@ -80,7 +81,7 @@ type CassandraClusterReconciler struct {
 	Cfg           config.Config
 	Events        *events.EventRecorder
 	Jobs          *jobs.JobManager
-	ProberClient  func(url *url.URL) prober.ProberClient
+	ProberClient  func(url *url.URL, auth prober.Auth) prober.ProberClient
 	CqlClient     func(cluster *gocql.ClusterConfig) (cql.CqlClient, error)
 	ReaperClient  func(url *url.URL, clusterName string, defaultRepairThreadCount int32) reaper.ReaperClient
 	NodectlClient func(jolokiaAddr, jmxUser, jmxPassword string, logr *zap.SugaredLogger) nodectl.Nodectl
@@ -140,7 +141,18 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling TLS Secrets")
 	}
 
-	err = r.reconcileAdminAuth(ctx, cc)
+	baseAdminSecret := &v1.Secret{}
+	err = r.Get(ctx, types.NamespacedName{Name: cc.Spec.AdminRoleSecretName, Namespace: cc.Namespace}, baseAdminSecret)
+	if err != nil {
+		return ctrl.Result{}, errors.Wrapf(err, "Failed to get secret: %s", names.ActiveAdminSecret(cc.Name))
+	}
+
+	proberAuth := prober.Auth{
+		Username: string(baseAdminSecret.Data[v1alpha1.CassandraOperatorAdminRole]),
+		Password: string(baseAdminSecret.Data[v1alpha1.CassandraOperatorAdminPassword]),
+	}
+
+	err = r.reconcileAdminAuth(ctx, cc, proberAuth)
 	if err != nil {
 		if errors.Cause(err) == errAdminSecretNotFound || errors.Cause(err) == errAdminSecretInvalid {
 			r.Log.Warnf("Failed to reconcile admin auth with secret %q: %s", cc.Spec.AdminRoleSecretName, err.Error())
@@ -169,7 +181,8 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling prober")
 	}
 
-	proberClient := r.ProberClient(proberURL(cc))
+	proberClient := r.ProberClient(proberURL(cc), proberAuth)
+
 	proberReady, err := proberClient.Ready(ctx)
 	if err != nil {
 		r.Log.Warnf("Prober ping request failed: %s. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
@@ -331,10 +344,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, err
 	}
 
-	err = cleanupClientTLSDir(cc)
-	if err != nil {
-		r.Log.Errorf("%+v", err)
-	}
+	defer r.cleanupClientTLSDir(cc)
 
 	return ctrl.Result{}, nil
 }

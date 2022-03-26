@@ -122,13 +122,15 @@ func main() {
 	reconcileChan := make(chan event.GenericEvent)
 
 	cassandraReconciler := &controllers.CassandraClusterReconciler{
-		Client:       mgr.GetClient(),
-		Log:          logr,
-		Scheme:       mgr.GetScheme(),
-		Cfg:          *operatorConfig,
-		Events:       eventRecorder,
-		ProberClient: func(url *url.URL) prober.ProberClient { return prober.NewProberClient(url, httpClient) },
-		CqlClient:    func(cluster *gocql.ClusterConfig) (cql.CqlClient, error) { return cql.NewCQLClient(cluster) },
+		Client: mgr.GetClient(),
+		Log:    logr,
+		Scheme: mgr.GetScheme(),
+		Cfg:    *operatorConfig,
+		Events: eventRecorder,
+		ProberClient: func(url *url.URL, auth prober.Auth) prober.ProberClient {
+			return prober.NewProberClient(url, httpClient, auth)
+		},
+		CqlClient: func(cluster *gocql.ClusterConfig) (cql.CqlClient, error) { return cql.NewCQLClient(cluster) },
 		NodectlClient: func(jolokiaAddr, jmxUser, jmxPassword string, logr *zap.SugaredLogger) nodectl.Nodectl {
 			return nodectl.NewClient(jolokiaAddr, jmxUser, jmxPassword, logr)
 		},

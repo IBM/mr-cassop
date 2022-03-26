@@ -6,7 +6,7 @@ on:
     - published
 
 env:
-  HELM_VERSION: v3.7.2
+  HELM_VERSION: v3.8.1
   ICR_USERNAME: iamapikey
   ICR_PASSWORD: ${{ secrets.IBM_CLOUD_API_KEY }}
   ICR_NAMESPACE: cassandra-operator

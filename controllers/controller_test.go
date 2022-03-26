@@ -44,7 +44,7 @@ func createMockedReconciler(t *testing.T) (*CassandraClusterReconciler, *gomock.
 		Scheme: scheme.Scheme,
 		Cfg:    config.Config{},
 		Events: events.NewEventRecorder(&record.FakeRecorder{}),
-		ProberClient: func(url *url.URL) prober.ProberClient {
+		ProberClient: func(url *url.URL, auth prober.Auth) prober.ProberClient {
 			return proberClientMock
 		},
 		CqlClient: func(clusterConfig *gocql.ClusterConfig) (cql.CqlClient, error) {

@@ -202,7 +202,7 @@ var _ = BeforeSuite(func() {
 		Client: k8sClient,
 		Cfg:    operatorConfig,
 		Events: events.NewEventRecorder(&record.FakeRecorder{}),
-		ProberClient: func(url *url.URL) prober.ProberClient {
+		ProberClient: func(url *url.URL, auth prober.Auth) prober.ProberClient {
 			return mockProberClient
 		},
 		CqlClient: func(clusterConfig *gocql.ClusterConfig) (cql.CqlClient, error) {

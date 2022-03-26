@@ -237,7 +237,7 @@ func (r *CassandraClusterReconciler) getSeedsList(ctx context.Context, cc *v1alp
 			regionsHost := names.ProberIngressDomain(cc, managedRegion)
 			seeds, err := proberClient.GetSeeds(ctx, regionsHost)
 			if err != nil {
-				r.Log.Warnf("can't get seeds from region %s", regionsHost)
+				r.Log.Warnf("can't get seeds from region %s. %v", regionsHost, err)
 				return nil, ErrRegionNotReady
 			}
 

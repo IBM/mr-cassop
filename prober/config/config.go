@@ -8,14 +8,15 @@ import (
 )
 
 type Config struct {
-	ServerPort          int           `env:"SERVER_PORT" envDefault:"8888"`
-	PodNamespace        string        `env:"POD_NAMESPACE,required"`
-	AdminRoleSecretName string        `env:"ADMIN_SECRET_NAME,required"`
-	JmxPollingInterval  time.Duration `env:"JMX_POLLING_INTERVAL" envDefault:"10s"`
-	JmxPort             int           `env:"JMX_PORT" envDefault:"7199"`
-	JolokiaPort         int           `env:"JOLOKIA_PORT" envDefault:"8080"`
-	LogLevel            zapcore.Level `env:"LOGLEVEL" envDefault:"info"`
-	LogFormat           string        `env:"LOGFORMAT" envDefault:"json"`
+	ServerPort              int           `env:"SERVER_PORT" envDefault:"8888"`
+	PodNamespace            string        `env:"POD_NAMESPACE,required"`
+	AdminRoleSecretName     string        `env:"ADMIN_SECRET_NAME,required"`
+	BaseAdminRoleSecretName string        `env:"BASE_ADMIN_SECRET_NAME,required"`
+	JmxPollingInterval      time.Duration `env:"JMX_POLLING_INTERVAL" envDefault:"10s"`
+	JmxPort                 int           `env:"JMX_PORT" envDefault:"7199"`
+	JolokiaPort             int           `env:"JOLOKIA_PORT" envDefault:"8080"`
+	LogLevel                zapcore.Level `env:"LOGLEVEL" envDefault:"info"`
+	LogFormat               string        `env:"LOGFORMAT" envDefault:"json"`
 }
 
 func LevelParser(v string) (interface{}, error) {

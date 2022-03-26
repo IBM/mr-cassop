@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/ibm/cassandra-operator/controllers/prober"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -27,13 +28,13 @@ var (
 	errAdminSecretInvalid  = errors.New("admin secret is invalid")
 )
 
-func (r *CassandraClusterReconciler) reconcileAdminAuth(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
+func (r *CassandraClusterReconciler) reconcileAdminAuth(ctx context.Context, cc *dbv1alpha1.CassandraCluster, proberAuth prober.Auth) error {
 	actualActiveAdminSecret := &v1.Secret{}
 	err := r.Get(ctx, types.NamespacedName{Name: names.ActiveAdminSecret(cc.Name), Namespace: cc.Namespace}, actualActiveAdminSecret)
 	if err != nil && kerrors.IsNotFound(err) {
 		r.Log.Infof("Secret `%s` doesn't exist. Assuming it's the first cluster deployment.", names.ActiveAdminSecret(cc.Name))
 
-		err := r.createClusterAdminSecrets(ctx, cc)
+		err := r.createClusterAdminSecrets(ctx, cc, proberAuth)
 		if err != nil {
 			return errors.Wrap(err, "failed to create admin secrets for newly created cluster")
 		}
@@ -87,7 +88,7 @@ func (r *CassandraClusterReconciler) reconcileAdminAuth(ctx context.Context, cc 
 	return nil
 }
 
-func (r *CassandraClusterReconciler) createClusterAdminSecrets(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
+func (r *CassandraClusterReconciler) createClusterAdminSecrets(ctx context.Context, cc *dbv1alpha1.CassandraCluster, proberAuth prober.Auth) error {
 	baseAdminSecret, err := r.adminRoleSecret(ctx, cc)
 	if err != nil {
 		if kerrors.IsNotFound(errors.Cause(err)) {
@@ -130,7 +131,7 @@ func (r *CassandraClusterReconciler) createClusterAdminSecrets(ctx context.Conte
 
 	joiningExistingManagedRegion := false
 	if len(cc.Spec.ExternalRegions.Managed) > 0 {
-		proberClient := r.ProberClient(proberURL(cc))
+		proberClient := r.ProberClient(proberURL(cc), proberAuth)
 		for _, managedRegion := range cc.Spec.ExternalRegions.Managed {
 			regionHost := names.ProberIngressDomain(cc, managedRegion)
 			regionReady, err := proberClient.RegionReady(ctx, regionHost)

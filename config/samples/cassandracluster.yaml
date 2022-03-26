@@ -8,7 +8,7 @@ spec:
   cassandra:
     imagePullPolicy: IfNotPresent
     numSeeds: 2
-    logLevel: debug
+    logLevel: info
     purgeGossip: false
     persistence:
       enabled: false
@@ -39,7 +39,7 @@ spec:
   - name: dc2
     replicas: 3
   prober:
-    logLevel: debug
+    logLevel: info
     imagePullPolicy: IfNotPresent
     resources:
       requests:
@@ -93,11 +93,6 @@ spec:
     useExternalHostIP: false # If set to false host internal ip will be used
   encryption:
     server:
-      internodeEncryption: none # If set to `all` all internode traffic are encrypted
-      caTLSSecret:
-        name: cassandra-cluster-tls-ca
+      internodeEncryption: dc
     client:
-      enabled: false
-      caTLSSecret:
-        name: cassandra-client-tls-ca
-
+      enabled: true

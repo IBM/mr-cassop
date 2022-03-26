@@ -30,14 +30,30 @@ type ProberClient interface {
 type proberClient struct {
 	baseUrl *url.URL
 	client  *http.Client
+	auth    Auth
 }
 
-func NewProberClient(url *url.URL, client *http.Client) ProberClient {
-	return &proberClient{url, client}
+type Auth struct {
+	Username string
+	Password string
+}
+
+func NewProberClient(url *url.URL, client *http.Client, auth Auth) ProberClient {
+	return &proberClient{url, client, auth}
 }
 
 func (p proberClient) url(path string) string {
 	return p.baseUrl.String() + path
+}
+
+func (p *proberClient) newRequestWithAuth(ctx context.Context, method, url string, body []byte) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf("Can't create %s request to `%s` endpoint", method, url))
+	}
+
+	req.SetBasicAuth(p.auth.Username, p.auth.Password)
+	return req, nil
 }
 
 func (p *proberClient) Ready(ctx context.Context) (bool, error) {
@@ -47,7 +63,7 @@ func (p *proberClient) Ready(ctx context.Context) (bool, error) {
 	}
 	resp, err := p.client.Do(req)
 	if err != nil {
-		return false, errors.Wrap(err, "Request to prober failed")
+		return false, errors.Wrap(err, "GET request to prober's `/ping` endpoint failed")
 	}
 
 	defer resp.Body.Close()
@@ -56,13 +72,14 @@ func (p *proberClient) Ready(ctx context.Context) (bool, error) {
 }
 
 func (p *proberClient) GetSeeds(ctx context.Context, host string) ([]string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("https://%s/seeds", host), nil)
+	req, err := p.newRequestWithAuth(ctx, http.MethodGet, fmt.Sprintf("https://%s/seeds", host), nil)
 	if err != nil {
 		return nil, err
 	}
+
 	resp, err := p.client.Do(req)
 	if err != nil {
-		return nil, errors.Wrap(err, "Request to prober failed")
+		return nil, errors.Wrap(err, "GET request to prober's `/seeds` failed")
 	}
 
 	defer resp.Body.Close()
@@ -87,26 +104,27 @@ func (p *proberClient) GetSeeds(ctx context.Context, host string) ([]string, err
 
 func (p *proberClient) UpdateSeeds(ctx context.Context, seeds []string) error {
 	body, _ := json.Marshal(seeds)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, p.url("/seeds"), bytes.NewReader(body))
+	req, err := p.newRequestWithAuth(ctx, http.MethodPut, p.url("/seeds"), body)
 	if err != nil {
-		return errors.Wrap(err, "Can't create request")
+		return err
 	}
 
 	if _, err := p.client.Do(req); err != nil {
-		return errors.Wrap(err, "PUT Request to prober failed")
+		return errors.Wrap(err, "PUT request to prober's `/seeds` endpoint failed")
 	}
 
 	return nil
 }
 
 func (p *proberClient) GetDCs(ctx context.Context, host string) ([]v1alpha1.DC, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("https://%s/dcs", host), nil)
+	req, err := p.newRequestWithAuth(ctx, http.MethodGet, fmt.Sprintf("https://%s/dcs", host), nil)
 	if err != nil {
 		return nil, err
 	}
+
 	resp, err := p.client.Do(req)
 	if err != nil {
-		return nil, errors.Wrap(err, "Request to prober failed")
+		return nil, errors.Wrap(err, "GET request to prober's `/dcs` endpoint failed")
 	}
 
 	defer resp.Body.Close()
@@ -131,40 +149,40 @@ func (p *proberClient) GetDCs(ctx context.Context, host string) ([]v1alpha1.DC, 
 
 func (p *proberClient) UpdateDCs(ctx context.Context, dcs []v1alpha1.DC) error {
 	body, _ := json.Marshal(dcs)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, p.url("/dcs"), bytes.NewReader(body))
+	req, err := p.newRequestWithAuth(ctx, http.MethodPut, p.url("/dcs"), body)
 	if err != nil {
-		return errors.Wrap(err, "Can't create request")
+		return err
 	}
 
 	if _, err := p.client.Do(req); err != nil {
-		return errors.Wrap(err, "PUT Request to prober failed")
+		return errors.Wrap(err, "PUT request to prober's `/dcs` endpoint failed")
 	}
 
 	return nil
 }
 
 func (p *proberClient) UpdateRegionStatus(ctx context.Context, ready bool) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, p.url("/region-ready"), bytes.NewReader([]byte(strconv.FormatBool(ready))))
+	req, err := p.newRequestWithAuth(ctx, http.MethodPut, p.url("/region-ready"), []byte(strconv.FormatBool(ready)))
 	if err != nil {
 		return errors.Wrap(err, "Can't create request")
 	}
 
 	if _, err := p.client.Do(req); err != nil {
-		return errors.Wrap(err, "PUT Request to prober failed")
+		return errors.Wrap(err, "PUT request to prober's `region-ready` failed")
 	}
 
 	return nil
 }
 
 func (p *proberClient) RegionReady(ctx context.Context, host string) (bool, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("https://%s/region-ready", host), nil)
+	req, err := p.newRequestWithAuth(ctx, http.MethodGet, fmt.Sprintf("https://%s/region-ready", host), nil)
 	if err != nil {
-		return false, errors.Wrap(err, "Can't create request")
+		return false, err
 	}
 
 	resp, err := p.client.Do(req)
 	if err != nil {
-		return false, errors.Wrap(err, "PUT Request to prober failed")
+		return false, errors.Wrap(err, "GET request to prober's `/region-ready` failed")
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -186,27 +204,27 @@ func (p *proberClient) RegionReady(ctx context.Context, host string) (bool, erro
 }
 
 func (p *proberClient) UpdateReaperStatus(ctx context.Context, ready bool) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, p.url("/reaper-ready"), bytes.NewReader([]byte(strconv.FormatBool(ready))))
+	req, err := p.newRequestWithAuth(ctx, http.MethodPut, p.url("/reaper-ready"), []byte(strconv.FormatBool(ready)))
 	if err != nil {
-		return errors.Wrap(err, "Can't create request")
+		return err
 	}
 
 	if _, err := p.client.Do(req); err != nil {
-		return errors.Wrap(err, "PUT Request to prober failed")
+		return errors.Wrap(err, "PUT request to prober's `/reaper-ready` endpoint failed")
 	}
 
 	return nil
 }
 
 func (p *proberClient) ReaperReady(ctx context.Context, host string) (bool, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("https://%s/reaper-ready", host), nil)
+	req, err := p.newRequestWithAuth(ctx, http.MethodGet, fmt.Sprintf("https://%s/reaper-ready", host), nil)
 	if err != nil {
-		return false, errors.Wrap(err, "Can't create request")
+		return false, err
 	}
 
 	resp, err := p.client.Do(req)
 	if err != nil {
-		return false, errors.Wrap(err, "PUT Request to prober failed")
+		return false, errors.Wrap(err, "GET request to prober's `/reaper-ready` endpoint failed")
 	}
 
 	if resp.StatusCode != http.StatusOK {

@@ -160,11 +160,9 @@ func (r *CassandraClusterReconciler) setupClientTLSFiles(ctx context.Context, cc
 	return nil
 }
 
-func cleanupClientTLSDir(cc *dbv1alpha1.CassandraCluster) error {
+func (r *CassandraClusterReconciler) cleanupClientTLSDir(cc *dbv1alpha1.CassandraCluster) {
 	err := os.RemoveAll(names.OperatorClientTLSDir(cc))
 	if err != nil {
-		return errors.Wrapf(err, "failed to remove directory %s", names.OperatorClientTLSDir(cc))
+		r.Log.Errorf("%+v", err)
 	}
-
-	return nil
 }

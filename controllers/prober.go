@@ -249,6 +249,7 @@ func proberContainer(cc *dbv1alpha1.CassandraCluster) v1.Container {
 			{Name: "JMX_POLLING_INTERVAL", Value: "10s"},
 			{Name: "JMX_PORT", Value: fmt.Sprintf("%d", dbv1alpha1.JmxPort)},
 			{Name: "ADMIN_SECRET_NAME", Value: adminSecret},
+			{Name: "BASE_ADMIN_SECRET_NAME", Value: cc.Spec.AdminRoleSecretName},
 		},
 		Ports: []v1.ContainerPort{
 			{

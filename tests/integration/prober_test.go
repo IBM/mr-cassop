@@ -59,6 +59,7 @@ var _ = Describe("prober deployment", func() {
 				{Name: "JMX_POLLING_INTERVAL", Value: "10s"},
 				{Name: "JMX_PORT", Value: "7199"},
 				{Name: "ADMIN_SECRET_NAME", Value: "test-cassandra-cluster-auth-active-admin"},
+				{Name: "BASE_ADMIN_SECRET_NAME", Value: "admin-role"},
 			}))
 			Expect(proberContainer.ImagePullPolicy).To(Equal(v1.PullIfNotPresent), "default values")
 			jolokiaContainer, found := getContainerByName(deployment.Spec.Template.Spec, "jolokia")

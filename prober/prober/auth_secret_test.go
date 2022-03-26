@@ -34,7 +34,7 @@ func TestHandleAddSecret(t *testing.T) {
 		},
 	}
 
-	testProber.handleAddSecret(secret)
+	testProber.handleAddAuthSecret(secret)
 
 	asserts.Expect(testProber.auth.User).To(gomega.Equal(newRole))
 	asserts.Expect(testProber.auth.Password).To(gomega.Equal(newPassword))

@@ -5,7 +5,7 @@ on:
 
 env:
   GO_VERSION: 1.17
-  HELM_VERSION: v3.7.2
+  HELM_VERSION: v3.8.1
   PYTHON_VERSION: 3.7 # required for helm tester
   IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
   IBM_CLOUD_REGION: us-south

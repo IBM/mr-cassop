@@ -60,16 +60,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	username := string(authSecret.Data["admin-role"])
-	password := string(authSecret.Data["admin-password"])
-	auth := prober.UserAuth{
-		User:     username,
-		Password: password,
+	adminSecret, err := kubeClient.CoreV1().Secrets(cfg.PodNamespace).Get(context.Background(), cfg.BaseAdminRoleSecretName, v1.GetOptions{})
+	if err != nil {
+		logr.Error(err, "unable to get base admin secret")
 	}
 
-	jolokiaClient := jolokia.NewClient(cfg.JolokiaPort, cfg.JmxPort, cfg.JmxPollingInterval, logr, username, password)
+	jolokiaClient := jolokia.NewClient(cfg.JolokiaPort, cfg.JmxPort, cfg.JmxPollingInterval, logr,
+		string(authSecret.Data["admin-role"]),
+		string(authSecret.Data["admin-password"]),
+	)
 
-	proberApp := prober.NewProber(cfg, jolokiaClient, auth, kubeClient, logr)
+	proberApp := prober.NewProber(cfg, jolokiaClient, prober.UserAuth{
+		User:     string(adminSecret.Data["admin-role"]),
+		Password: string(adminSecret.Data["admin-password"]),
+	}, kubeClient, logr)
 
 	err = proberApp.Run()
 	if err != nil {

@@ -11,7 +11,12 @@ See the steps below for how to manually generate TLS Secrets.
 
 > **_NOTE:_**  don't use password encrypted private keys, they are not supported.
 
-Use tls.sh to generate CA or Node TLS Secrets.
+To remove passphrase from the key use command below
+```bash
+openssl rsa -in example.key -out example.key
+```
+
+Use `./utils/tls.sh` to generate CA or Node TLS Secrets.
 ```bash
 tls.sh -h
 
