@@ -100,4 +100,3 @@ profiles:
         packaged:
           version: "0.0.0-{{.USER}}"
           appVersion: "0.0.0-{{.USER}}"
-        recreatePods: true

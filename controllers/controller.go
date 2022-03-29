@@ -161,6 +161,8 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling Admin Auth Secrets")
 	}
 
+	defer r.cleanupClientTLSDir(cc)
+
 	if err = r.reconcileMaintenanceConfigMap(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling maintenance configmap")
 	}
@@ -343,8 +345,6 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	if err = r.removeDefaultRoleIfExists(ctx, cc, cqlClient); err != nil {
 		return ctrl.Result{}, err
 	}
-
-	defer r.cleanupClientTLSDir(cc)
 
 	return ctrl.Result{}, nil
 }
