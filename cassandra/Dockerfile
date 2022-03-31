@@ -25,7 +25,8 @@ RUN set -eux; \
   mv /prometheus/datastax-mcac-agent-* /prometheus/datastax-mcac-agent; \
   rm -rf /var/lib/apt/lists/* /tmp/datastax-mcac-agent.tgz /prometheus/datastax-mcac-agent/config; \
   mkdir /home/cassandra; \
-  chown cassandra:cassandra /home/cassandra /opt/cassandra /prometheus
+  chown cassandra:cassandra /home/cassandra /opt/cassandra /prometheus; \
+  ln -sf /proc/mounts /etc/mtab # needed for disk related metrics when the mcac exporter is used
 
 WORKDIR /home/cassandra
 

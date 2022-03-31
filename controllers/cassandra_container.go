@@ -207,14 +207,6 @@ func getCassandraRunCommand(cc *dbv1alpha1.CassandraCluster, clientTLSSecret *v1
 		args = append(args, "rm -rf /var/lib/cassandra/data/system/peers*")
 	}
 
-	if cc.Spec.Cassandra.Monitoring.Agent == dbv1alpha1.CassandraAgentDatastax {
-		args = append(args, `
-if [[ ! -f "/etc/mtab" ]] && [[ -f "/proc/mounts" ]]; then
-	ln -sf /proc/mounts /etc/mtab
-fi
-`)
-	}
-
 	args = append(args,
 		"echo \"prefer_local=true\" >> $CASSANDRA_CONF/cassandra-rackdc.properties",
 		"cp /etc/cassandra-configmaps/* $CASSANDRA_CONF/",
