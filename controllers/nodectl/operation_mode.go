@@ -1,6 +1,7 @@
 package nodectl
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/pkg/errors"
@@ -21,14 +22,14 @@ const (
 	NodeOperationModeDrained        OperationMode = "DRAINED"
 )
 
-func (n *client) OperationMode(nodeIP string) (OperationMode, error) {
+func (n *client) OperationMode(ctx context.Context, nodeIP string) (OperationMode, error) {
 	req := jolokia.JMXRequest{
 		Type:       jmxRequestTypeRead,
 		Mbean:      mbeanCassandraDBStorageService,
 		Attributes: []string{"OperationMode"},
 	}
 
-	resp, err := n.jolokia.Post(req, nodeIP)
+	resp, err := n.jolokia.Post(ctx, req, nodeIP)
 	if err != nil {
 		return "", err
 	}

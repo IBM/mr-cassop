@@ -1,6 +1,7 @@
 package nodectl
 
 import (
+	"context"
 	"encoding/json"
 	"strconv"
 	"strings"
@@ -9,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (n *client) Version(nodeIP string) (major, minor, patch int, err error) {
+func (n *client) Version(ctx context.Context, nodeIP string) (major, minor, patch int, err error) {
 	req := jolokia.JMXRequest{
 		Type:       jmxRequestTypeRead,
 		Mbean:      mbeanCassandraDBStorageService,
@@ -17,7 +18,7 @@ func (n *client) Version(nodeIP string) (major, minor, patch int, err error) {
 	}
 
 	var resp jolokia.JMXResponse
-	resp, err = n.jolokia.Post(req, nodeIP)
+	resp, err = n.jolokia.Post(ctx, req, nodeIP)
 	if err != nil {
 		return
 	}

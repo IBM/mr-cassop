@@ -2,6 +2,7 @@ package jolokia
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -12,8 +13,6 @@ import (
 	"github.com/pkg/errors"
 
 	"go.uber.org/zap"
-
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 type Client struct {
@@ -28,6 +27,7 @@ type JMXRequest struct {
 	Mbean      string   `json:"mbean"`
 	Attributes []string `json:"attribute,omitempty"`
 	Operation  string   `json:"operation,omitempty"`
+	Arguments  []string `json:"arguments,omitempty"` //args are identified based on the order they are passed
 }
 
 type JMXResponse struct {
@@ -67,7 +67,7 @@ func NewClient(jolokiaURL string, username, password string, logr *zap.SugaredLo
 	}
 }
 
-func (j *Client) Post(jmxReq JMXRequest, ip string) (JMXResponse, error) {
+func (j *Client) Post(ctx context.Context, jmxReq JMXRequest, ip string) (JMXResponse, error) {
 	req := request{
 		Target: Target{
 			URL:      jmxUrl(ip, v1alpha1.JmxPort),
@@ -81,7 +81,11 @@ func (j *Client) Post(jmxReq JMXRequest, ip string) (JMXResponse, error) {
 	if err != nil {
 		return JMXResponse{}, err
 	}
-	resp, err := j.client.Post(j.url, runtime.ContentTypeJSON, bytes.NewReader(b))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, j.url, bytes.NewReader(b))
+	if err != nil {
+		return JMXResponse{}, err
+	}
+	resp, err := j.client.Do(httpReq)
 	if err != nil {
 		return JMXResponse{}, err
 	}

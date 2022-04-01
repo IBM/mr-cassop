@@ -2,14 +2,9 @@ package controllers
 
 import (
 	"context"
-	"fmt"
-	"io/ioutil"
-	"os"
-
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/ibm/cassandra-operator/controllers/events"
-	"github.com/ibm/cassandra-operator/controllers/names"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -29,13 +24,6 @@ func (r *CassandraClusterReconciler) reconcileAdminRole(ctx context.Context, cc 
 
 	cassandraOperatorAdminRole := string(adminRoleSecret.Data[dbv1alpha1.CassandraOperatorAdminRole])
 	cassandraOperatorAdminPassword := string(adminRoleSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword])
-
-	if cc.Spec.Encryption.Client.Enabled {
-		err = r.setupClientTLSFiles(ctx, cc)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to obtain Client TLS")
-		}
-	}
 
 	if cc.Spec.JMXAuth == jmxAuthenticationLocalFiles {
 		adminRoleSecret.Data[dbv1alpha1.CassandraOperatorJmxUsername] = []byte(cassandraOperatorAdminRole)
@@ -128,41 +116,4 @@ func (r *CassandraClusterReconciler) reconcileAdminSecrets(ctx context.Context, 
 	}
 
 	return nil
-}
-
-func (r *CassandraClusterReconciler) setupClientTLSFiles(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
-	clientTLSSecret := &v1.Secret{}
-	err := r.Get(ctx, types.NamespacedName{Namespace: cc.Namespace, Name: cc.Spec.Encryption.Client.NodeTLSSecret.Name}, clientTLSSecret)
-	if err != nil {
-		return errors.Wrapf(err, "failed to get Client TLS Secret: %s", cc.Spec.Encryption.Client.NodeTLSSecret.Name)
-	}
-
-	err = os.MkdirAll(names.OperatorClientTLSDir(cc), 0700)
-	if err != nil {
-		return errors.Wrapf(err, "failed to create directory: %s", names.OperatorClientTLSDir(cc))
-	}
-
-	err = ioutil.WriteFile(fmt.Sprintf("%s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.NodeTLSSecret.CACrtFileKey), clientTLSSecret.Data[cc.Spec.Encryption.Client.NodeTLSSecret.CACrtFileKey], 0600)
-	if err != nil {
-		return errors.Wrapf(err, "failed to write CA certificate into file %s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.NodeTLSSecret.CACrtFileKey)
-	}
-
-	err = ioutil.WriteFile(fmt.Sprintf("%s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.NodeTLSSecret.FileKey), clientTLSSecret.Data[cc.Spec.Encryption.Client.NodeTLSSecret.FileKey], 0600)
-	if err != nil {
-		return errors.Wrapf(err, "failed to write private key into file %s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.NodeTLSSecret.FileKey)
-	}
-
-	err = ioutil.WriteFile(fmt.Sprintf("%s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.NodeTLSSecret.CrtFileKey), clientTLSSecret.Data[cc.Spec.Encryption.Client.NodeTLSSecret.CrtFileKey], 0600)
-	if err != nil {
-		return errors.Wrapf(err, "failed to write certificate into file %s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.NodeTLSSecret.CrtFileKey)
-	}
-
-	return nil
-}
-
-func (r *CassandraClusterReconciler) cleanupClientTLSDir(cc *dbv1alpha1.CassandraCluster) {
-	err := os.RemoveAll(names.OperatorClientTLSDir(cc))
-	if err != nil {
-		r.Log.Errorf("%+v", err)
-	}
 }

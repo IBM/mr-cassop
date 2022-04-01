@@ -14,10 +14,7 @@ package controllers
 
 import (
 	"context"
-	"github.com/ibm/cassandra-operator/controllers/names"
 	"net/url"
-
-	"github.com/ibm/cassandra-operator/controllers/nodectl"
 
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/config"
@@ -25,6 +22,8 @@ import (
 	"github.com/ibm/cassandra-operator/controllers/eventhandler"
 	"github.com/ibm/cassandra-operator/controllers/events"
 	"github.com/ibm/cassandra-operator/controllers/jobs"
+	"github.com/ibm/cassandra-operator/controllers/names"
+	"github.com/ibm/cassandra-operator/controllers/nodectl"
 	"github.com/ibm/cassandra-operator/controllers/prober"
 	"github.com/ibm/cassandra-operator/controllers/reaper"
 
@@ -141,6 +140,8 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling TLS Secrets")
 	}
 
+	defer r.cleanupClientTLSDir(cc)
+
 	baseAdminSecret := &v1.Secret{}
 	err = r.Get(ctx, types.NamespacedName{Name: cc.Spec.AdminRoleSecretName, Namespace: cc.Namespace}, baseAdminSecret)
 	if err != nil {
@@ -152,7 +153,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		Password: string(baseAdminSecret.Data[v1alpha1.CassandraOperatorAdminPassword]),
 	}
 
-	err = r.reconcileAdminAuth(ctx, cc, proberAuth)
+	err = r.reconcileAdminAuth(ctx, cc, baseAdminSecret, proberAuth)
 	if err != nil {
 		if errors.Cause(err) == errAdminSecretNotFound || errors.Cause(err) == errAdminSecretInvalid {
 			r.Log.Warnf("Failed to reconcile admin auth with secret %q: %s", cc.Spec.AdminRoleSecretName, err.Error())
@@ -160,8 +161,6 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		}
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling Admin Auth Secrets")
 	}
-
-	defer r.cleanupClientTLSDir(cc)
 
 	if err = r.reconcileMaintenanceConfigMap(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling maintenance configmap")
@@ -237,14 +236,6 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling statefulsets")
 	}
 
-	if err = r.reconcileCassandraScaling(ctx, cc, podList, nodeList); err != nil {
-		return ctrl.Result{}, nil
-	}
-
-	if err = r.reconcileMaintenance(ctx, cc); err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile maintenance")
-	}
-
 	allDCs, err := r.getAllDCs(ctx, cc, proberClient)
 	if err != nil {
 		if errors.Cause(err) == ErrRegionNotReady {
@@ -252,6 +243,20 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 			return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 		}
 		return ctrl.Result{}, errors.Wrap(err, "can't get all dcs across regions")
+	}
+
+	scalingInProgress, err := r.reconcileCassandraScaling(ctx, cc, podList, nodeList, allDCs, baseAdminSecret)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if scalingInProgress {
+		r.Log.Info("Scaling in progress, not proceeding")
+		return ctrl.Result{}, nil
+	}
+
+	if err = r.reconcileMaintenance(ctx, cc); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile maintenance")
 	}
 
 	// Try to reconcile `system_auth` keyspace with current DCs config. Needed on new region init.

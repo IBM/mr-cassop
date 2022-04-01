@@ -1,6 +1,8 @@
 package nodectl
 
 import (
+	"context"
+
 	"github.com/ibm/cassandra-operator/controllers/nodectl/jolokia"
 	"go.uber.org/zap"
 )
@@ -10,13 +12,15 @@ const (
 	jmxRequestTypeRead = "read"
 
 	mbeanCassandraDBStorageService = "org.apache.cassandra.db:type=StorageService"
+	mbeanCassandraNetGossiper      = "org.apache.cassandra.net:type=Gossiper"
 )
 
 type Nodectl interface {
-	Decommission(nodeIP string) error
-	Version(nodeIP string) (major, minor, patch int, err error)
-	ClusterView(nodeIP string) (ClusterView, error)
-	OperationMode(nodeIP string) (OperationMode, error)
+	Decommission(ctx context.Context, nodeIP string) error
+	Assassinate(ctx context.Context, execNodeIP, assassinateNodeIP string) error
+	Version(ctx context.Context, nodeIP string) (major, minor, patch int, err error)
+	ClusterView(ctx context.Context, nodeIP string) (ClusterView, error)
+	OperationMode(ctx context.Context, nodeIP string) (OperationMode, error)
 }
 
 func NewClient(jolokiaAddr, jmxUser, jmxPassword string, logr *zap.SugaredLogger) Nodectl {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+
 	"github.com/ibm/cassandra-operator/controllers/prober"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -28,13 +29,13 @@ var (
 	errAdminSecretInvalid  = errors.New("admin secret is invalid")
 )
 
-func (r *CassandraClusterReconciler) reconcileAdminAuth(ctx context.Context, cc *dbv1alpha1.CassandraCluster, proberAuth prober.Auth) error {
+func (r *CassandraClusterReconciler) reconcileAdminAuth(ctx context.Context, cc *dbv1alpha1.CassandraCluster, adminSecret *v1.Secret, proberAuth prober.Auth) error {
 	actualActiveAdminSecret := &v1.Secret{}
 	err := r.Get(ctx, types.NamespacedName{Name: names.ActiveAdminSecret(cc.Name), Namespace: cc.Namespace}, actualActiveAdminSecret)
 	if err != nil && kerrors.IsNotFound(err) {
 		r.Log.Infof("Secret `%s` doesn't exist. Assuming it's the first cluster deployment.", names.ActiveAdminSecret(cc.Name))
 
-		err := r.createClusterAdminSecrets(ctx, cc, proberAuth)
+		err := r.createClusterAdminSecrets(ctx, cc, adminSecret, proberAuth)
 		if err != nil {
 			return errors.Wrap(err, "failed to create admin secrets for newly created cluster")
 		}
@@ -43,17 +44,7 @@ func (r *CassandraClusterReconciler) reconcileAdminAuth(ctx context.Context, cc 
 		return errors.Wrapf(err, "failed to get active admin Secret `%s`", names.ActiveAdminSecret(cc.Name))
 	}
 
-	actualBaseAdminSecret := &v1.Secret{}
-	err = r.Get(ctx, types.NamespacedName{Name: cc.Spec.AdminRoleSecretName, Namespace: cc.Namespace}, actualBaseAdminSecret)
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			r.Events.Warning(cc, events.EventAdminRoleSecretNotFound, fmt.Sprintf("admin secret %s not found", cc.Spec.AdminRoleSecretName))
-			return errAdminSecretNotFound
-		}
-		return errors.Wrapf(err, "failed to get admin role secret %q", cc.Spec.AdminRoleSecretName)
-	}
-
-	if len(actualBaseAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole]) == 0 || len(actualBaseAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword]) == 0 {
+	if len(adminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole]) == 0 || len(adminSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword]) == 0 {
 		errMsg := fmt.Sprintf("admin secret is invalid. Field %q or %q is empty", dbv1alpha1.CassandraOperatorAdminRole, dbv1alpha1.CassandraOperatorAdminPassword)
 		r.Events.Warning(cc, events.EventAdminRoleUpdateFailed, errMsg)
 		r.Log.Warn(errMsg)
@@ -72,12 +63,12 @@ func (r *CassandraClusterReconciler) reconcileAdminAuth(ctx context.Context, cc 
 	}
 
 	// Please note: your changes to Base Admin Secret won't have affect until ALL DCs are ready
-	passCompareRes := bytes.Compare(actualActiveAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword], actualBaseAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword])
-	nameCompareRes := bytes.Compare(actualActiveAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole], actualBaseAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole])
+	passCompareRes := bytes.Compare(actualActiveAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword], adminSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword])
+	nameCompareRes := bytes.Compare(actualActiveAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole], adminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole])
 	if passCompareRes != 0 || nameCompareRes != 0 {
 		r.Log.Info("User role changed in the secret")
 
-		err = r.handleAdminRoleChange(ctx, cc, actualBaseAdminSecret, actualActiveAdminSecret)
+		err = r.handleAdminRoleChange(ctx, cc, adminSecret, actualActiveAdminSecret)
 		if err != nil {
 			return errors.Wrap(err, "failed to update operator admin role")
 		}
@@ -88,24 +79,15 @@ func (r *CassandraClusterReconciler) reconcileAdminAuth(ctx context.Context, cc 
 	return nil
 }
 
-func (r *CassandraClusterReconciler) createClusterAdminSecrets(ctx context.Context, cc *dbv1alpha1.CassandraCluster, proberAuth prober.Auth) error {
-	baseAdminSecret, err := r.adminRoleSecret(ctx, cc)
-	if err != nil {
-		if kerrors.IsNotFound(errors.Cause(err)) {
-			r.Events.Warning(cc, events.EventAdminRoleSecretNotFound, fmt.Sprintf("admin secret %s not found", cc.Spec.AdminRoleSecretName))
-			return errAdminSecretNotFound
-		}
-		return errors.Wrap(err, "can't get base admin secret")
-	}
-
-	secretRoleName, secretRolePassword, err := extractCredentials(baseAdminSecret)
+func (r *CassandraClusterReconciler) createClusterAdminSecrets(ctx context.Context, cc *dbv1alpha1.CassandraCluster, adminSecret *v1.Secret, proberAuth prober.Auth) error {
+	secretRoleName, secretRolePassword, err := extractCredentials(adminSecret)
 	if err != nil {
 		return err
 	}
 
 	desiredRoleName := dbv1alpha1.CassandraDefaultRole
 	desiredRolePassword := dbv1alpha1.CassandraDefaultPassword
-	desiredSecretData := baseAdminSecret.Data
+	desiredSecretData := adminSecret.Data
 
 	if len(cc.Spec.ExternalRegions.Managed) > 0 || len(cc.Spec.ExternalRegions.Unmanaged) > 0 {
 		if cc.Spec.Encryption.Server.InternodeEncryption == dbv1alpha1.InternodeEncryptionNone {

@@ -5,6 +5,7 @@
 package mocks
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -34,54 +35,68 @@ func (m *MockNodectl) EXPECT() *MockNodectlMockRecorder {
 	return m.recorder
 }
 
-// ClusterView mocks base method.
-func (m *MockNodectl) ClusterView(nodeIP string) (nodectl.ClusterView, error) {
+// Assassinate mocks base method.
+func (m *MockNodectl) Assassinate(ctx context.Context, execNodeIP, assassinateNodeIP string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ClusterView", nodeIP)
+	ret := m.ctrl.Call(m, "Assassinate", ctx, execNodeIP, assassinateNodeIP)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Assassinate indicates an expected call of Assassinate.
+func (mr *MockNodectlMockRecorder) Assassinate(ctx, execNodeIP, assassinateNodeIP interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Assassinate", reflect.TypeOf((*MockNodectl)(nil).Assassinate), ctx, execNodeIP, assassinateNodeIP)
+}
+
+// ClusterView mocks base method.
+func (m *MockNodectl) ClusterView(ctx context.Context, nodeIP string) (nodectl.ClusterView, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ClusterView", ctx, nodeIP)
 	ret0, _ := ret[0].(nodectl.ClusterView)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ClusterView indicates an expected call of ClusterView.
-func (mr *MockNodectlMockRecorder) ClusterView(nodeIP interface{}) *gomock.Call {
+func (mr *MockNodectlMockRecorder) ClusterView(ctx, nodeIP interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClusterView", reflect.TypeOf((*MockNodectl)(nil).ClusterView), nodeIP)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClusterView", reflect.TypeOf((*MockNodectl)(nil).ClusterView), ctx, nodeIP)
 }
 
 // Decommission mocks base method.
-func (m *MockNodectl) Decommission(nodeIP string) error {
+func (m *MockNodectl) Decommission(ctx context.Context, nodeIP string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Decommission", nodeIP)
+	ret := m.ctrl.Call(m, "Decommission", ctx, nodeIP)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Decommission indicates an expected call of Decommission.
-func (mr *MockNodectlMockRecorder) Decommission(nodeIP interface{}) *gomock.Call {
+func (mr *MockNodectlMockRecorder) Decommission(ctx, nodeIP interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Decommission", reflect.TypeOf((*MockNodectl)(nil).Decommission), nodeIP)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Decommission", reflect.TypeOf((*MockNodectl)(nil).Decommission), ctx, nodeIP)
 }
 
 // OperationMode mocks base method.
-func (m *MockNodectl) OperationMode(nodeIP string) (nodectl.OperationMode, error) {
+func (m *MockNodectl) OperationMode(ctx context.Context, nodeIP string) (nodectl.OperationMode, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "OperationMode", nodeIP)
+	ret := m.ctrl.Call(m, "OperationMode", ctx, nodeIP)
 	ret0, _ := ret[0].(nodectl.OperationMode)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // OperationMode indicates an expected call of OperationMode.
-func (mr *MockNodectlMockRecorder) OperationMode(nodeIP interface{}) *gomock.Call {
+func (mr *MockNodectlMockRecorder) OperationMode(ctx, nodeIP interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OperationMode", reflect.TypeOf((*MockNodectl)(nil).OperationMode), nodeIP)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OperationMode", reflect.TypeOf((*MockNodectl)(nil).OperationMode), ctx, nodeIP)
 }
 
 // Version mocks base method.
-func (m *MockNodectl) Version(nodeIP string) (int, int, int, error) {
+func (m *MockNodectl) Version(ctx context.Context, nodeIP string) (int, int, int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Version", nodeIP)
+	ret := m.ctrl.Call(m, "Version", ctx, nodeIP)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].(int)
 	ret2, _ := ret[2].(int)
@@ -90,7 +105,7 @@ func (m *MockNodectl) Version(nodeIP string) (int, int, int, error) {
 }
 
 // Version indicates an expected call of Version.
-func (mr *MockNodectlMockRecorder) Version(nodeIP interface{}) *gomock.Call {
+func (mr *MockNodectlMockRecorder) Version(ctx, nodeIP interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Version", reflect.TypeOf((*MockNodectl)(nil).Version), nodeIP)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Version", reflect.TypeOf((*MockNodectl)(nil).Version), ctx, nodeIP)
 }

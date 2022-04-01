@@ -272,19 +272,23 @@ type nodectlMock struct {
 	nodesState map[string]mockNode
 }
 
-func (n *nodectlMock) Decommission(nodeIP string) error {
+func (n *nodectlMock) Decommission(ctx context.Context, nodeIP string) error {
 	return nil
 }
 
-func (n *nodectlMock) Version(nodeIP string) (major, minor, patch int, err error) {
+func (n *nodectlMock) Assassinate(ctx context.Context, execNodeIP string, assassinateNodeIP string) error {
+	return nil
+}
+
+func (n *nodectlMock) Version(ctx context.Context, nodeIP string) (major, minor, patch int, err error) {
 	return 3, 11, 11, nil
 }
 
-func (n *nodectlMock) ClusterView(nodeIP string) (nodectl.ClusterView, error) {
+func (n *nodectlMock) ClusterView(ctx context.Context, nodeIP string) (nodectl.ClusterView, error) {
 	return n.nodesState[nodeIP].clusterView, nil
 }
 
-func (n *nodectlMock) OperationMode(nodeIP string) (nodectl.OperationMode, error) {
+func (n *nodectlMock) OperationMode(ctx context.Context, nodeIP string) (nodectl.OperationMode, error) {
 	return n.nodesState[nodeIP].opMode, nil
 }
 
