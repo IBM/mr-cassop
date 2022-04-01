@@ -25,6 +25,8 @@ func TestHandleAddSecret(t *testing.T) {
 		},
 	}
 
+	oldSecret := &v1.Secret{}
+
 	newRole := "newRole"
 	newPassword := "newPassword"
 	secret := &v1.Secret{
@@ -35,6 +37,7 @@ func TestHandleAddSecret(t *testing.T) {
 	}
 
 	testProber.handleAddAuthSecret(secret)
+	testProber.handleUpdateBaseSecret(oldSecret, secret)
 
 	asserts.Expect(testProber.auth.User).To(gomega.Equal(newRole))
 	asserts.Expect(testProber.auth.Password).To(gomega.Equal(newPassword))

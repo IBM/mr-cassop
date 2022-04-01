@@ -233,14 +233,18 @@ func TestPing(t *testing.T) {
 func TestGetRegionReady(t *testing.T) {
 	asserts := gomega.NewWithT(t)
 	testProber := &Prober{
-		auth: UserAuth{},
-		log:  zap.NewNop().Sugar(),
+		auth: UserAuth{
+			User:     "cassandra",
+			Password: "cassandra",
+		},
+		log: zap.NewNop().Sugar(),
 		state: state{
 			regionReady: false,
 		},
 	}
 
 	request := httptest.NewRequest(http.MethodGet, "/region-ready", nil)
+	request.SetBasicAuth("cassandra", "cassandra")
 	recorder := httptest.NewRecorder()
 	router := httprouter.New()
 	setupRoutes(router, testProber)
@@ -291,7 +295,10 @@ func TestPutRegionReady(t *testing.T) {
 	for _, testCase := range testCases {
 		asserts := gomega.NewWithT(t)
 		testProber := &Prober{
-			auth:  UserAuth{},
+			auth: UserAuth{
+				User:     "cassandra",
+				Password: "cassandra",
+			},
 			log:   zap.NewNop().Sugar(),
 			state: state{},
 		}
@@ -300,6 +307,7 @@ func TestPutRegionReady(t *testing.T) {
 		setupRoutes(router, testProber)
 
 		request := httptest.NewRequest(http.MethodPut, "/region-ready", testCase.requestBody)
+		request.SetBasicAuth("cassandra", "cassandra")
 		recorder := httptest.NewRecorder()
 		router.ServeHTTP(recorder, request)
 
@@ -311,8 +319,11 @@ func TestPutRegionReady(t *testing.T) {
 func TestGetSeeds(t *testing.T) {
 	asserts := gomega.NewWithT(t)
 	testProber := &Prober{
-		auth: UserAuth{},
-		log:  zap.NewNop().Sugar(),
+		auth: UserAuth{
+			User:     "cassandra",
+			Password: "cassandra",
+		},
+		log: zap.NewNop().Sugar(),
 		state: state{
 			seeds: []string{"seed1", "seed2"},
 		},
@@ -321,6 +332,7 @@ func TestGetSeeds(t *testing.T) {
 	setupRoutes(router, testProber)
 
 	request := httptest.NewRequest(http.MethodGet, "/seeds", nil)
+	request.SetBasicAuth("cassandra", "cassandra")
 	recorder := httptest.NewRecorder()
 
 	router.ServeHTTP(recorder, request)
@@ -357,7 +369,10 @@ func TestPutSeeds(t *testing.T) {
 
 	for _, testCase := range testCases {
 		testProber := &Prober{
-			auth:  UserAuth{},
+			auth: UserAuth{
+				User:     "cassandra",
+				Password: "cassandra",
+			},
 			log:   zap.NewNop().Sugar(),
 			state: state{},
 		}
@@ -366,6 +381,7 @@ func TestPutSeeds(t *testing.T) {
 		setupRoutes(router, testProber)
 
 		request := httptest.NewRequest(http.MethodPut, "/seeds", testCase.requestBody)
+		request.SetBasicAuth("cassandra", "cassandra")
 		recorder := httptest.NewRecorder()
 		router.ServeHTTP(recorder, request)
 
@@ -377,8 +393,11 @@ func TestPutSeeds(t *testing.T) {
 func TestGetDCs(t *testing.T) {
 	asserts := gomega.NewWithT(t)
 	testProber := &Prober{
-		auth: UserAuth{},
-		log:  zap.NewNop().Sugar(),
+		auth: UserAuth{
+			User:     "cassandra",
+			Password: "cassandra",
+		},
+		log: zap.NewNop().Sugar(),
 		state: state{
 			dcs: []dc{{Name: "dc1", Replicas: 3}, {Name: "dc2", Replicas: 4}},
 		},
@@ -387,6 +406,7 @@ func TestGetDCs(t *testing.T) {
 	setupRoutes(router, testProber)
 
 	request := httptest.NewRequest(http.MethodGet, "/dcs", nil)
+	request.SetBasicAuth("cassandra", "cassandra")
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, request)
 	asserts.Expect(recorder.Code).To(gomega.Equal(http.StatusOK))
@@ -422,7 +442,10 @@ func TestPutDCs(t *testing.T) {
 
 	for _, testCase := range testCases {
 		testProber := &Prober{
-			auth:  UserAuth{},
+			auth: UserAuth{
+				User:     "cassandra",
+				Password: "cassandra",
+			},
 			log:   zap.NewNop().Sugar(),
 			state: state{},
 		}
@@ -431,6 +454,7 @@ func TestPutDCs(t *testing.T) {
 		setupRoutes(router, testProber)
 
 		request := httptest.NewRequest(http.MethodPut, "/dcs", testCase.requestBody)
+		request.SetBasicAuth("cassandra", "cassandra")
 		recorder := httptest.NewRecorder()
 		router.ServeHTTP(recorder, request)
 

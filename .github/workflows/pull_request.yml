@@ -17,12 +17,8 @@ env:
 
 jobs:
 
-  run-tests:
+  run-unit-tests:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: true
-      matrix:
-        k8s: [1.19.2, 1.20.2, 1.21.2, 1.22.1]
 
     steps:
     - name: Checkout
@@ -39,7 +35,38 @@ jobs:
         args: --timeout=5m --enable exportloopref
         skip-pkg-cache: true
         skip-build-cache: true
-        skip-go-installation: true
+
+    - name: Get dependencies
+      run: go mod download
+
+    - name: Run operator unit tests
+      run: go test ./controllers/... -v -coverprofile=operator_unit.out -coverpkg=./...
+
+    - name: Run prober unit tests
+      run: |
+        cd ./prober
+        go test ./... -v -coverprofile=prober_unit.out -coverpkg=./...
+
+    - name: Get tests coverage
+      run: |
+        go tool cover -func=operator_unit.out | tail -n1 | awk "{print \"Operator unit tests coverage: \" \$3}"
+        go tool cover -func=prober_unit.out | tail -n1 | awk "{print \"Prober unit tests coverage: \" \$3}"
+
+  run-integration-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        k8s: [1.19.2, 1.20.2, 1.21.2, 1.22.1]
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Setup Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ env.GO_VERSION }}
 
     - name: Setup Kubebuilder assets
       run: |
@@ -54,20 +81,16 @@ jobs:
     - name: Get dependencies
       run: go mod download
 
-    - name: Run unit tests
-      run: make unit-tests
-
     - name: Run integration tests
-      run: make integration-tests
+      run: go test ./tests/integration -v -coverprofile=integration.out -coverpkg=./...
 
     - name: Get tests coverage
       run: |
-        go tool cover -func=unit.out | tail -n1 | awk "{print \"Unit tests coverage: \" \$3}"
         go tool cover -func=integration.out | tail -n1 | awk "{print \"Integration tests coverage: \" \$3}"
 
   build-operator:
     runs-on: ubuntu-latest
-    needs: run-tests
+    needs: run-integration-tests
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -107,7 +130,7 @@ jobs:
 
   build-cassandra:
     runs-on: ubuntu-latest
-    needs: run-tests
+    needs: run-integration-tests
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -147,7 +170,7 @@ jobs:
 
   build-prober:
     runs-on: ubuntu-latest
-    needs: run-tests
+    needs: run-integration-tests
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -188,7 +211,7 @@ jobs:
 
   build-jolokia:
     runs-on: ubuntu-latest
-    needs: run-tests
+    needs: run-integration-tests
     steps:
     - name: Checkout
       uses: actions/checkout@v3
