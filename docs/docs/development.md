@@ -20,12 +20,17 @@ slug: /development
 
 The operator can be run only using the whole Helm chart with all necessary components. The operator interacts with Cassandra clusters, so it has to live in the cluster. It is not possible to run the operator having the binary locally (the `make run` way).
 
-To run your code with changes, you need to build the docker image and deploy it to the cluster. It can be done by manually building and pushing the container images, or using [skaffold](https://skaffold.dev/). See example below:
+To run your code with changes, you need to build the docker image and deploy it to the cluster. It can be done by manually building and pushing the container images, or using [skaffold](https://skaffold.dev/). See details below.
 
+### Skaffold way
+
+Prepare configs and deploy C* cluster
 ```bash
+cp config/samples/cassandracluster.yaml config/samples/cassandracluster_local.yaml
 skaffold run
-skaffold apply ./config/samples/cassandracluster.yaml
 ```
+
+### Manual way
 
 After you have your image with the code changes in the cluster, override the default container image through Helm values override. If you're pulling the image from a private container registry, you also need to specify the image pull secret. An another option would be to get the image to the cluster and set the `imagePullPolicy` to `Never`.
 

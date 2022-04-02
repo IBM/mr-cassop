@@ -24,6 +24,7 @@ build:
   local:
     push: true
     concurrency: 4
+#    useDockerCLI: true
 #build:
 #  artifacts:
 #  - image: "738806440043.dkr.ecr.us-east-1.amazonaws.com/cassandra-operator"
@@ -69,10 +70,9 @@ deploy:
       packaged:
         version: "0.0.0-{{.USER}}"
         appVersion: "0.0.0-{{.USER}}"
-      recreatePods: true
-#  kubectl:
-#    manifests:
-#    - ./config/samples/tls-single-cluster.yaml
+  kubectl:
+    manifests:
+    - ./config/samples/cassandracluster_local.yaml
 profiles:
 - name: kind
   activation:

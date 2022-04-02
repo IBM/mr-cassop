@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"time"
 
 	"go.uber.org/zap"
@@ -14,6 +15,11 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/json-iterator/go/extra"
 	"k8s.io/apimachinery/pkg/runtime"
+)
+
+var (
+	userRegExp = regexp.MustCompile(`("password":)".*?"`)
+	passRegExp = regexp.MustCompile(`("user":)".*?"`)
 )
 
 type Jolokia interface {
@@ -77,8 +83,11 @@ func (j *Client) CassandraNodeState(ip string) (CassandraResponse, error) {
 		return CassandraResponse{}, err
 	}
 
+	responseBodyModified := userRegExp.ReplaceAllString(string(responseBody), `$1"***"`)
+	responseBodyModified = passRegExp.ReplaceAllString(responseBodyModified, `$1"***"`)
+
 	if resp.StatusCode != http.StatusOK {
-		return CassandraResponse{}, errors.New(resp.Status + ": " + string(responseBody))
+		return CassandraResponse{}, errors.New(resp.Status + ": " + responseBodyModified)
 	}
 
 	var responses []CassandraResponse
@@ -87,15 +96,15 @@ func (j *Client) CassandraNodeState(ip string) (CassandraResponse, error) {
 	}
 
 	if len(responses) == 0 {
-		return CassandraResponse{}, fmt.Errorf("empty response. Raw body: %s", string(responseBody))
+		return CassandraResponse{}, fmt.Errorf("empty response. Raw body: %s", responseBodyModified)
 	}
 
 	if len(responses[0].Error) != 0 {
-		j.log.Debugf(string(responseBody))
+		j.log.Debugf(responseBodyModified)
 	}
 
 	if len(responses) > 1 {
-		j.log.Warnf("expected one response, %d given. Response body: %s", len(responses), string(responseBody))
+		j.log.Warnf("expected one response, %d given. Response body: %s", len(responses), responseBodyModified)
 	}
 
 	return responses[0], nil
