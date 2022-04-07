@@ -5,10 +5,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ibm/cassandra-operator/controllers/prober"
-
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	"github.com/gogo/protobuf/proto"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/compare"
@@ -16,17 +12,14 @@ import (
 	"github.com/ibm/cassandra-operator/controllers/events"
 	"github.com/ibm/cassandra-operator/controllers/labels"
 	"github.com/ibm/cassandra-operator/controllers/names"
+	"github.com/ibm/cassandra-operator/controllers/prober"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-)
-
-var (
-	errAdminSecretNotFound = errors.New("admin secret not found")
-	errAdminSecretInvalid  = errors.New("admin secret is invalid")
 )
 
 func (r *CassandraClusterReconciler) reconcileAdminAuth(ctx context.Context, cc *dbv1alpha1.CassandraCluster, adminSecret *v1.Secret, proberAuth prober.Auth) error {
@@ -42,13 +35,6 @@ func (r *CassandraClusterReconciler) reconcileAdminAuth(ctx context.Context, cc 
 		return nil
 	} else if err != nil {
 		return errors.Wrapf(err, "failed to get active admin Secret `%s`", names.ActiveAdminSecret(cc.Name))
-	}
-
-	if len(adminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole]) == 0 || len(adminSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword]) == 0 {
-		errMsg := fmt.Sprintf("admin secret is invalid. Field %q or %q is empty", dbv1alpha1.CassandraOperatorAdminRole, dbv1alpha1.CassandraOperatorAdminPassword)
-		r.Events.Warning(cc, events.EventAdminRoleUpdateFailed, errMsg)
-		r.Log.Warn(errMsg)
-		return errAdminSecretInvalid
 	}
 
 	activeAdminRoleName := string(actualActiveAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole])

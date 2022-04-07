@@ -2,25 +2,28 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strconv"
 
 	"github.com/google/go-cmp/cmp"
-
-	"github.com/ibm/cassandra-operator/controllers/names"
 	"k8s.io/apimachinery/pkg/types"
 
+	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
+	"github.com/ibm/cassandra-operator/controllers/events"
 	"github.com/ibm/cassandra-operator/controllers/labels"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
+	"github.com/ibm/cassandra-operator/controllers/names"
+	"github.com/ibm/cassandra-operator/controllers/nodectl"
 	"github.com/ibm/cassandra-operator/controllers/util"
 
-	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
-	"github.com/ibm/cassandra-operator/controllers/nodectl"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 )
+
+var errDCDecommissionBlocked = errors.New("DC decommission blocked")
 
 func (r *CassandraClusterReconciler) reconcileCassandraScaling(ctx context.Context, cc *dbv1alpha1.CassandraCluster, podList *v1.PodList, nodesList *v1.NodeList, allDCs []dbv1alpha1.DC, adminRoleSecret *v1.Secret) (bool, error) {
 	broadcastAddresses, err := getBroadcastAddresses(cc, podList.Items, nodesList.Items)
@@ -114,6 +117,22 @@ func (r CassandraClusterReconciler) handleDCsDecommission(ctx context.Context, c
 		return errors.Wrap(err, "can't get keyspace info")
 	}
 
+	//prevent decommission if the DC still in use
+	for _, existingKeyspace := range currentKeyspaces {
+		if !keyspaceExists(keyspacesToReconcile, existingKeyspace.Name) { //not a system keyspace
+			for _, sts := range stsList {
+				if _, exists := existingKeyspace.Replication[sts.Labels[dbv1alpha1.CassandraClusterDC]]; exists {
+					errMsg := fmt.Sprintf("Can't decommission DC %q since keyspace %q still replicates to that DC. "+
+						"Remove that DC from replication settings for the decommission to proceed.", sts.Labels[dbv1alpha1.CassandraClusterDC], existingKeyspace.Name)
+					r.Events.Warning(cc, events.EventDCDecommissionBlocked, errMsg)
+					r.Log.Warnf(errMsg)
+					return errDCDecommissionBlocked
+				}
+			}
+		}
+	}
+
+	// prepare system keyspaces to not replicate to DCs being decommissioned
 	for _, systemKeyspace := range keyspacesToReconcile {
 		// system_auth should be reconciled only after scaledown is finished, otherwise will get quorum errors on JMX requests
 		if systemKeyspace == keyspaceSystemAuth {
@@ -135,6 +154,7 @@ func (r CassandraClusterReconciler) handleDCsDecommission(ctx context.Context, c
 		}
 	}
 
+	// decommission DCs
 	for _, stsName := range stsNames {
 		sts := stsList[stsName]
 		if sts.Spec.Replicas != nil && *sts.Spec.Replicas == 0 { //all pods for DC are decommissioned already
@@ -187,9 +207,9 @@ func (r CassandraClusterReconciler) handlePodDecommission(ctx context.Context, c
 
 	broadcastIP := broadcastAddresses[decommissionPod.Name]
 	r.Log.Debugf("checking operation mode for node %s", decommissionPod.Name)
-	opMode, err := nctl.OperationMode(ctx, broadcastIP)
-	if err != nil { // the node may be decommissioned
-		r.Log.Warnf("Couldn't get operation mod for pod %s, checking if it is decommissioned already. Err: %s", decommissionPodName, err.Error())
+	opMode, opModeErr := nctl.OperationMode(ctx, broadcastIP)
+	if opModeErr != nil { // the node may be decommissioned
+		r.Log.Warnf("couldn't get operation mode for pod %s, checking if it is decommissioned already.", decommissionPodName)
 
 		decommissioned, err := r.podDecommissioned(ctx, cc, nctl, podList.Items, *decommissionPod, broadcastAddresses)
 		if err != nil {
@@ -209,7 +229,7 @@ func (r CassandraClusterReconciler) handlePodDecommission(ctx context.Context, c
 
 			return nil
 		} else {
-			return errors.Wrap(err, "failed to get operation mode, but some peer node(s) still see the node as ready")
+			return errors.Wrap(opModeErr, "failed to get operation mode, but some peer node(s) still see the node as ready")
 		}
 	}
 

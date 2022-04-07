@@ -17,15 +17,13 @@ var (
 
 	compareQuantity = cmp.Comparer(func(x, y resource.Quantity) bool { return x.Cmp(y) == 0 })
 
-	statefulSetIgnoreFields         = cmpopts.IgnoreFields(appsv1.StatefulSet{}, "Spec.Template.Spec.DeprecatedServiceAccount", "Spec.Template.Spec.SchedulerName")
-	volumeClaimTemplateIgnoreFields = cmpopts.IgnoreFields(v1.PersistentVolumeClaim{}, sharedIgnoreStatus...)
-	stsOpts                         = []cmp.Option{
+	statefulSetIgnoreFields = cmpopts.IgnoreFields(appsv1.StatefulSet{}, "Spec.Template.Spec.DeprecatedServiceAccount", "Spec.Template.Spec.SchedulerName")
+	stsOpts                 = []cmp.Option{
 		cmpopts.IgnoreFields(appsv1.StatefulSet{}, sharedIgnoreMetadata...),
 		cmpopts.IgnoreFields(appsv1.StatefulSet{}, sharedIgnoreStatus...),
 		cmpopts.IgnoreFields(v1.PersistentVolumeClaim{}, sharedIgnoreMetadata...),
 		cmpopts.IgnoreFields(v1.PersistentVolumeClaim{}, sharedIgnoreStatus...),
 		statefulSetIgnoreFields,
-		volumeClaimTemplateIgnoreFields,
 		compareQuantity,
 	}
 
@@ -39,10 +37,6 @@ var (
 	rolebindingOpts = []cmp.Option{cmpopts.IgnoreFields(rbac.RoleBinding{}, sharedIgnoreMetadata...)}
 
 	serviceAccountOpts = []cmp.Option{cmpopts.IgnoreFields(v1.ServiceAccount{}, append(sharedIgnoreMetadata, "ImagePullSecrets")...)}
-
-	clusterRolebindingOpts = []cmp.Option{cmpopts.IgnoreFields(rbac.ClusterRoleBinding{}, sharedIgnoreMetadata...)}
-
-	clusterRoleOpts = []cmp.Option{cmpopts.IgnoreFields(rbac.ClusterRole{}, sharedIgnoreMetadata...)}
 
 	configMapOpts = []cmp.Option{cmpopts.IgnoreFields(v1.ConfigMap{}, sharedIgnoreMetadata...)}
 
@@ -115,22 +109,6 @@ func DiffServiceAccount(actual, desired *v1.ServiceAccount) string {
 	desired.DeepCopyInto(desiredCopy)
 	withServiceAccountInheritance(actual, desiredCopy)
 	return cmp.Diff(actual, desiredCopy, serviceAccountOpts...)
-}
-
-func EqualClusterRole(actual, desired *rbac.ClusterRole) bool {
-	return cmp.Equal(actual, desired, clusterRoleOpts...)
-}
-
-func DiffClusterRole(actual, desired *rbac.ClusterRole) string {
-	return cmp.Diff(actual, desired, clusterRoleOpts...)
-}
-
-func EqualClusterRoleBinding(actual, desired *rbac.ClusterRoleBinding) bool {
-	return cmp.Equal(actual, desired, clusterRolebindingOpts...)
-}
-
-func DiffClusterRoleBinding(actual, desired *rbac.ClusterRoleBinding) string {
-	return cmp.Diff(actual, desired, clusterRolebindingOpts...)
 }
 
 func EqualConfigMap(actual, desired *v1.ConfigMap) bool {

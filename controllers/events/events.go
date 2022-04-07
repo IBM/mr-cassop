@@ -10,6 +10,7 @@ const (
 	EventRecorderNameCassandraCluster = "cassandra-cluster" // appears in the 'From' column of the events list
 
 	EventAdminRoleSecretNotFound = "AdminRoleSecretNotFound"
+	EventAdminRoleSecretInvalid  = "AdminRoleSecretInvalid"
 	EventAdminRoleUpdateFailed   = "AdminRoleUpdateFailed"
 	EventAdminRoleCreated        = "AdminRoleCreated"
 	EventDefaultAdminRoleDropped = "DefaultAdminRoleRemoved"
@@ -19,6 +20,7 @@ const (
 	EventInsecureSetup           = "InsecureSetup"
 	EventInvalidRole             = "InvalidRole"
 	CassandraConfigInvalid       = "InvalidCassandraConfig"
+	EventDCDecommissionBlocked   = "DCDecommissionBlocked"
 
 	EventAdminRoleChanged = "AdminRoleChanged"
 	EventRegionInit       = "RegionInit"

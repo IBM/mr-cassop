@@ -14,6 +14,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
@@ -145,20 +146,30 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	baseAdminSecret := &v1.Secret{}
 	err = r.Get(ctx, types.NamespacedName{Name: cc.Spec.AdminRoleSecretName, Namespace: cc.Namespace}, baseAdminSecret)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			errMsg := fmt.Sprintf("admin secret %s not found", cc.Spec.AdminRoleSecretName)
+			r.Log.Warn(errMsg)
+			r.Events.Warning(cc, events.EventAdminRoleSecretNotFound, errMsg)
+			return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
+		}
 		return ctrl.Result{}, errors.Wrapf(err, "Failed to get secret: %s", names.ActiveAdminSecret(cc.Name))
 	}
 
+	adminRole, adminPassword, err := extractCredentials(baseAdminSecret)
+	if err != nil {
+		errMsg := fmt.Sprintf("admin secret %q is invalid: %s", cc.Spec.AdminRoleSecretName, err.Error())
+		r.Log.Warn(errMsg)
+		r.Events.Warning(cc, events.EventAdminRoleSecretInvalid, errMsg)
+		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
+	}
+
 	proberAuth := prober.Auth{
-		Username: string(baseAdminSecret.Data[v1alpha1.CassandraOperatorAdminRole]),
-		Password: string(baseAdminSecret.Data[v1alpha1.CassandraOperatorAdminPassword]),
+		Username: adminRole,
+		Password: adminPassword,
 	}
 
 	err = r.reconcileAdminAuth(ctx, cc, baseAdminSecret, proberAuth)
 	if err != nil {
-		if errors.Cause(err) == errAdminSecretNotFound || errors.Cause(err) == errAdminSecretInvalid {
-			r.Log.Warnf("Failed to reconcile admin auth with secret %q: %s", cc.Spec.AdminRoleSecretName, err.Error())
-			return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
-		}
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling Admin Auth Secrets")
 	}
 
@@ -247,6 +258,9 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 
 	scalingInProgress, err := r.reconcileCassandraScaling(ctx, cc, podList, nodeList, allDCs, baseAdminSecret)
 	if err != nil {
+		if errors.Cause(err) == errDCDecommissionBlocked {
+			return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
+		}
 		return ctrl.Result{}, err
 	}
 
