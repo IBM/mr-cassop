@@ -25,7 +25,7 @@ jobs:
       uses: actions/checkout@v3
 
     - name: Setup Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v3
       with:
         go-version: ${{ env.GO_VERSION }}
 
@@ -64,7 +64,7 @@ jobs:
       uses: actions/checkout@v3
 
     - name: Setup Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v3
       with:
         go-version: ${{ env.GO_VERSION }}
 
@@ -425,7 +425,7 @@ jobs:
         kubectl describe pod -l operator=cassandra-operator
         kubectl logs deployment/cassandra-operator --tail=20
     - name: Set up Go with latest minor version 1.x
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v3
       with:
         go-version: ^1.17
     - name: Get go dependencies
