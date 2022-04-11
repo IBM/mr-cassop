@@ -41,5 +41,6 @@ module.exports = {
     },
     'development',
     'cql-configmaps',
+    'upgrading',
   ],
 };
