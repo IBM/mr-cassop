@@ -331,22 +331,22 @@ jobs:
           ibmcloud cr login
 
     - name: Download operator image artifact
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: cassandra-operator
 
     - name: Download cassandra image artifact
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: cassandra
 
     - name: Download prober image artifact
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: prober
 
     - name: Download jolokia image artifact
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: jolokia
 
