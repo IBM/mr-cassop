@@ -122,7 +122,7 @@ jobs:
         outputs: type=docker,dest=cassandra-operator.tar
 
     - name: Upload cassandra operator image artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: cassandra-operator
         path: cassandra-operator.tar
@@ -162,7 +162,7 @@ jobs:
         outputs: type=docker,dest=cassandra.tar
 
     - name: Upload cassandra image artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: cassandra
         path: cassandra.tar
@@ -203,7 +203,7 @@ jobs:
         outputs: type=docker,dest=prober.tar
 
     - name: Upload prober image artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: prober
         path: prober.tar
@@ -243,7 +243,7 @@ jobs:
         outputs: type=docker,dest=jolokia.tar
 
     - name: Upload jolokia image artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: jolokia
         path: jolokia.tar
@@ -438,7 +438,7 @@ jobs:
         make e2e-tests
     - name: Upload logs artifact
       if: ${{ always() && steps.e2e.outcome == 'failure' }}
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: logs
         path: /tmp/debug-logs/
