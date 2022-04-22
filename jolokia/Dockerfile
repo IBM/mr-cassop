@@ -7,7 +7,7 @@ RUN tar -C /tmp/ -xzf jolokia.tar.gz;
 RUN cp /tmp/jolokia-${JOLOKIA_VERSION}/agents/jolokia-unsecured.war /tmp
 
 ARG DOCKER_PROXY_REGISTRY=""
-FROM ${DOCKER_PROXY_REGISTRY}tomcat:9-jdk8-openjdk-slim-buster
+FROM ${DOCKER_PROXY_REGISTRY}tomcat:9-jdk8-openjdk-slim-bullseye
 ENV JOLOKIA_JSR160_PROXY_ENABLED=true
 ENV JOLOKIA_RESPONSE_TIMEOUT=30000
 

@@ -14,12 +14,12 @@ env:
   IKS_NAMESPACE: cassandra-operator-ci
   ICR_NAMESPACE: cassandra-operator
   IMAGE_PULL_SECRET: icm-coreeng-pull-secret
+  TRIVY_SEVERITY: CRITICAL
 
 jobs:
 
   run-unit-tests:
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -57,8 +57,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        k8s: [1.19.2, 1.20.2, 1.21.2, 1.22.1]
-
+        k8s: [1.19.2, 1.20.2, 1.21.2, 1.22.1, 1.23.1]
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -90,7 +89,7 @@ jobs:
 
   build-operator:
     runs-on: ubuntu-latest
-    needs: run-integration-tests
+    needs: [run-unit-tests, run-integration-tests]
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -121,6 +120,13 @@ jobs:
         tags: us.icr.io/${{ env.ICR_NAMESPACE }}/cassandra-operator:${{ env.GITHUB_REF_SLUG }}
         outputs: type=docker,dest=cassandra-operator.tar
 
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@0.2.5
+      with:
+        input: "cassandra-operator.tar"
+        exit-code: "1"
+        severity: ${{ env.TRIVY_SEVERITY }}
+
     - name: Upload cassandra operator image artifact
       uses: actions/upload-artifact@v3
       with:
@@ -130,7 +136,7 @@ jobs:
 
   build-cassandra:
     runs-on: ubuntu-latest
-    needs: run-integration-tests
+    needs: [run-unit-tests, run-integration-tests]
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -157,9 +163,15 @@ jobs:
         file: ./cassandra/Dockerfile
         context: ./cassandra
         tags: us.icr.io/${{ env.ICR_NAMESPACE }}/cassandra:${{ env.GITHUB_REF_SLUG }}
-        build-args: |
-          DOCKER_PROXY_REGISTRY=${{ secrets.DOCKER_PROXY_REGISTRY }}/
+        build-args: DOCKER_PROXY_REGISTRY=${{ secrets.DOCKER_PROXY_REGISTRY }}/
         outputs: type=docker,dest=cassandra.tar
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@0.2.5
+      with:
+        input: "cassandra.tar"
+        exit-code: "1"
+        severity: ${{ env.TRIVY_SEVERITY }}
 
     - name: Upload cassandra image artifact
       uses: actions/upload-artifact@v3
@@ -170,7 +182,7 @@ jobs:
 
   build-prober:
     runs-on: ubuntu-latest
-    needs: run-integration-tests
+    needs: [run-unit-tests, run-integration-tests]
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -202,6 +214,13 @@ jobs:
         tags: us.icr.io/${{ env.ICR_NAMESPACE }}/prober:${{ env.GITHUB_REF_SLUG }}
         outputs: type=docker,dest=prober.tar
 
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@0.2.5
+      with:
+        input: "prober.tar"
+        exit-code: "1"
+        severity: ${{ env.TRIVY_SEVERITY }}
+
     - name: Upload prober image artifact
       uses: actions/upload-artifact@v3
       with:
@@ -211,7 +230,7 @@ jobs:
 
   build-jolokia:
     runs-on: ubuntu-latest
-    needs: run-integration-tests
+    needs: [run-unit-tests, run-integration-tests]
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -237,10 +256,16 @@ jobs:
       with:
         file: ./jolokia/Dockerfile
         context: ./jolokia
-        build-args: |
-          DOCKER_PROXY_REGISTRY=${{ secrets.DOCKER_PROXY_REGISTRY }}/
+        build-args: DOCKER_PROXY_REGISTRY=${{ secrets.DOCKER_PROXY_REGISTRY }}/
         tags: us.icr.io/${{ env.ICR_NAMESPACE }}/jolokia:${{ env.GITHUB_REF_SLUG }}
         outputs: type=docker,dest=jolokia.tar
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@0.2.5
+      with:
+        input: "jolokia.tar"
+        exit-code: "1"
+        severity: ${{ env.TRIVY_SEVERITY }}
 
     - name: Upload jolokia image artifact
       uses: actions/upload-artifact@v3
@@ -281,6 +306,12 @@ jobs:
 
     - name: Run chart-testing (lint)
       run: ct lint --target-branch=main --check-version-increment=false
+
+    - name: Download Pluto
+      uses: FairwindsOps/pluto/github-action@v5.7.0
+
+    - name: Scan for deprecated k8s APIs
+      run: helm template cassandra-operator/ | pluto detect -
 
   check-docs:
     runs-on: ubuntu-latest
@@ -434,8 +465,7 @@ jobs:
       run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.1.0
     - name: Run e2e tests
       id: e2e
-      run: |
-        make e2e-tests
+      run: make e2e-tests
     - name: Upload logs artifact
       if: ${{ always() && steps.e2e.outcome == 'failure' }}
       uses: actions/upload-artifact@v3
@@ -445,12 +475,10 @@ jobs:
         retention-days: 7
     - name: Uninstall C* operator helm chart
       if: ${{ always() }}
-      run: |
-        helm uninstall cassandra-operator
+      run: helm uninstall cassandra-operator
     - name: Remove CassandraCluster CRD
       if: ${{ always() }}
-      run: |
-        kubectl delete -f cassandra-operator/crds/cassandracluster.yaml
+      run: kubectl delete -f cassandra-operator/crds/cassandracluster.yaml
     # We have below logic bc when multiple tags exist for the same image digest within a repository, the ibmcloud cr image-rm command removes the underlying image and all its tags. See details: https://cloud.ibm.com/docs/container-registry-cli-plugin?topic=container-registry-cli-plugin-containerregcli#bx_cr_image_rm
     # We can also add a check if commit message contains `no_image_del` then skip the image deletion step
     - name: Cleanup Images
