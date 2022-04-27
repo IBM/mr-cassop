@@ -17,10 +17,6 @@ spec:
         resources:
           requests:
             storage: 20Gi
-      commitLogVolumeClaimSpec:
-        resources:
-          requests:
-            storage: 20Gi
     zonesAsRacks: false
     resources:
       limits:
@@ -32,6 +28,12 @@ spec:
     jvmOptions:
     - -Xmx1024M
     - -Xms1024M
+    monitoring:
+      enabled: true
+      agent: "instaclustr"
+      serviceMonitor:
+        enabled: true
+        scrapeInterval: 60s
   cqlConfigMapLabelKey: cql-scripts
   dcs:
   - name: dc1
@@ -52,10 +54,7 @@ spec:
           cpu: 200m
           memory: 256Mi
     serviceMonitor:
-      enabled: false
-      namespace: ""
-      labels: { }
-      scrapeInterval: 60s
+      enabled: true
   reaper:
     incrementalRepair: false
     repairParallelism: "DATACENTER_AWARE"
@@ -84,7 +83,7 @@ spec:
         incrementalRepair: false
         repairParallelism: "DATACENTER_AWARE"
     serviceMonitor:
-      enabled: false
+      enabled: true
       namespace: ""
       labels: {}
       scrapeInterval: 60s

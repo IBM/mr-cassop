@@ -1,42 +1,11 @@
 {
-  "__requires": [
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "6.2.5"
-    },
-    {
-      "type": "panel",
-      "id": "graph",
-      "name": "Graph",
-      "version": ""
-    },
-    {
-      "type": "datasource",
-      "id": "prometheus",
-      "name": "Prometheus",
-      "version": "1.0.0"
-    }
-  ],
   "annotations": {
-    "list": [
-      {
-        "builtIn": 1,
-        "datasource": "-- Grafana --",
-        "enable": true,
-        "hide": true,
-        "iconColor": "rgba(0, 211, 255, 1)",
-        "name": "Annotations & Alerts",
-        "type": "dashboard"
-      }
-    ]
+    "list": []
   },
-  "editable": false,
-  "gnetId": null,
+  "editable": true,
+  "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": null,
-  "iteration": 1567114449108,
+  "iteration": 1650624562288,
   "links": [
     {
       "asDropdown": true,
@@ -51,6 +20,7 @@
       "type": "dashboards"
     }
   ],
+  "liveNow": false,
   "panels": [
     {
       "collapsed": false,
@@ -62,7 +32,6 @@
       },
       "id": 83,
       "panels": [],
-      "repeat": null,
       "title": "Write Latencies and Counts",
       "type": "row"
     },
@@ -71,10 +40,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
+      "fillGradient": 0,
       "grid": {},
       "gridPos": {
         "h": 5,
@@ -82,6 +54,7 @@
         "x": 0,
         "y": 1
       },
+      "hiddenSeries": false,
       "id": 1,
       "legend": {
         "alignAsTable": true,
@@ -99,8 +72,11 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -118,9 +94,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Write Latency (per table) - p95",
       "tooltip": {
         "msResolution": false,
@@ -131,9 +105,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -142,22 +114,17 @@
           "format": "ms",
           "label": "Mean write request latencies of p95",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -165,10 +132,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
+      "fillGradient": 0,
       "grid": {},
       "gridPos": {
         "h": 5,
@@ -176,6 +146,7 @@
         "x": 8,
         "y": 1
       },
+      "hiddenSeries": false,
       "id": 3,
       "legend": {
         "alignAsTable": true,
@@ -193,8 +164,11 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -212,9 +186,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Write Latency (per host) - p95",
       "tooltip": {
         "msResolution": false,
@@ -225,9 +197,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -236,22 +206,17 @@
           "format": "ms",
           "label": "Mean write request latencies of p95",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -259,10 +224,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
+      "fillGradient": 0,
       "grid": {},
       "gridPos": {
         "h": 5,
@@ -270,6 +238,7 @@
         "x": 16,
         "y": 1
       },
+      "hiddenSeries": false,
       "id": 5,
       "legend": {
         "alignAsTable": true,
@@ -287,8 +256,11 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -306,9 +278,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Write Latency (per table and host) - p95",
       "tooltip": {
         "msResolution": false,
@@ -319,9 +289,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -330,22 +298,17 @@
           "format": "ms",
           "label": "Write request latencies - p95",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -353,10 +316,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
+      "fillGradient": 0,
       "grid": {},
       "gridPos": {
         "h": 5,
@@ -364,6 +330,7 @@
         "x": 0,
         "y": 6
       },
+      "hiddenSeries": false,
       "id": 33,
       "legend": {
         "alignAsTable": true,
@@ -381,8 +348,11 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -400,9 +370,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Write Request Counts (per table)",
       "tooltip": {
         "msResolution": false,
@@ -413,9 +381,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -424,22 +390,17 @@
           "format": "ops",
           "label": "Total write request rate",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -447,10 +408,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
+      "fillGradient": 0,
       "grid": {},
       "gridPos": {
         "h": 5,
@@ -458,6 +422,7 @@
         "x": 8,
         "y": 6
       },
+      "hiddenSeries": false,
       "id": 34,
       "legend": {
         "alignAsTable": true,
@@ -475,8 +440,11 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -495,9 +463,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Write Request Counts (per host)",
       "tooltip": {
         "msResolution": false,
@@ -508,9 +474,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -519,22 +483,17 @@
           "format": "ops",
           "label": "Total write request rate",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -542,10 +501,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
+      "fillGradient": 0,
       "grid": {},
       "gridPos": {
         "h": 5,
@@ -553,6 +515,7 @@
         "x": 16,
         "y": 6
       },
+      "hiddenSeries": false,
       "id": 35,
       "legend": {
         "alignAsTable": true,
@@ -570,8 +533,11 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -589,9 +555,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Write Request Counts (per table and host)",
       "tooltip": {
         "msResolution": false,
@@ -602,9 +566,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -613,22 +575,17 @@
           "format": "ops",
           "label": "Write request rate",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -641,7 +598,6 @@
       },
       "id": 84,
       "panels": [],
-      "repeat": null,
       "title": "CAS Latencies and Counts",
       "type": "row"
     },
@@ -650,10 +606,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
+      "fillGradient": 0,
       "grid": {},
       "gridPos": {
         "h": 7,
@@ -661,6 +620,7 @@
         "x": 0,
         "y": 12
       },
+      "hiddenSeries": false,
       "id": 70,
       "legend": {
         "alignAsTable": true,
@@ -678,8 +638,11 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -697,9 +660,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "CAS Write Latency (per host) - p95",
       "tooltip": {
         "msResolution": false,
@@ -710,9 +671,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -721,22 +680,17 @@
           "format": "ms",
           "label": "Mean CAS write latency of p95",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -744,10 +698,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
+      "fillGradient": 0,
       "grid": {},
       "gridPos": {
         "h": 7,
@@ -755,6 +712,7 @@
         "x": 8,
         "y": 12
       },
+      "hiddenSeries": false,
       "id": 71,
       "legend": {
         "alignAsTable": true,
@@ -772,8 +730,11 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -791,9 +752,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "CAS Write Timeouts (per host)",
       "tooltip": {
         "msResolution": false,
@@ -804,9 +763,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -815,22 +772,17 @@
           "format": "ops",
           "label": "Mean rate of CAS write timeouts",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -838,10 +790,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
+      "fillGradient": 0,
       "grid": {},
       "gridPos": {
         "h": 7,
@@ -849,6 +804,7 @@
         "x": 16,
         "y": 12
       },
+      "hiddenSeries": false,
       "id": 72,
       "legend": {
         "alignAsTable": true,
@@ -866,8 +822,11 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -885,9 +844,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "CAS Write Unavailables (per host)",
       "tooltip": {
         "msResolution": false,
@@ -898,9 +855,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -909,22 +864,17 @@
           "format": "ops",
           "label": "Mean rate of CAS write unavailables",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -932,10 +882,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
+      "fillGradient": 0,
       "grid": {},
       "gridPos": {
         "h": 7,
@@ -943,6 +896,7 @@
         "x": 0,
         "y": 19
       },
+      "hiddenSeries": false,
       "id": 73,
       "legend": {
         "alignAsTable": true,
@@ -960,8 +914,11 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -979,9 +936,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "CAS Write Unfinished Commits (per host)",
       "tooltip": {
         "msResolution": false,
@@ -992,9 +947,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -1003,22 +956,17 @@
           "format": "short",
           "label": "Mean unfinished CAS write commits",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -1026,10 +974,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
+      "fillGradient": 0,
       "grid": {},
       "gridPos": {
         "h": 7,
@@ -1037,6 +988,7 @@
         "x": 8,
         "y": 19
       },
+      "hiddenSeries": false,
       "id": 74,
       "legend": {
         "alignAsTable": true,
@@ -1054,8 +1006,11 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1073,9 +1028,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "CAS Write Conditions Not Met (per host)",
       "tooltip": {
         "msResolution": false,
@@ -1086,9 +1039,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -1097,22 +1048,17 @@
           "format": "short",
           "label": "Mean CAS write conditions not met",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -1120,10 +1066,13 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
+      "fillGradient": 0,
       "grid": {},
       "gridPos": {
         "h": 7,
@@ -1131,6 +1080,7 @@
         "x": 16,
         "y": 19
       },
+      "hiddenSeries": false,
       "id": 75,
       "legend": {
         "alignAsTable": true,
@@ -1148,8 +1098,11 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1167,9 +1120,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "CAS Write Contention (per host) - p95",
       "tooltip": {
         "msResolution": false,
@@ -1180,9 +1131,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -1191,22 +1140,17 @@
           "format": "short",
           "label": "Mean contended CAS writes of p95",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -1219,7 +1163,6 @@
       },
       "id": 85,
       "panels": [],
-      "repeat": null,
       "title": "CAS Stage Latencies",
       "type": "row"
     },
@@ -1228,7 +1171,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -1256,8 +1201,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1275,9 +1220,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "CAS Prepare Latency (per table) - p95",
       "tooltip": {
         "msResolution": false,
@@ -1288,9 +1231,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -1299,22 +1240,17 @@
           "format": "ms",
           "label": "Mean CAS prepare latencies of p95",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -1322,7 +1258,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -1350,8 +1288,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1369,9 +1307,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "CAS Prepare Latency (per host) - p95",
       "tooltip": {
         "msResolution": false,
@@ -1382,9 +1318,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -1393,22 +1327,17 @@
           "format": "ms",
           "label": "Mean CAS prepare latencies of p95",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -1416,7 +1345,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -1444,8 +1375,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1463,9 +1394,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "CAS Prepare Latency (per table and host) - p95",
       "tooltip": {
         "msResolution": false,
@@ -1476,9 +1405,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -1487,22 +1414,17 @@
           "format": "ms",
           "label": "CAS prepare latencies - p95",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -1510,7 +1432,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -1538,8 +1462,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1557,8 +1481,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "CAS Propose Latency (per table) - p95",
       "tooltip": {
         "msResolution": false,
@@ -1569,9 +1491,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -1580,16 +1500,12 @@
           "format": "ms",
           "label": "Mean CAS propose latencies of p95",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -1599,7 +1515,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -1627,8 +1545,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1646,8 +1564,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "CAS Propose Latency (per host) - p95",
       "tooltip": {
         "msResolution": false,
@@ -1658,9 +1574,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -1669,16 +1583,12 @@
           "format": "ms",
           "label": "Mean CAS propose latencies of p95",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -1688,7 +1598,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -1716,8 +1628,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1735,8 +1647,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "CAS Propose Latency (per table and host) - p95",
       "tooltip": {
         "msResolution": false,
@@ -1747,9 +1657,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -1758,16 +1666,12 @@
           "format": "ms",
           "label": "CAS propose latencies - p95",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -1777,7 +1681,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -1805,8 +1711,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1824,8 +1730,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "CAS Commit Latency (per table) - p95",
       "tooltip": {
         "msResolution": false,
@@ -1836,9 +1740,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -1847,16 +1749,12 @@
           "format": "ms",
           "label": "Mean CAS commit latencies of p95",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -1866,7 +1764,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -1894,8 +1794,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1913,8 +1813,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "CAS Commit Latency (per host) - p95",
       "tooltip": {
         "msResolution": false,
@@ -1925,9 +1823,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -1936,16 +1832,12 @@
           "format": "ms",
           "label": "Mean CAS commit latencies of p95",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -1955,7 +1847,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -1983,8 +1877,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -2002,8 +1896,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "CAS Commit Latency (per table and host) - p95",
       "tooltip": {
         "msResolution": false,
@@ -2014,9 +1906,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -2025,16 +1915,12 @@
           "format": "ms",
           "label": "CAS commit latencies - p95",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -2049,7 +1935,6 @@
       },
       "id": 86,
       "panels": [],
-      "repeat": null,
       "title": "Memtables",
       "type": "row"
     },
@@ -2058,7 +1943,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -2086,8 +1973,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -2105,8 +1992,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Memtable Column Count (per table)",
       "tooltip": {
         "msResolution": false,
@@ -2117,9 +2002,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -2128,16 +2011,12 @@
           "format": "short",
           "label": "Mean memtable column count",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -2147,7 +2026,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -2175,8 +2056,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -2194,8 +2075,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Memtable Column Count (per host)",
       "tooltip": {
         "msResolution": false,
@@ -2206,9 +2085,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -2217,16 +2094,12 @@
           "format": "short",
           "label": "Mean memtable column count",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -2236,7 +2109,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -2264,8 +2139,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -2283,8 +2158,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Memtable Column Count (per table and host)",
       "tooltip": {
         "msResolution": false,
@@ -2295,9 +2168,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -2306,16 +2177,12 @@
           "format": "short",
           "label": "Memtable column count",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -2325,7 +2192,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -2353,8 +2222,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -2372,8 +2241,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Memtable Live Data Size (per table)",
       "tooltip": {
         "msResolution": false,
@@ -2384,9 +2251,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -2395,16 +2260,12 @@
           "format": "bytes",
           "label": "Mean memtable live data size",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -2414,7 +2275,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -2442,8 +2305,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -2461,8 +2324,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Memtable Live Data Size (per host)",
       "tooltip": {
         "msResolution": false,
@@ -2473,9 +2334,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -2484,16 +2343,12 @@
           "format": "bytes",
           "label": "Mean memtable live data size",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -2503,7 +2358,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -2531,8 +2388,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -2550,8 +2407,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Memtable Live Data Size (per table and host)",
       "tooltip": {
         "msResolution": false,
@@ -2562,9 +2417,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -2573,16 +2426,12 @@
           "format": "bytes",
           "label": "Memtable live data size",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -2592,7 +2441,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -2620,8 +2471,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -2639,8 +2490,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Memtable On-Heap Size (per table)",
       "tooltip": {
         "msResolution": false,
@@ -2651,9 +2500,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -2662,16 +2509,12 @@
           "format": "bytes",
           "label": "Mean memtable on-heap size",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -2681,7 +2524,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -2709,8 +2554,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -2728,8 +2573,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Memtable On-Heap Size (per host)",
       "tooltip": {
         "msResolution": false,
@@ -2740,9 +2583,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -2751,16 +2592,12 @@
           "format": "bytes",
           "label": "Mean memtable on-heap size",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -2770,7 +2607,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -2798,8 +2637,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -2817,8 +2656,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Memtable On-Heap Size (per table and host)",
       "tooltip": {
         "msResolution": false,
@@ -2829,9 +2666,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -2840,16 +2675,12 @@
           "format": "bytes",
           "label": "Memtable on-heap size",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -2859,7 +2690,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -2887,8 +2720,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -2906,8 +2739,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Memtable Off-Heap Size (per table)",
       "tooltip": {
         "msResolution": false,
@@ -2918,9 +2749,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -2929,16 +2758,12 @@
           "format": "bytes",
           "label": "Mean memtable off-heap size",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -2948,7 +2773,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -2976,8 +2803,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -2995,8 +2822,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Memtable Off-Heap Size (per host)",
       "tooltip": {
         "msResolution": false,
@@ -3007,9 +2832,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -3018,16 +2841,12 @@
           "format": "bytes",
           "label": "Mean memtable off-heap size",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -3037,7 +2856,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -3065,8 +2886,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -3084,8 +2905,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Memtable Off-Heap Size (per table and host)",
       "tooltip": {
         "msResolution": false,
@@ -3096,9 +2915,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -3107,16 +2924,12 @@
           "format": "bytes",
           "label": "Memtable off-heap size",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -3126,7 +2939,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -3154,8 +2969,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -3173,8 +2988,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Memtable Total Heap Size (per table)",
       "tooltip": {
         "msResolution": false,
@@ -3185,9 +2998,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -3196,16 +3007,12 @@
           "format": "bytes",
           "label": "Mean memtable total heap size",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -3215,7 +3022,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -3243,8 +3052,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -3262,8 +3071,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Memtable Total Heap Size (per host)",
       "tooltip": {
         "msResolution": false,
@@ -3274,9 +3081,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -3285,16 +3090,12 @@
           "format": "bytes",
           "label": "Mean memtable total heap size",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -3304,7 +3105,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -3332,8 +3135,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -3351,8 +3154,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Memtable Total Heap Size (per table and host)",
       "tooltip": {
         "msResolution": false,
@@ -3363,9 +3164,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -3374,16 +3173,12 @@
           "format": "bytes",
           "label": "Memtable total heap size",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -3398,7 +3193,6 @@
       },
       "id": 87,
       "panels": [],
-      "repeat": null,
       "title": "Mutations",
       "type": "row"
     },
@@ -3407,7 +3201,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -3435,8 +3231,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -3454,8 +3250,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Pending Mutations (per host)",
       "tooltip": {
         "msResolution": false,
@@ -3466,9 +3260,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -3477,16 +3269,12 @@
           "format": "short",
           "label": "Mean pending mutations",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -3496,7 +3284,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -3524,8 +3314,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -3543,8 +3333,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Active Mutations (per host)",
       "tooltip": {
         "msResolution": false,
@@ -3555,9 +3343,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -3566,16 +3352,12 @@
           "format": "short",
           "label": "Mean active mutations",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -3590,7 +3372,6 @@
       },
       "id": 88,
       "panels": [],
-      "repeat": null,
       "title": "Dropped Mutations",
       "type": "row"
     },
@@ -3599,7 +3380,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -3627,8 +3410,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -3646,8 +3429,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Dropped Mutations (per host)",
       "tooltip": {
         "msResolution": false,
@@ -3658,9 +3439,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -3669,16 +3448,12 @@
           "format": "ops",
           "label": "Mean dropped mutation rate",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -3688,7 +3463,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -3716,8 +3493,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -3735,8 +3512,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Dropped Counter Mutations (per host)",
       "tooltip": {
         "msResolution": false,
@@ -3747,9 +3522,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -3758,16 +3531,12 @@
           "format": "ops",
           "label": "Mean dropped counter mutation rate",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -3782,7 +3551,6 @@
       },
       "id": 89,
       "panels": [],
-      "repeat": null,
       "title": "Commit Logs",
       "type": "row"
     },
@@ -3791,7 +3559,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -3819,8 +3589,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -3838,8 +3608,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Commit Log Sizes (per host)",
       "tooltip": {
         "msResolution": false,
@@ -3850,9 +3618,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -3861,16 +3627,11 @@
           "format": "bytes",
           "label": "Mean commit log sizes",
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -3880,7 +3641,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -3908,8 +3671,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -3927,8 +3690,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Disk Load (per host)",
       "tooltip": {
         "msResolution": true,
@@ -3939,9 +3700,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -3950,16 +3709,11 @@
           "format": "bytes",
           "label": "Disk load",
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -3969,7 +3723,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -3997,8 +3753,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -4016,8 +3772,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Pending Commit Log Tasks (per host)",
       "tooltip": {
         "msResolution": false,
@@ -4028,9 +3782,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -4039,16 +3791,12 @@
           "format": "short",
           "label": "Mean pending commit log tasks",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -4058,7 +3806,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -4086,8 +3836,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -4105,8 +3855,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Active Commit Log Tasks (per host)",
       "tooltip": {
         "msResolution": false,
@@ -4117,9 +3865,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -4128,16 +3874,12 @@
           "format": "short",
           "label": "Mean active commit log tasks",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
@@ -4147,7 +3889,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "editable": true,
       "error": false,
       "fill": 0,
@@ -4175,8 +3919,8 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -4194,8 +3938,6 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Blocked Commit Log Tasks (per host)",
       "tooltip": {
         "msResolution": false,
@@ -4206,9 +3948,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -4217,23 +3957,19 @@
           "format": "short",
           "label": "Mean blocked commit log tasks",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ]
     }
   ],
   "refresh": "30s",
-  "schemaVersion": 18,
+  "schemaVersion": 35,
   "style": "dark",
   "tags": [
     "cassandra",
@@ -4249,7 +3985,6 @@
         },
         "hide": 0,
         "includeAll": false,
-        "label": null,
         "multi": false,
         "name": "datasource",
         "options": [],
@@ -4260,9 +3995,16 @@
         "type": "datasource"
       },
       {
-        "allValue": null,
-        "current": {},
-        "datasource": "$datasource",
+        "current": {
+          "isNone": true,
+          "selected": false,
+          "text": "None",
+          "value": ""
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
         "definition": "",
         "hide": 0,
         "includeAll": false,
@@ -4270,43 +4012,60 @@
         "multi": false,
         "name": "env",
         "options": [],
-        "query": "label_values(org_apache_cassandra_metrics_Storage_Load, namespace)",
+        "query": {
+          "query": "label_values(org_apache_cassandra_metrics_Storage_Load, namespace)",
+          "refId": "Prometheus-env-Variable-Query"
+        },
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": 1,
         "tagValuesQuery": "",
-        "tags": [],
         "tagsQuery": "",
-        "type": "query",
-        "useTags": true
+        "type": "query"
       },
       {
-        "allValue": null,
-        "current": {},
-        "datasource": "$datasource",
+        "current": {
+          "isNone": true,
+          "selected": false,
+          "text": "None",
+          "value": ""
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
         "definition": "label_values(org_apache_cassandra_metrics_Storage_Load,app_kubernetes_io_name)",
         "hide": 0,
         "includeAll": false,
-        "label": null,
         "multi": false,
         "name": "instance",
         "options": [],
-        "query": "label_values(org_apache_cassandra_metrics_Storage_Load,app_kubernetes_io_name)",
+        "query": {
+          "query": "label_values(org_apache_cassandra_metrics_Storage_Load,app_kubernetes_io_name)",
+          "refId": "Prometheus-instance-Variable-Query"
+        },
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": 0,
         "tagValuesQuery": "",
-        "tags": [],
         "tagsQuery": "",
         "type": "query",
         "useTags": false
       },
       {
         "allValue": "",
-        "current": {},
-        "datasource": "$datasource",
+        "current": {
+          "isNone": true,
+          "selected": false,
+          "text": "None",
+          "value": ""
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
         "definition": "",
         "hide": 0,
         "includeAll": false,
@@ -4314,21 +4073,27 @@
         "multi": false,
         "name": "dc",
         "options": [],
-        "query": "label_values(org_apache_cassandra_metrics_Storage_Load, datacenter)",
+        "query": {
+          "query": "label_values(org_apache_cassandra_metrics_Storage_Load, datacenter)",
+          "refId": "Prometheus-dc-Variable-Query"
+        },
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": 1,
-        "tagValuesQuery": null,
-        "tags": [],
-        "tagsQuery": null,
         "type": "query",
         "useTags": false
       },
       {
-        "allValue": null,
-        "current": {},
-        "datasource": "$datasource",
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
         "definition": "",
         "hide": 0,
         "includeAll": true,
@@ -4336,14 +4101,14 @@
         "multi": false,
         "name": "host",
         "options": [],
-        "query": "label_values(org_apache_cassandra_metrics_Storage_Load, host)",
+        "query": {
+          "query": "label_values(org_apache_cassandra_metrics_Storage_Load, host)",
+          "refId": "Prometheus-host-Variable-Query"
+        },
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": 1,
-        "tagValuesQuery": null,
-        "tags": [],
-        "tagsQuery": null,
         "type": "query",
         "useTags": false
       }
@@ -4379,6 +4144,6 @@
     ]
   },
   "timezone": "browser",
-  "title": "Cassandra - Write Path",
+  "title": "Cassandra TLP - Write Path",
   "version": null
 }

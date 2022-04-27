@@ -65,14 +65,24 @@ deploy:
         jolokiaImage: "us.icr.io/cassandra-operator/jolokia:{{.USER}}"
         cassandraImage: "us.icr.io/cassandra-operator/cassandra:{{.USER}}"
         admissionWebhooks.enabled: true
+        clusterDashboards.enabled[0]: "datastax"
+        clusterDashboards.enabled[1]: "instaclustr"
+        clusterDashboards.enabled[2]: "prober"
+        clusterDashboards.enabled[3]: "reaper"
+        clusterDashboards.enabled[4]: "tlp"
+        monitoring.enabled: true
+        monitoring.grafanaDashboard.enabled: true
+        monitoring.grafanaDashboard.datasourceName: "Prometheus"
+        monitoring.serviceMonitor.enabled: true
+        monitoring.serviceMonitor.scrapeInterval: 30s
       createNamespace: true
       wait: true
       packaged:
         version: "0.0.0-{{.USER}}"
         appVersion: "0.0.0-{{.USER}}"
-  kubectl:
-    manifests:
-    - ./config/samples/cassandracluster_local.yaml
+#  kubectl:
+#    manifests:
+#    - ./config/samples/cassandracluster_local.yaml
 profiles:
 - name: kind
   activation:

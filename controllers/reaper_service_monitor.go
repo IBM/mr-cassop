@@ -118,29 +118,82 @@ func (r *CassandraClusterReconciler) createReaperServiceMonitor(cc *dbv1alpha1.C
 
 func getReaperServiceMonitorMetricRelabelings() []interface{} {
 	return []interface{}{
-		createRelabeling(relabelConfig{
+		createRelabeling(relabelConfig{ // Drop metric which doesn't contain keyspace
 			SourceLabels: []interface{}{"__name__"},
-			Regex:        "(.*)_(JmxConnectionFactory)_(.*)_(.*)x(.*)x(.*)x(.*)",
-			Replacement:  "${4}.${5}.${6}.${7}",
-			TargetLabel:  "cassandra_ip",
+			Regex:        "(.*)_RepairRunner_millisSinceLastRepair_([^_]+)_([^_]+)$",
+			Action:       "drop",
 		}),
 		createRelabeling(relabelConfig{
 			SourceLabels: []interface{}{"__name__"},
-			Regex:        "(.*)_(JmxConnectionFactory)_(.*)_(.*)x(.*)x(.*)x(.*)",
-			Replacement:  "Cassandra_${2}",
-			TargetLabel:  "__name__",
+			Regex:        "(.*)_RepairRunner_millisSinceLastRepair_(.*)_(.*)_(.*)",
+			TargetLabel:  "cluster",
+			Replacement:  "${2}",
 		}),
 		createRelabeling(relabelConfig{
 			SourceLabels: []interface{}{"__name__"},
-			Regex:        "(.*)_(RepairRunner_millisSinceLastRepair)_(.*)_(.*)",
+			Regex:        "(.*)_RepairRunner_millisSinceLastRepair_(.*)_(.*)_(.*)",
+			TargetLabel:  "keyspace",
+			Replacement:  "${3}",
+		}),
+		createRelabeling(relabelConfig{
+			SourceLabels: []interface{}{"__name__"},
+			Regex:        "(.*)_RepairRunner_millisSinceLastRepair_(.*)_(.*)_(.*)",
+			TargetLabel:  "runid",
 			Replacement:  "${4}",
-			TargetLabel:  "job_id",
 		}),
 		createRelabeling(relabelConfig{
 			SourceLabels: []interface{}{"__name__"},
-			Regex:        "(.*)_(RepairRunner_millisSinceLastRepair)_(.*)_(.*)",
-			Replacement:  "Cassandra_${2}",
+			Regex:        "(.*)_RepairRunner_millisSinceLastRepair_.*",
 			TargetLabel:  "__name__",
+			Replacement:  "RepairRunner_millisSinceLastRepair",
+		}),
+
+		createRelabeling(relabelConfig{ // Drop metric which doesn't contain keyspace
+			SourceLabels: []interface{}{"__name__"},
+			Regex:        "(.*)_RepairRunner_repairProgress_([^_]+)_([^_]+)$",
+			Action:       "drop",
+		}),
+		createRelabeling(relabelConfig{
+			SourceLabels: []interface{}{"__name__"},
+			Regex:        "(.*)_RepairRunner_repairProgress_(.*)_(.*)_(.*)",
+			TargetLabel:  "cluster",
+			Replacement:  "${2}",
+		}),
+		createRelabeling(relabelConfig{
+			SourceLabels: []interface{}{"__name__"},
+			Regex:        "(.*)_RepairRunner_repairProgress_(.*)_(.*)_(.*)",
+			TargetLabel:  "keyspace",
+			Replacement:  "${3}",
+		}),
+		createRelabeling(relabelConfig{
+			SourceLabels: []interface{}{"__name__"},
+			Regex:        "(.*)_RepairRunner_repairProgress_(.*)_(.*)_(.*)",
+			TargetLabel:  "runid",
+			Replacement:  "${4}",
+		}),
+		createRelabeling(relabelConfig{
+			SourceLabels: []interface{}{"__name__"},
+			Regex:        ".*_RepairRunner_repairProgress_.*",
+			TargetLabel:  "__name__",
+			Replacement:  "RepairRunner_repairProgress",
+		}),
+		createRelabeling(relabelConfig{
+			SourceLabels: []interface{}{"__name__"},
+			Regex:        "com_datastax_driver_core_Cluster_([^_]+)_(.*)",
+			TargetLabel:  "cluster",
+			Replacement:  "${1}",
+		}),
+		createRelabeling(relabelConfig{
+			SourceLabels: []interface{}{"__name__"},
+			Regex:        "com_datastax_driver_core_Cluster_([^_]+)_(.*)",
+			TargetLabel:  "metric",
+			Replacement:  "${2}",
+		}),
+		createRelabeling(relabelConfig{
+			SourceLabels: []interface{}{"__name__"},
+			Regex:        "com_datastax_driver_core_Cluster_.*",
+			TargetLabel:  "__name__",
+			Replacement:  "core_Cluster",
 		}),
 	}
 }

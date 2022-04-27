@@ -1,54 +1,12 @@
 {
-  "__requires": [
-    {
-      "type": "panel",
-      "id": "bargauge",
-      "name": "Bar Gauge",
-      "version": ""
-    },
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "6.2.5"
-    },
-    {
-      "type": "panel",
-      "id": "graph",
-      "name": "Graph",
-      "version": ""
-    },
-    {
-      "type": "datasource",
-      "id": "prometheus",
-      "name": "Prometheus",
-      "version": "1.0.0"
-    },
-    {
-      "type": "panel",
-      "id": "table",
-      "name": "Table",
-      "version": ""
-    }
-  ],
   "annotations": {
-    "list": [
-      {
-        "builtIn": 1,
-        "datasource": "-- Grafana --",
-        "enable": true,
-        "hide": true,
-        "iconColor": "rgba(0, 211, 255, 1)",
-        "name": "Annotations & Alerts",
-        "type": "dashboard"
-      }
-    ]
+    "list": []
   },
-  "editable": false,
-  "gnetId": null,
+  "editable": true,
+  "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": null,
-  "iteration": 1567112610177,
+  "id": 242,
+  "iteration": 1650624372197,
   "links": [
     {
       "asDropdown": true,
@@ -63,6 +21,7 @@
       "type": "dashboards"
     }
   ],
+  "liveNow": false,
   "panels": [
     {
       "collapsed": false,
@@ -74,7 +33,6 @@
       },
       "id": 39,
       "panels": [],
-      "repeat": null,
       "title": "Node Alive Status",
       "type": "row"
     },
@@ -85,7 +43,9 @@
           "value": "max"
         }
       ],
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "Gossip messages are exchanged with other nodes as long as the node is up and able to communicate properly through port 7000 (or 7001 secured).\n\n##### Values\n\nA value of `1` is displayed if the number of processed Gossip messages has changed recently.\n\nA value of `0` is displayed if the number of processed gossip messages has not changed recently. If a value of `0` appears, this implies the node may be offline or not communicating properly with other nodes in the cluster.\n\n##### Required Actions\n\nIf Gossip messages are not being processed:\n\n* No incoming Gossip messages are being sent from the other nodes to this Cassandra node.",
       "editable": true,
       "error": false,
@@ -99,8 +59,6 @@
       "hideTimeOverride": true,
       "id": 38,
       "links": [],
-      "options": {},
-      "pageSize": null,
       "scroll": true,
       "showHeader": true,
       "sort": {
@@ -110,6 +68,7 @@
       "styles": [
         {
           "alias": "Node is up?",
+          "align": "auto",
           "colorMode": "row",
           "colors": [
             "rgba(245, 54, 54, 0.9)",
@@ -143,7 +102,7 @@
       "title": "Node status (Gossip)",
       "transform": "timeseries_aggregations",
       "transparent": true,
-      "type": "table"
+      "type": "table-old"
     },
     {
       "columns": [
@@ -152,7 +111,9 @@
           "value": "max"
         }
       ],
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "Native requests will be processed if CQL statements are being processed.\n\n##### Values\n\nA value of `1` is displayed if the number of processed Native requests has changed recently.\n\nA value of `0` is displayed if the number of processed Native requests has not changed recently. If a value of `0` appears, this implies the node may be offline or not currently processing any CQL requests.\n\n##### Required Actions\n\nIf Native requests are not being processed:\n\n* No incoming CQL requests are being sent from the application to the Cassandra node.\n* An application update may have removed nodes from the `RoundRobinPolicy`.\n* Only Thrift-based requests are being processed.",
       "editable": true,
       "error": false,
@@ -166,8 +127,6 @@
       "hideTimeOverride": true,
       "id": 9,
       "links": [],
-      "options": {},
-      "pageSize": null,
       "scroll": true,
       "showHeader": true,
       "sort": {
@@ -177,6 +136,7 @@
       "styles": [
         {
           "alias": "Clients active?",
+          "align": "auto",
           "colorMode": "row",
           "colors": [
             "rgba(245, 54, 54, 0.9)",
@@ -208,22 +168,26 @@
       "title": "Node status (Native)",
       "transform": "timeseries_aggregations",
       "transparent": true,
-      "type": "table"
+      "type": "table-old"
     },
     {
       "aliasColors": {},
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "Gossip requests are a natural mechanism within Cassandra for calculating the cluster topography  in a decentralized manner.\n\n##### Values\n\nA value of `1` is displayed if the number of processed Gossip requests has changed recently.\n\nA value of `0` is displayed if the number of processed Gossip requests has not changed recently. If a value of `0` appears, this implies the node may be offline or unable to report its status to the Gossip state.\n\n##### False Positives\n\nA temporary lapse from `1` to `0` may indicate heavier than usual load.\n\nConsider tuning the `phi_convict_threshold` setting to `12` if running in AWS and experiencing issues with flapping nodes that momentarily display the `DN`, or `Downed/Normal`, status via `nodetool status`.",
       "fill": 0,
+      "fillGradient": 0,
       "gridPos": {
         "h": 5,
         "w": 6,
         "x": 18,
         "y": 1
       },
+      "hiddenSeries": false,
       "hideTimeOverride": true,
       "id": 19,
       "legend": {
@@ -243,8 +207,11 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 2,
       "points": true,
       "renderer": "flot",
@@ -273,7 +240,6 @@
           "yaxis": "left"
         }
       ],
-      "timeFrom": null,
       "timeRegions": [],
       "timeShift": "120s",
       "title": "Alerting on Gossip",
@@ -285,9 +251,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -302,16 +266,12 @@
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -333,11 +293,14 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "Monitor `p75` latencies to get a view of the cluster's typical operating latencies.\n\nMonitor the `p95` and `p99` latencies for anomalies to get an early indicator for potential issues.\n\n##### Required Actions\n\nIf `p95` read latency metrics spike, investigate:\n\n* Disk contention.\n* Frequent garbage collections.\n* Prolonged garbage collection times.\n* Inefficient read patterns.\n* Back pressure.",
       "editable": true,
       "error": false,
       "fill": 0,
+      "fillGradient": 0,
       "grid": {},
       "gridPos": {
         "h": 4,
@@ -345,6 +308,7 @@
         "x": 0,
         "y": 7
       },
+      "hiddenSeries": false,
       "id": 1,
       "legend": {
         "alignAsTable": true,
@@ -363,8 +327,11 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -401,9 +368,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Read latencies (by data center)",
       "tooltip": {
         "msResolution": false,
@@ -414,9 +379,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -425,22 +388,17 @@
           "format": "µs",
           "label": "Read latency",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -448,11 +406,14 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "Monitor `p75` latencies to get a view of the cluster's typical operating latencies.\n\nMonitor the `p95` and `p99` latencies for anomalies to get an early indicator for potential issues.\n\n##### Required Actions\n\nIf `p95` write latency metrics spike, investigate:\n\n* Disk contention.\n* Counter usage.\n* Lightweight transaction usage.\n* Frequent garbage collections.\n* Prolonged garbage collection times.\n* Back pressure.",
       "editable": true,
       "error": false,
       "fill": 0,
+      "fillGradient": 0,
       "grid": {},
       "gridPos": {
         "h": 4,
@@ -460,6 +421,7 @@
         "x": 8,
         "y": 7
       },
+      "hiddenSeries": false,
       "id": 2,
       "legend": {
         "alignAsTable": true,
@@ -478,8 +440,11 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -514,9 +479,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Write latencies (by data center)",
       "tooltip": {
         "msResolution": false,
@@ -527,9 +490,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -538,7 +499,6 @@
           "format": "µs",
           "label": "Write latency",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
@@ -546,14 +506,11 @@
           "format": "short",
           "label": "",
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": false
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -561,11 +518,14 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "Monitor the `p95` and `p99` latencies for anomalies to get an early indicator for potential issues.\n\n##### Required Actions\n\nIf experiencing issues with this graph, use the additional TLP graphs to detect issues with the specific request type that triggered the alert.",
       "editable": true,
       "error": false,
       "fill": 0,
+      "fillGradient": 0,
       "grid": {},
       "gridPos": {
         "h": 4,
@@ -573,6 +533,7 @@
         "x": 16,
         "y": 7
       },
+      "hiddenSeries": false,
       "id": 3,
       "legend": {
         "alignAsTable": true,
@@ -591,8 +552,11 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -612,9 +576,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Other operations latencies (by data center)",
       "tooltip": {
         "msResolution": true,
@@ -625,9 +587,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -636,22 +596,17 @@
           "format": "µs",
           "label": "Operational latencies",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -660,7 +615,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 22
+        "y": 11
       },
       "id": 41,
       "panels": [],
@@ -673,18 +628,22 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "Display the number of read requests by data center.\n\n##### Values\n\nChanges in this graph should match closely with application load.",
       "editable": true,
       "error": false,
       "fill": 0,
+      "fillGradient": 0,
       "grid": {},
       "gridPos": {
         "h": 4,
         "w": 8,
         "x": 0,
-        "y": 23
+        "y": 12
       },
+      "hiddenSeries": false,
       "id": 4,
       "legend": {
         "alignAsTable": true,
@@ -703,8 +662,11 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -722,9 +684,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Read request counts (by data center)",
       "tooltip": {
         "msResolution": true,
@@ -735,9 +695,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -746,22 +704,17 @@
           "format": "ops",
           "label": "Read counts",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -769,18 +722,22 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "Display the number of write requests by data center.\n\n##### Values\n\nChanges in this graph should match closely with application load.",
       "editable": true,
       "error": false,
       "fill": 0,
+      "fillGradient": 0,
       "grid": {},
       "gridPos": {
         "h": 4,
         "w": 8,
         "x": 8,
-        "y": 23
+        "y": 12
       },
+      "hiddenSeries": false,
       "id": 33,
       "legend": {
         "alignAsTable": true,
@@ -799,8 +756,11 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -818,9 +778,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Write request counts (by data center)",
       "tooltip": {
         "msResolution": true,
@@ -831,9 +789,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -842,22 +798,17 @@
           "format": "ops",
           "label": "Write counts",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -865,18 +816,22 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "Display the number of other requests by data center.\n\n##### Values\n\nChanges in this graph should match closely with application load.",
       "editable": true,
       "error": false,
       "fill": 0,
+      "fillGradient": 0,
       "grid": {},
       "gridPos": {
         "h": 4,
         "w": 8,
         "x": 16,
-        "y": 23
+        "y": 12
       },
+      "hiddenSeries": false,
       "id": 34,
       "legend": {
         "alignAsTable": true,
@@ -895,8 +850,11 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -914,9 +872,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Other request counts (by data center)",
       "tooltip": {
         "msResolution": true,
@@ -927,9 +883,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -938,22 +892,17 @@
           "format": "ops",
           "label": "Other counts",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -962,7 +911,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 54
+        "y": 16
       },
       "id": 42,
       "panels": [],
@@ -975,18 +924,22 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "Display the number of dropped messages per request type, by data center.\n\n##### Values\n\nA ideal value of `0` means that no requests have been dropped.\n\n##### Required Actions\n\nValues higher than `0` indicates an under-provisioned cluster for the specific request types. Under-provisioned clusters often times will experience the following issues that cause dropped messages:\n\n* Frequent garbage collections.\n* Prolonged garbage collection times.\n* Inefficient read patterns.\n* Back pressure.",
       "editable": true,
       "error": false,
       "fill": 0,
+      "fillGradient": 0,
       "grid": {},
       "gridPos": {
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 55
+        "y": 17
       },
+      "hiddenSeries": false,
       "id": 5,
       "legend": {
         "alignAsTable": true,
@@ -1005,8 +958,11 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1025,9 +981,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Dropped messages (by data center)",
       "tooltip": {
         "msResolution": false,
@@ -1038,9 +992,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -1049,22 +1001,17 @@
           "format": "ops",
           "label": "Dropped messages",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -1072,15 +1019,19 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "This graph displays the `max` size of a partition across all nodes and tables.\n\n##### Values\n\nThe max size of the row must be taken into account when calculating the amount of required heap space.\n\nWhile the maximum number of partition cells (CQL rows x CQL columns) is limited to 2 billion and a single column value is restricted to 2GB, the real-world limitation exists at around 100MB partitions.\n\nOnce partitions grow to more than 100MB:\n\n* Row caching can quickly be busted as a single row can consume all of the allocated row cache heap space.\n* Out of Memory exceptions may occur frequently as a single row may take over the majority of the heap space.\n* CPU and disk load may increase as multiple passes may be needed to load a row into memory.\n* Compactions may cause heap pressure as rows are read into memory before being written to the new SSTables.",
       "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
         "h": 7,
         "w": 8,
         "x": 8,
-        "y": 55
+        "y": 17
       },
+      "hiddenSeries": false,
       "hideTimeOverride": true,
       "id": 36,
       "legend": {
@@ -1096,8 +1047,11 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -1135,7 +1089,6 @@
           "yaxis": "left"
         }
       ],
-      "timeFrom": null,
       "timeRegions": [],
       "timeShift": "1m",
       "title": "Max partition size (by node and table)",
@@ -1147,33 +1100,24 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -1181,14 +1125,18 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "fill": 0,
+      "fillGradient": 0,
       "gridPos": {
         "h": 7,
         "w": 8,
         "x": 16,
-        "y": 55
+        "y": 17
       },
+      "hiddenSeries": false,
       "id": 37,
       "legend": {
         "alignAsTable": true,
@@ -1206,8 +1154,11 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "null",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1225,9 +1176,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Pending Compactions (by host)",
       "tooltip": {
         "shared": false,
@@ -1237,33 +1186,25 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": 0,
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -1272,11 +1213,10 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 124
+        "y": 24
       },
       "id": 43,
       "panels": [],
-      "repeat": null,
       "title": "System-Level Metrics",
       "type": "row"
     },
@@ -1285,19 +1225,23 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "decimals": 0,
       "description": "Display all aspects of CPU utilization in a stacked chart to highlight where the CPU is spending the majority of its time.",
       "editable": true,
       "error": false,
       "fill": 1,
+      "fillGradient": 0,
       "grid": {},
       "gridPos": {
         "h": 5,
         "w": 12,
         "x": 0,
-        "y": 125
+        "y": 25
       },
+      "hiddenSeries": false,
       "id": 8,
       "legend": {
         "alignAsTable": true,
@@ -1317,8 +1261,11 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1363,9 +1310,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "CPU Utilization",
       "tooltip": {
         "msResolution": true,
@@ -1376,9 +1321,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -1388,23 +1331,16 @@
           "format": "short",
           "label": "CPU utilization",
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         },
         {
-          "decimals": null,
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -1412,18 +1348,22 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "This chart displays:\n\n* Aggregated data center's CPU short term load.\n* Individual node's CPU short term load.\n\n##### Values\n\nIf CPU load is generally high:\n\n* Consider increasing the number of nodes.\n\nIf horizontally scaling the cluster is not an option, consider:\n\n* Lowering encryption requirements.\n* Choose a more powerful CPU per node.\n\n##### Required Actions\n\nIf CPU load is spiking, monitor the number of concurrent compactions.\n\nPossible issues that may cause a spike in CPU load include:\n\n* Garbage collection issues.\n* Non-optimal compaction strategy.\n    * Too many SSTables per read.\n    * Frequent partition updates.\n* Ultra-wide partitions.\n* Client-based connection issues.\n* Secondary Indexes.\n* High frequency page cache-backed reads.\n* CPU interrupt issues.",
       "editable": true,
       "error": false,
       "fill": 0,
+      "fillGradient": 0,
       "grid": {},
       "gridPos": {
         "h": 5,
         "w": 12,
         "x": 12,
-        "y": 125
+        "y": 25
       },
+      "hiddenSeries": false,
       "id": 13,
       "legend": {
         "alignAsTable": true,
@@ -1442,8 +1382,11 @@
       "linewidth": 2,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1469,9 +1412,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Java: CPU Load",
       "tooltip": {
         "msResolution": false,
@@ -1482,9 +1423,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -1493,66 +1432,74 @@
           "format": "percentunit",
           "label": "Short term CPU load",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "Display the percentage of `used` disk space:\n\n* Per node.\n* Per monitored directory, as set in `collectd.conf` on the Cassandra nodes.\n\nFree disk space is critical for normal Cassandra operations in order to allow for the compaction of two or more SSTables into a single SSTable.\n\nIn order for this process to occur, there needs to be enough disk space to write out a file no larger than the combined size of all SSTables being compacted. Once the new SSTable is written to disk, the deprecated SSTables will be removed and free disk space should return to a level seen before the compaction was initiated, or lower if mutations were removed from disk during the compaction process.\n\n##### Values\n\nIf a node's data directory is utilizing 65% of the disk's capacity, begin the procurement process to add more nodes to the data center.\n\n##### Required Actions\n\nIf a node's data directory is utilizing 80% of the disk's capacity, bootstrapping a new node should already be underway.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 2,
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "index": 0,
+                "value": null
+              },
+              {
+                "color": "red",
+                "index": 1,
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
       "gridPos": {
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 130
+        "y": 30
       },
       "hideTimeOverride": true,
       "id": 35,
       "links": [],
       "options": {
         "displayMode": "lcd",
-        "fieldOptions": {
+        "orientation": "vertical",
+        "reduceOptions": {
           "calcs": [
             "last"
           ],
-          "defaults": {
-            "decimals": 2,
-            "max": 100,
-            "min": 0,
-            "unit": "percent"
-          },
-          "mappings": [],
-          "override": {},
-          "thresholds": [
-            {
-              "color": "green",
-              "index": 0,
-              "value": null
-            },
-            {
-              "color": "red",
-              "index": 1,
-              "value": 80
-            }
-          ],
+          "fields": "",
           "values": false
         },
-        "orientation": "vertical"
+        "showUnfilled": true
       },
+
       "targets": [
         {
           "expr": "kubelet_volume_stats_capacity_bytes{namespace=\"$ns\", persistentvolumeclaim=~\"data-([[host]])\"}",
@@ -1584,8 +1531,6 @@
           "target": "aliasByNode(sumSeriesWithWildcards(collectd.$ns.cassandra.$dc.$host.df.*.percent_bytes.{reserved,used}, 8), 3, 4, 6)"
         }
       ],
-      "timeFrom": null,
-      "timeShift": null,
       "title": "Current disk space used (by disk)",
       "transparent": true,
       "type": "bargauge"
@@ -1595,16 +1540,20 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "decimals": 2,
       "description": "Display the percentage of `used` and `reserved` disk space:\n\n* Per node.\n* Per monitored directory, as set in `collectd.conf` on the Cassandra nodes.\n\nFree disk space is critical for normal Cassandra operations in order to allow for the compaction of two or more SSTables into a single SSTable.\n\nIn order for this process to occur, there needs to be enough disk space to write out a file no larger than the combined size of all SSTables being compacted. Once the new SSTable is written to disk, the deprecated SSTables will be removed and free disk space should return to a level seen before the compaction was initiated, or lower if mutations were removed from disk during the compaction process.\n\n##### Values\n\nIf a node's data directory is utilizing 65% of the disk's capacity, begin the procurement process to add more nodes to the data center.\n\n##### Required Actions\n\nIf a node's data directory is utilizing 80% of the disk's capacity, bootstrapping a new node should already be underway.",
       "fill": 0,
+      "fillGradient": 0,
       "gridPos": {
         "h": 5,
         "w": 12,
         "x": 12,
-        "y": 130
+        "y": 30
       },
+      "hiddenSeries": false,
       "id": 21,
       "legend": {
         "alignAsTable": true,
@@ -1616,7 +1565,6 @@
         "min": false,
         "rightSide": true,
         "show": true,
-        "sideWidth": null,
         "sort": "max",
         "sortDesc": true,
         "total": false,
@@ -1626,8 +1574,11 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1645,26 +1596,24 @@
         {
           "expr": "kubelet_volume_stats_used_bytes{namespace=\"$ns\", persistentvolumeclaim=~\"data-([[host]])\"}",
           "format": "time_series",
+          "instant": false,
           "intervalFactor": 1,
           "legendFormat": "usage.{{persistentvolumeclaim}}",
           "refId": "A",
-          "target": "aliasByNode(sumSeriesWithWildcards(collectd.$ns.cassandra.$dc.$host.df.*.percent_bytes.{reserved,used}, 8), 3, 4, 6)",
-          "instant": false
+          "target": "aliasByNode(sumSeriesWithWildcards(collectd.$ns.cassandra.$dc.$host.df.*.percent_bytes.{reserved,used}, 8), 3, 4, 6)"
         },
         {
-          "refId": "B",
           "expr": "kubelet_volume_stats_capacity_bytes{namespace=\"$ns\", persistentvolumeclaim=~\"data-([[host]])\"}",
-          "intervalFactor": 1,
           "format": "time_series",
-          "legendFormat": "capacity.{{persistentvolumeclaim}}",
           "hide": false,
-          "instant": false
+          "instant": false,
+          "intervalFactor": 1,
+          "legendFormat": "capacity.{{persistentvolumeclaim}}",
+          "refId": "B"
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Disk Space Used",
       "tooltip": {
         "shared": true,
@@ -1674,15 +1623,12 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
-          "decimals": null,
           "format": "percent",
           "label": "Disk utilization",
           "logBase": 1,
@@ -1692,16 +1638,12 @@
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -1709,18 +1651,23 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
       "description": "Monitor the network throughput of TX and RX packets.\n\nReceived throughput is displayed as a negative number (downloaded).\n\nTransferred throughput is displayed as a positive number (uploaded).",
       "editable": true,
       "error": false,
       "fill": 0,
+      "fillGradient": 0,
       "grid": {},
       "gridPos": {
         "h": 5,
         "w": 12,
         "x": 0,
-        "y": 139
+        "y": 39
       },
+      "hiddenSeries": false,
       "id": 12,
       "legend": {
         "alignAsTable": true,
@@ -1739,8 +1686,11 @@
       "linewidth": 3,
       "links": [],
       "nullPointMode": "null",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1761,50 +1711,73 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "0 - sort_desc(sum by (pod_name) (rate(container_network_receive_bytes_total{job=\"kubelet\", namespace=\"$ns\", pod_name=~\"$pod\"}[1m])))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "exemplar": true,
+          "expr": "0 - sort_desc(sum by (pod) (rate(container_network_receive_bytes_total{job=\"kubelet\", namespace=\"$ns\", pod=~\"$pod\"}[1m])))",
           "format": "time_series",
           "hide": false,
+          "instant": false,
+          "interval": "",
           "intervalFactor": 2,
-          "legendFormat": "{{pod_name}}.rx",
+          "legendFormat": "{{pod}}.rx",
           "refId": "A",
           "target": "aliasByNode(scale(sumSeriesWithWildcards(sumSeriesWithWildcards(derivative(collectd.$ns.cassandra.$dc.$host.interface.eth0.if_octets.rx), 2), 3), -1), 2, 6)",
           "textEditor": false
         },
         {
-          "expr": "0 - sort_desc(sum by (datacenter) (rate(container_network_receive_bytes_total{job=\"kubelet\", namespace=\"$ns\", pod_name=~\"$pod\"}[1m])))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "exemplar": true,
+          "expr": "0 - sort_desc(sum by (datacenter) (rate(container_network_receive_bytes_total{job=\"kubelet\", namespace=\"$ns\", pod=~\"$pod\"}[1m])))",
           "format": "time_series",
           "hide": false,
+          "interval": "",
           "intervalFactor": 2,
-          "legendFormat": "{{$dc}}.rx",
+          "legendFormat": "{{datacenter}}.rx",
           "refId": "B",
           "target": "aliasByNode(scale(sumSeriesWithWildcards(sumSeriesWithWildcards(derivative(collectd.$ns.cassandra.$dc.$host.interface.eth0.if_octets.rx), 2), 3), -1), 2, 6)",
           "textEditor": false
         },
         {
-          "expr": "sort_desc(sum by (pod_name) (rate(container_network_transmit_bytes_total{job=\"kubelet\", namespace=\"$ns\", pod_name=~\"$pod\"}[1m])))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "exemplar": true,
+          "expr": "sort_desc(sum by (pod) (rate(container_network_transmit_bytes_total{job=\"kubelet\", namespace=\"$ns\", pod=~\"$pod\"}[1m])))",
           "format": "time_series",
           "hide": false,
+          "interval": "",
           "intervalFactor": 2,
-          "legendFormat": "{{pod_name}}.tx",
+          "legendFormat": "{{pod}}.tx",
           "refId": "C",
           "target": "aliasByNode(scale(sumSeriesWithWildcards(sumSeriesWithWildcards(derivative(collectd.$ns.cassandra.$dc.$host.interface.eth0.if_octets.rx), 2), 3), -1), 2, 6)",
           "textEditor": false
         },
         {
-          "expr": "sort_desc(sum by (datacenter) (rate(container_network_transmit_bytes_total{job=\"kubelet\", namespace=\"$ns\", pod_name=~\"$pod\"}[1m])))",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "exemplar": true,
+          "expr": "sort_desc(sum by (datacenter) (rate(container_network_transmit_bytes_total{job=\"kubelet\", namespace=\"$ns\", pod=~\"$pod\"}[1m])))",
           "format": "time_series",
           "hide": false,
+          "interval": "",
           "intervalFactor": 2,
-          "legendFormat": "{{$dc}}.tx",
+          "legendFormat": "{{datacenter}}.tx",
           "refId": "D",
           "target": "aliasByNode(scale(sumSeriesWithWildcards(sumSeriesWithWildcards(derivative(collectd.$ns.cassandra.$dc.$host.interface.eth0.if_octets.rx), 2), 3), -1), 2, 6)",
           "textEditor": false
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Network Throughput (by data center)",
       "tooltip": {
         "msResolution": true,
@@ -1815,9 +1788,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -1826,16 +1797,11 @@
           "format": "Bps",
           "label": "Network Throughput",
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
@@ -1850,11 +1816,10 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 144
+        "y": 44
       },
       "id": 44,
       "panels": [],
-      "repeat": null,
       "title": "JVM G1 GC Stats",
       "type": "row"
     },
@@ -1863,17 +1828,21 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "Display the amount of time spent with G1 young generation garbage collection times.\n\nThis chart will remain empty if ParNew CMS garbage collection is being used. Ensure that either G1 **or** ParNew CMS is being used homogeneously within a data center for more predictable performance.\n\nTODO: @Alex?",
       "editable": true,
       "error": false,
       "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 145
+        "y": 45
       },
+      "hiddenSeries": false,
       "id": 16,
       "legend": {
         "alignAsTable": true,
@@ -1891,8 +1860,11 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1910,9 +1882,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "JVM G1 Young Generation",
       "tooltip": {
         "msResolution": false,
@@ -1923,9 +1893,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -1934,22 +1902,17 @@
           "format": "ms",
           "label": "Garbage collection times",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -1957,17 +1920,21 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "Display the amount of time spent with G1 old generation garbage collection times.\n\nThis chart will remain empty if ParNew CMS garbage collection is being used. Ensure that either G1 **or** ParNew CMS is being used homogeneously within a data center for more predictable performance.\n\nTODO: @Alex?",
       "editable": true,
       "error": false,
       "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 145
+        "y": 45
       },
+      "hiddenSeries": false,
       "id": 17,
       "legend": {
         "alignAsTable": true,
@@ -1985,8 +1952,11 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "connected",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -2003,9 +1973,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "JVM G1 Old Generation",
       "tooltip": {
         "msResolution": false,
@@ -2016,9 +1984,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -2027,22 +1993,17 @@
           "format": "ms",
           "label": "Garbage collection times",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -2051,115 +2012,20 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 152
+        "y": 52
       },
       "id": 45,
       "panels": [],
-      "repeat": null,
       "title": "JVM ParNew CMS GC Stats",
       "type": "row"
-    },
-    {
-      "aliasColors": {},
-      "bars": false,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": "$datasource",
-      "description": "@Alex/@Alain, why `.runs`, instead `.time`?",
-      "editable": true,
-      "error": false,
-      "fill": 1,
-      "gridPos": {
-        "h": 7,
-        "w": 24,
-        "x": 0,
-        "y": 153
-      },
-      "id": 18,
-      "legend": {
-        "alignAsTable": true,
-        "avg": true,
-        "current": true,
-        "max": true,
-        "min": false,
-        "show": false,
-        "sort": "max",
-        "sortDesc": true,
-        "total": false,
-        "values": true
-      },
-      "lines": true,
-      "linewidth": 1,
-      "links": [],
-      "nullPointMode": "connected",
-      "options": {},
-      "percentage": false,
-      "pointradius": 5,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
-      "targets": [
-        {
-          "expr": "deriv(jvm_gc_ParNew{namespace=\"$ns\", datacenter=\"$dc\", unit=\"CollectionTime\"}[1m])",
-          "format": "time_series",
-          "legendFormat": "{{namespace}}.{{datacenter}}.{{host}}.ParNew.{{unit}}",
-          "refId": "A",
-          "target": "derivative(cassandra.$ns.$dc.$host.jvm.gc.ParNew.runs)"
-        }
-      ],
-      "thresholds": [],
-      "timeFrom": null,
-      "timeRegions": [],
-      "timeShift": null,
-      "title": "JVM ParNew runs",
-      "tooltip": {
-        "msResolution": false,
-        "shared": false,
-        "sort": 2,
-        "value_type": "individual"
-      },
-      "transparent": true,
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "format": "ms",
-          "label": "Garbage collection times",
-          "logBase": 1,
-          "max": null,
-          "min": "0",
-          "show": true
-        },
-        {
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
     }
   ],
   "refresh": "30s",
-  "schemaVersion": 18,
+  "schemaVersion": 35,
   "style": "dark",
   "tags": [
-    "tlp",
-    "cassandra"
+    "cassandra",
+    "tlp"
   ],
   "templating": {
     "list": [
@@ -2171,7 +2037,6 @@
         },
         "hide": 0,
         "includeAll": false,
-        "label": null,
         "multi": false,
         "name": "datasource",
         "options": [],
@@ -2182,9 +2047,16 @@
         "type": "datasource"
       },
       {
-        "allValue": null,
-        "current": {},
-        "datasource": "$datasource",
+        "current": {
+          "isNone": true,
+          "selected": false,
+          "text": "None",
+          "value": ""
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
         "definition": "label_values(org_apache_cassandra_metrics_Storage_Load, namespace)",
         "hide": 0,
         "includeAll": false,
@@ -2192,43 +2064,61 @@
         "multi": false,
         "name": "ns",
         "options": [],
-        "query": "label_values(org_apache_cassandra_metrics_Storage_Load, namespace)",
+        "query": {
+          "query": "label_values(org_apache_cassandra_metrics_Storage_Load, namespace)",
+          "refId": "Prometheus-ns-Variable-Query"
+        },
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": 0,
         "tagValuesQuery": "",
-        "tags": [],
         "tagsQuery": "",
         "type": "query",
         "useTags": false
       },
       {
-        "allValue": null,
-        "current": {},
-        "datasource": "$datasource",
+        "current": {
+          "isNone": true,
+          "selected": false,
+          "text": "None",
+          "value": ""
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
         "definition": "label_values(org_apache_cassandra_metrics_Storage_Load,app_kubernetes_io_name)",
         "hide": 0,
         "includeAll": false,
-        "label": null,
         "multi": false,
         "name": "instance",
         "options": [],
-        "query": "label_values(org_apache_cassandra_metrics_Storage_Load,app_kubernetes_io_name)",
+        "query": {
+          "query": "label_values(org_apache_cassandra_metrics_Storage_Load,app_kubernetes_io_name)",
+          "refId": "Prometheus-instance-Variable-Query"
+        },
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": 0,
         "tagValuesQuery": "",
-        "tags": [],
         "tagsQuery": "",
         "type": "query",
         "useTags": false
       },
       {
         "allValue": "",
-        "current": {},
-        "datasource": "$datasource",
+        "current": {
+          "isNone": true,
+          "selected": false,
+          "text": "None",
+          "value": ""
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
         "definition": "label_values(org_apache_cassandra_metrics_Storage_Load{app_kubernetes_io_name=\"$instance\"}, datacenter)",
         "hide": 0,
         "includeAll": false,
@@ -2236,21 +2126,27 @@
         "multi": false,
         "name": "dc",
         "options": [],
-        "query": "label_values(org_apache_cassandra_metrics_Storage_Load{app_kubernetes_io_name=\"$instance\"}, datacenter)",
+        "query": {
+          "query": "label_values(org_apache_cassandra_metrics_Storage_Load{app_kubernetes_io_name=\"$instance\"}, datacenter)",
+          "refId": "Prometheus-dc-Variable-Query"
+        },
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": 1,
-        "tagValuesQuery": null,
-        "tags": [],
-        "tagsQuery": null,
         "type": "query",
         "useTags": false
       },
       {
-        "allValue": null,
-        "current": {},
-        "datasource": "$datasource",
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
         "definition": "label_values(org_apache_cassandra_metrics_Storage_Load{datacenter=~\"$dc\", app_kubernetes_io_name=\"$instance\"}, host)",
         "hide": 2,
         "includeAll": true,
@@ -2258,21 +2154,27 @@
         "multi": false,
         "name": "host",
         "options": [],
-        "query": "label_values(org_apache_cassandra_metrics_Storage_Load{datacenter=~\"$dc\", app_kubernetes_io_name=\"$instance\"}, host)",
+        "query": {
+          "query": "label_values(org_apache_cassandra_metrics_Storage_Load{datacenter=~\"$dc\", app_kubernetes_io_name=\"$instance\"}, host)",
+          "refId": "Prometheus-host-Variable-Query"
+        },
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": 1,
-        "tagValuesQuery": null,
-        "tags": [],
-        "tagsQuery": null,
         "type": "query",
         "useTags": false
       },
       {
-        "allValue": null,
-        "current": {},
-        "datasource": "$datasource",
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
         "definition": "label_values(org_apache_cassandra_metrics_Storage_Load{datacenter=~\"$dc\", app_kubernetes_io_name=\"$instance\"}, host)",
         "hide": 0,
         "includeAll": true,
@@ -2280,14 +2182,14 @@
         "multi": false,
         "name": "pod",
         "options": [],
-        "query": "label_values(org_apache_cassandra_metrics_Storage_Load{datacenter=~\"$dc\", app_kubernetes_io_name=\"$instance\"}, host)",
+        "query": {
+          "query": "label_values(org_apache_cassandra_metrics_Storage_Load{datacenter=~\"$dc\", app_kubernetes_io_name=\"$instance\"}, host)",
+          "refId": "Prometheus-pod-Variable-Query"
+        },
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": 1,
-        "tagValuesQuery": null,
-        "tags": [],
-        "tagsQuery": null,
         "type": "query",
         "useTags": false
       }
@@ -2323,6 +2225,6 @@
     ]
   },
   "timezone": "browser",
-  "title": "Cassandra - Overview",
+  "title": "Cassandra TLP - Overview",
   "version": null
 }

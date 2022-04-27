@@ -4,7 +4,8 @@ lowercaseOutputName: false
 whitelistObjectNames:
   - 'org.apache.cassandra.metrics:type=Client,*'
   - 'org.apache.cassandra.metrics:type=ClientRequest,*'
-  - 'org.apache.cassandra.metrics:type=Table,*'       # ColumnFamily is an alias for Table metrics
+  - 'org.apache.cassandra.metrics:type=Table,*' # Required for org_apache_cassandra_metrics_Table_ReadLatency metric
+  - 'org.apache.cassandra.metrics:type=ColumnFamily,*'
   - 'org.apache.cassandra.metrics:type=Cache,*'
   - 'org.apache.cassandra.metrics:type=CommitLog,*'
   - 'org.apache.cassandra.metrics:type=Compaction,*'

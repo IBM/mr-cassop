@@ -1,42 +1,12 @@
 {
-  "__requires": [
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "6.2.5"
-    },
-    {
-      "type": "panel",
-      "id": "graph",
-      "name": "Graph",
-      "version": ""
-    },
-    {
-      "type": "datasource",
-      "id": "prometheus",
-      "name": "Prometheus",
-      "version": "1.0.0"
-    }
-  ],
   "annotations": {
-    "list": [
-      {
-        "builtIn": 1,
-        "datasource": "-- Grafana --",
-        "enable": true,
-        "hide": true,
-        "iconColor": "rgba(0, 211, 255, 1)",
-        "name": "Annotations & Alerts",
-        "type": "dashboard"
-      }
-    ]
+    "list": []
   },
-  "editable": false,
-  "gnetId": null,
+  "editable": true,
+  "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": null,
-  "iteration": 1567114244769,
+  "id": 247,
+  "iteration": 1650623095016,
   "links": [
     {
       "asDropdown": true,
@@ -51,6 +21,7 @@
       "type": "dashboards"
     }
   ],
+  "liveNow": false,
   "panels": [
     {
       "collapsed": false,
@@ -62,7 +33,6 @@
       },
       "id": 20,
       "panels": [],
-      "repeat": null,
       "title": "Client Connections Overview",
       "type": "row"
     },
@@ -71,15 +41,19 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "The number of connected clients to each Cassandra node. Plots both native and Thrift protocol connections if available. Since Cassandra 2.2, Thrift connections are not opened by default.\n\n##### Values\n\nA Cassandra node supports up to 128 connections per node. Values above 128 are not to be expected.\n\nIt is important, however, that there is a balanced number of connections  among the nodes.\n\n##### False Positives\n\nThis metric is pretty straightforward and should not fluctuate unexpectedly.\n\n##### Required Actions\n\nIf the number of connections approaches 128 per node, the client connection options and the load balancing strategy need to be revised.\n\n##### Warning\n\nNot balanced number of connections needs to be acted on.",
       "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
         "h": 7,
         "w": 12,
         "x": 0,
         "y": 1
       },
+      "hiddenSeries": false,
       "id": 13,
       "legend": {
         "alignAsTable": true,
@@ -99,8 +73,11 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -125,9 +102,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Connections (per host)",
       "tooltip": {
         "shared": false,
@@ -137,9 +112,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -148,22 +121,17 @@
           "format": "short",
           "label": "Client connections",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": false
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -171,15 +139,19 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "Number of client connections summed per data cetnter.\n\n##### Values\n\nAbsolute values depend on the number of nodes per data center.\n\n##### False Positives\n\nIt is possible to have significant differences among sum of connections to each data center. This can happen in situations when different data centers serve different cohorts of clients having peak load happening at different times.",
       "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
         "h": 7,
         "w": 12,
         "x": 12,
         "y": 1
       },
+      "hiddenSeries": false,
       "id": 16,
       "legend": {
         "alignAsTable": true,
@@ -197,8 +169,11 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -224,9 +199,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Connections (per data center)",
       "tooltip": {
         "shared": false,
@@ -236,9 +209,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -247,7 +218,6 @@
           "format": "short",
           "label": "Client connections",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
@@ -255,14 +225,11 @@
           "format": "short",
           "label": "",
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": false
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -270,15 +237,19 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "A Cassandra client typically interacts with the cluster via a coordinator node, which is responsible for arranging the operation to be carried out.\n\nIf the operation takes too long the coordinator will time out the operation. This graph shows a rate of the timeouts happening per node.\n\n##### Values\n\nThis graph shows a per-minute rate of timeouts happening on each node, further broken down by the operation type.\n\n##### False Positives\n\nTimeouts should not happen under any circumstances. There are no false positives.\n\n##### Required Actions\n\nIf timeouts happen, their cause needs to be investigated. The top-level reasons for timeouts occurring include over-loaded nodes, misconfigured clients or ill-fitting data model (including sub-optimal queries).\n\n##### Warning\n\nTimeouts might percolate all the way to application level, where they can cause SLA degradation.",
       "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
         "h": 7,
         "w": 12,
         "x": 0,
         "y": 8
       },
+      "hiddenSeries": false,
       "id": 14,
       "legend": {
         "alignAsTable": true,
@@ -298,8 +269,11 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -318,9 +292,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Timeouts (per host)",
       "tooltip": {
         "shared": false,
@@ -330,9 +302,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -341,22 +311,17 @@
           "format": "ops",
           "label": "Timeouts",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": false
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -364,15 +329,19 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "Similar to `Timeouts (per host)` graph, with the difference that this graph sums the timeouts per data center.\n\nThe purpose of this graph is to provide insight if it is isolated nodes having problems, or if the problem is more wide-spread.\n\n##### Values\n\nAmount of timeouts happening in each datacenter per minute, further split among each operation type.",
       "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
         "h": 7,
         "w": 12,
         "x": 12,
         "y": 8
       },
+      "hiddenSeries": false,
       "id": 15,
       "legend": {
         "alignAsTable": true,
@@ -390,8 +359,11 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -410,9 +382,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Timeouts (per data center)",
       "tooltip": {
         "shared": false,
@@ -422,9 +392,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -433,7 +401,6 @@
           "format": "ops",
           "label": "Timeouts",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
@@ -441,14 +408,11 @@
           "format": "short",
           "label": "",
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": false
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -456,15 +420,19 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "A Cassandra client typically interacts with the cluster via a coordinator node, which is responsible for arranging the operation to be carried out.\n\nFor certain operations, the coordinator needs responses from multiple nodes. If the coordinator can not possibly obtain responses from these nodes, an `Unavailable` error occurs.\n\nFor example, in a cluster with replication factor of three and two replicas down for a given partition, executing an operation with a `QUORUM` consistency will trigger an `Unavailable` error.\n\n##### Values\n\nThe values are a per-second rate of `Unavailable` errors occurring per node, further broken down by operation type.\n\n##### False Positives\n\nFalse positives should not happen.\n\nHowever, sometimes the cause of `Unavailable` errors is a discrepancy between keyspace topology and consistency used by the application. \n\n##### Required Actions\n\n`Unavailable` errors should not happen in clusters. If they do, they cause needs to be investigated and promptly addressed.\n\n##### Warning\n\n`Unavailable` errors can be a symptom of down nodes. Down nodes are generally a bad thing and should be investigated and promptly fixed.",
       "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
         "h": 7,
         "w": 12,
         "x": 0,
         "y": 15
       },
+      "hiddenSeries": false,
       "id": 17,
       "legend": {
         "alignAsTable": true,
@@ -483,8 +451,11 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -503,9 +474,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Unavailables (per host)",
       "tooltip": {
         "shared": false,
@@ -515,9 +484,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -526,7 +493,6 @@
           "format": "ops",
           "label": "Unavailable errors",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
@@ -534,14 +500,11 @@
           "format": "short",
           "label": "",
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": false
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -549,15 +512,19 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "Similar to `Unavailables (per host)`, this graph shows the number of `Unavailable` errors occurring in the cluster, but sums the errors by data center.\n\n##### Values\n\nThe values are the number of `Unavailaber` errors happening per minute in each data center, further broken down by operation type.",
       "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
         "h": 7,
         "w": 12,
         "x": 12,
         "y": 15
       },
+      "hiddenSeries": false,
       "id": 18,
       "legend": {
         "alignAsTable": true,
@@ -576,8 +543,11 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -596,9 +566,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Unavailables (per data center)",
       "tooltip": {
         "shared": false,
@@ -608,9 +576,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -619,7 +585,6 @@
           "format": "ops",
           "label": "Unavailable errors",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
@@ -627,14 +592,11 @@
           "format": "short",
           "label": "",
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": false
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -647,7 +609,6 @@
       },
       "id": 21,
       "panels": [],
-      "repeat": null,
       "title": "Thread Pools",
       "type": "row"
     },
@@ -656,15 +617,19 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "Cassandra groups task of a particular type to its own thread pool. Monitoring thread pools is important to understand the saturation of the node.\n\nIn this graph, a thread pool responsible for handling client CQL requests is shown.\n\n##### Values\n\nThe values are the current number of tasks in a particular state. The states tracked are:\n* **Active**: tasks actively worked on.\n* **Pending**: queued tasks.\n* **Blocked**: tasks blocked due to queue saturation. \n\n##### False Positives\n\nIt is acceptable for the `Pending` and `Blocked` tasks to have non-zero value.\n\n##### Required Actions\n\nIn case of sharp increase, or constant values in order of several tens, node capacity assessment needs to happen.",
       "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
         "h": 7,
         "w": 12,
         "x": 0,
         "y": 23
       },
+      "hiddenSeries": false,
       "id": 3,
       "legend": {
         "alignAsTable": true,
@@ -682,8 +647,11 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -715,9 +683,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Native Requests Pool (per host)",
       "tooltip": {
         "shared": false,
@@ -727,9 +693,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -738,22 +702,17 @@
           "format": "short",
           "label": "Threads",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": false
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -761,15 +720,19 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "Cassandra groups task of a particular type to its own thread pool. Monitoring thread pools is important to understand the saturation of the node.\n\nThis thread pool handles coordinator requests to the cluster.\n\n##### Values\n\nThe values are the current number of tasks in a particular state. The states tracked are:\n\n* **Active**: tasks actively worked on.\n* **Pending**: queued tasks.\n* **Blocked**: tasks blocked due to queue saturation.\n\n##### False Positives\n\nIt is acceptable for the `Pending` and `Blocked` tasks to have non-zero value.\n\n##### Required Actions\n\nIn case of sharp increase, or constant values in order of several tens, node capacity assessment needs to happen.",
       "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
         "h": 7,
         "w": 12,
         "x": 12,
         "y": 23
       },
+      "hiddenSeries": false,
       "id": 4,
       "legend": {
         "alignAsTable": true,
@@ -787,8 +750,11 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
-      "options": {},
+      "options": {
+        "alertThreshold": true
+      },
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -820,9 +786,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Coordinator Requests Pool (per host)",
       "tooltip": {
         "shared": false,
@@ -832,9 +796,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -843,22 +805,17 @@
           "format": "short",
           "label": "Threads",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": false
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -871,7 +828,6 @@
       },
       "id": 22,
       "panels": [],
-      "repeat": null,
       "title": "Statements",
       "type": "row"
     },
@@ -880,7 +836,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "Cassandra allows server-side caching of CQL queries to avoid their repetitive parsing, which yields certain performance benefits.\n\nThis graph shows the number of statements cached. \n\n##### Values\n\nThe values are a number of cached statements per node. The exact value of the statements in cache varies, because the the cache size is configured (since Cassandra 3.6) in bytes, rather than statement counts.\n\n##### False Positives\n\nMonotonic values in orders of hundreds can signal saturated cache. However, this situation needs to be correlated with the `Prepared Statements Eviction` graph to prove the saturation.\n\n##### Required Actions\n\nIt is unlikely the application actually needs the whole cache. If the saturation happens, it's typically a sign of repetitive statement preparation, which is sub-optimal.\n\n##### Warning\n\nSaturated prepared statements cache signals misuse on the application level, which should be corrected.",
       "fill": 1,
       "gridPos": {
@@ -906,8 +864,8 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -925,9 +883,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Prepared Statements Cache (by host)",
       "tooltip": {
         "shared": false,
@@ -937,9 +893,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -948,22 +902,17 @@
           "format": "short",
           "label": "Statements",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": false
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -971,7 +920,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "Cassandra allows server-side caching of CQL queries to avoid their repetitive parsing, which yields certain performance benefits.\n\nThis graph shows the eviction of prepared statements from their cache.\n\n##### Values\n\nThe values represent the number of statements evicted per second per node.\n\n##### False Positives\n\nIt is acceptable for a Cassandra node to evict some statements. This should happen sporadically, and exclusively after operator-triggered operations.\n\n##### Required Actions\n\nPrepared statement eviction occurring signals misuse at the application level which needs to be investigated and remedied.",
       "fill": 1,
       "gridPos": {
@@ -997,8 +948,8 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1016,9 +967,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Prepared Statements Eviction (by host, perSecond() issues)",
       "tooltip": {
         "shared": false,
@@ -1028,9 +977,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -1039,22 +986,17 @@
           "format": "ops",
           "label": "Eviction rate",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": false
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -1062,7 +1004,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "This graph shows the ratio between prepared and regular statements executed.\n\n##### Values\n\nThe closer to `1.0` the value, the bigger the portion of prepared statements executed.\n\nThe values are reported per each host.\n\n##### Required Actions\n\nBased on the work load, if this ratio swings towards the unexpected type of requests executed, an investigation of the application should ensue.",
       "fill": 1,
       "gridPos": {
@@ -1088,8 +1032,8 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1107,9 +1051,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Prepared vs Unprepared (by host)",
       "tooltip": {
         "shared": false,
@@ -1119,16 +1061,13 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
           "max": "1",
           "min": "0",
@@ -1136,16 +1075,12 @@
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": false
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -1153,7 +1088,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "Unlike prepared statements, the regular statements need to be parsed every time they are executed. Because of this, they might not be desired if performance is critical.\n\n##### Values\n\nCassandra reports only the total number of regular statements executed over its uptime. Therefore we're using Grafana's `perSecond()` aggregation to visualise a per-second rate of regular statement execution per host.\n\n##### False Positives\n\nRegular statements are sometimes inevitable. For example, the java-driver performs several regular statements upon initialising its connection in order to learn the cluster topology etc.",
       "fill": 1,
       "gridPos": {
@@ -1179,8 +1116,8 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1198,9 +1135,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Regular Statements Executed (by host, perSecond() issues)",
       "tooltip": {
         "shared": false,
@@ -1210,9 +1145,7 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
@@ -1221,22 +1154,17 @@
           "format": "ops",
           "label": "Statement rate",
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": false
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -1249,7 +1177,6 @@
       },
       "id": 23,
       "panels": [],
-      "repeat": null,
       "title": "Client Requests",
       "type": "row"
     },
@@ -1258,7 +1185,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "Cassandra exposes certain metrics related Light-Weight Transactions (LWT) that might indicate problems:\n* **ConditionNotMet**: indicates a failure to meet a condition requested by the transaction. This might indicate a contention in modifying a single cell.\n* **UnfinishedCommit** indicates premature conclusions of Paxos rounds, which is mundane by itself and has mundane consequences too.\n\n##### Values\n\nThe values are per-second rates of both problematic behaviours occurring, broken down per node and per LWT type (read or write).\n\n##### False Positives\n\nIt is acceptable for these metrics to be non-zero if their values are small and happen infrequently.\n\n##### Required Actions\n\nIn case the values are constantly non-zero, the use-case needs to revised as it might be designed in a sub-optimal way.",
       "fill": 1,
       "gridPos": {
@@ -1284,8 +1213,8 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1310,9 +1239,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "LWT Problems (by host, perSecond() issues)",
       "tooltip": {
         "shared": false,
@@ -1322,33 +1249,25 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
           "format": "ops",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": false
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     },
     {
@@ -1356,7 +1275,9 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "$datasource",
+      "datasource": {
+        "uid": "$datasource"
+      },
       "description": "Cassandra tracks total latency accumulated while carrying out a particular request. This happens on the coordinator level and represents the total time the request has spent in the cluster.\n\n##### Values\n\nCassandra reports an ever-raising value representing microseconds spent. For visualisation we are using Grafana's derivative to gauge any trends.\n\n##### Required Actions\n\nTrend changes in the values shown in these graphs indicate the subtle degradations that can happen in a Cassandra cluster and should trigger an investigation.",
       "fill": 1,
       "gridPos": {
@@ -1382,8 +1303,8 @@
       "linewidth": 1,
       "links": [],
       "nullPointMode": "null",
-      "options": {},
       "percentage": false,
+
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -1401,9 +1322,7 @@
         }
       ],
       "thresholds": [],
-      "timeFrom": null,
       "timeRegions": [],
-      "timeShift": null,
       "title": "Total Latency (possible derivative() issues)",
       "tooltip": {
         "shared": false,
@@ -1413,43 +1332,34 @@
       "transparent": true,
       "type": "graph",
       "xaxis": {
-        "buckets": null,
         "mode": "time",
-        "name": null,
         "show": true,
         "values": []
       },
       "yaxes": [
         {
           "format": "ms",
-          "label": null,
           "logBase": 1,
-          "max": null,
           "min": "0",
           "show": true
         },
         {
           "format": "short",
-          "label": null,
           "logBase": 1,
-          "max": null,
-          "min": null,
           "show": true
         }
       ],
       "yaxis": {
-        "align": false,
-        "alignLevel": null
+        "align": false
       }
     }
   ],
   "refresh": "30s",
-  "schemaVersion": 18,
+  "schemaVersion": 35,
   "style": "dark",
   "tags": [
-    "tlp",
     "cassandra",
-    "beta"
+    "tlp"
   ],
   "templating": {
     "list": [
@@ -1461,7 +1371,6 @@
         },
         "hide": 0,
         "includeAll": false,
-        "label": null,
         "multi": false,
         "name": "datasource",
         "options": [],
@@ -1472,9 +1381,16 @@
         "type": "datasource"
       },
       {
-        "allValue": null,
-        "current": {},
-        "datasource": "$datasource",
+        "current": {
+          "isNone": true,
+          "selected": false,
+          "text": "None",
+          "value": ""
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
         "definition": "label_values(org_apache_cassandra_metrics_Storage_Load, namespace)",
         "hide": 0,
         "includeAll": false,
@@ -1482,21 +1398,30 @@
         "multi": false,
         "name": "ns",
         "options": [],
-        "query": "label_values(org_apache_cassandra_metrics_Storage_Load, namespace)",
+        "query": {
+          "query": "label_values(org_apache_cassandra_metrics_Storage_Load, namespace)",
+          "refId": "Prometheus-ns-Variable-Query"
+        },
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": 0,
         "tagValuesQuery": "",
-        "tags": [],
         "tagsQuery": "",
         "type": "query",
         "useTags": false
       },
       {
-        "allValue": null,
-        "current": {},
-        "datasource": "$datasource",
+        "current": {
+          "isNone": true,
+          "selected": false,
+          "text": "None",
+          "value": ""
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
         "definition": "",
         "hide": 2,
         "includeAll": false,
@@ -1504,43 +1429,60 @@
         "multi": false,
         "name": "env",
         "options": [],
-        "query": "label_values(org_apache_cassandra_metrics_Storage_Load, environment)",
+        "query": {
+          "query": "label_values(org_apache_cassandra_metrics_Storage_Load, environment)",
+          "refId": "Prometheus-env-Variable-Query"
+        },
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": 1,
         "tagValuesQuery": "",
-        "tags": [],
         "tagsQuery": "",
-        "type": "query",
-        "useTags": true
+        "type": "query"
       },
       {
-        "allValue": null,
-        "current": {},
-        "datasource": "$datasource",
+        "current": {
+          "isNone": true,
+          "selected": false,
+          "text": "None",
+          "value": ""
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
         "definition": "label_values(org_apache_cassandra_metrics_Storage_Load,app_kubernetes_io_name)",
         "hide": 0,
         "includeAll": false,
-        "label": null,
         "multi": false,
         "name": "instance",
         "options": [],
-        "query": "label_values(org_apache_cassandra_metrics_Storage_Load,app_kubernetes_io_name)",
+        "query": {
+          "query": "label_values(org_apache_cassandra_metrics_Storage_Load,app_kubernetes_io_name)",
+          "refId": "Prometheus-instance-Variable-Query"
+        },
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": 0,
         "tagValuesQuery": "",
-        "tags": [],
         "tagsQuery": "",
         "type": "query",
         "useTags": false
       },
       {
         "allValue": "",
-        "current": {},
-        "datasource": "$datasource",
+        "current": {
+          "isNone": true,
+          "selected": false,
+          "text": "None",
+          "value": ""
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
         "definition": "",
         "hide": 0,
         "includeAll": false,
@@ -1548,21 +1490,27 @@
         "multi": false,
         "name": "dc",
         "options": [],
-        "query": "label_values(org_apache_cassandra_metrics_Storage_Load, datacenter)",
+        "query": {
+          "query": "label_values(org_apache_cassandra_metrics_Storage_Load, datacenter)",
+          "refId": "Prometheus-dc-Variable-Query"
+        },
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": 1,
-        "tagValuesQuery": null,
-        "tags": [],
-        "tagsQuery": null,
         "type": "query",
         "useTags": false
       },
       {
-        "allValue": null,
-        "current": {},
-        "datasource": "$datasource",
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
         "definition": "",
         "hide": 0,
         "includeAll": true,
@@ -1570,14 +1518,14 @@
         "multi": false,
         "name": "host",
         "options": [],
-        "query": "label_values(org_apache_cassandra_metrics_Storage_Load, host)",
+        "query": {
+          "query": "label_values(org_apache_cassandra_metrics_Storage_Load, host)",
+          "refId": "Prometheus-host-Variable-Query"
+        },
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": 1,
-        "tagValuesQuery": null,
-        "tags": [],
-        "tagsQuery": null,
         "type": "query",
         "useTags": false
       }
@@ -1613,6 +1561,6 @@
     ]
   },
   "timezone": "browser",
-  "title": "Cassandra - Client Connections",
+  "title": "Cassandra TLP - Client Connections",
   "version": null
 }

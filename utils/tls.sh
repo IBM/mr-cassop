@@ -5,7 +5,8 @@ KEYSTORE_PASSWORD=cassandra
 TRUSTSTORE_PASSWORD=cassandra
 DEFAULT_CA_TLS_SECRET_NAME="cluster-tls-ca"
 DEFAULT_NODE_TLS_SECRET_NAME="cluster-tls-node"
-CLUSTER_TLS_KEY_VALIDITY=3650
+CA_TLS_CRT_VALIDITY=3650
+NODE_TLS_CRT_VALIDITY=1825
 KEY_SIZE=4096
 SERVER_CERT_CN=localhost
 SERVER_ALT_NAME=localhost
@@ -28,7 +29,7 @@ function ca_keypair() {
   # Create CA key
   openssl genrsa -out ${tmp_dir}/ca_key.pem $KEY_SIZE
   # Create CA certificate
-  openssl req -x509 -new -nodes -key ${tmp_dir}/ca_key.pem -sha256 -days $CLUSTER_TLS_KEY_VALIDITY -out ${tmp_dir}/ca_crt.pem \
+  openssl req -x509 -new -nodes -key ${tmp_dir}/ca_key.pem -sha256 -days $CA_TLS_CRT_VALIDITY -out ${tmp_dir}/ca_crt.pem \
     -subj "/C=US/O=cassandra_root/OU=cassandra_root AG/CN=cassandra_ca"
 }
 
@@ -90,7 +91,7 @@ EOF
 
   # Create the server certificate signing request
   openssl x509 -req -in ${tmp_dir}/${SERVER_CERT_CN}.csr -CA ${tmp_dir}/ca_crt.pem -CAkey ${tmp_dir}/ca_key.pem -CAcreateserial \
-    -out ${tmp_dir}/crt.pem -days 1825 -sha256 -extfile ${tmp_dir}/${SERVER_CERT_CN}.cnf
+    -out ${tmp_dir}/crt.pem -days $NODE_TLS_CRT_VALIDITY -sha256 -extfile ${tmp_dir}/${SERVER_CERT_CN}.cnf
 }
 
 function createPKCS12() {
