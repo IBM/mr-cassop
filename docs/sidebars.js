@@ -3,6 +3,7 @@ module.exports = {
     'home',
     'quickstart',
     'operator-configuration',
+    'operator-upgrade',
     'cassandracluster-configuration',
     'admin-auth',
     'roles-management',
@@ -36,6 +37,7 @@ module.exports = {
       collapsed: true,
       items: [
         'architecture-overview',
+        'cassandracluster-lifecycle',
         'prober',
       ],
     },
