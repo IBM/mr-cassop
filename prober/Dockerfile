@@ -30,6 +30,6 @@ RUN addgroup --gid 901 prober && adduser --uid 901 --gid 901 prober
 
 USER prober
 
-COPY --from=builder /build/prober .
+COPY --from=builder /build/prober/prober .
 
 CMD ["./prober"]
