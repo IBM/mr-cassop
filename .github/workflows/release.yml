@@ -38,35 +38,35 @@ jobs:
       uses: docker/setup-buildx-action@v1
 
     - name: Login to IBM Cloud Container Registry US
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         registry: us.icr.io
         username: ${{ env.ICR_USERNAME }}
         password: ${{ env.ICR_PASSWORD }}
 
     - name: Login to IBM Cloud Container Registry UK
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         registry: uk.icr.io
         username: ${{ env.ICR_USERNAME }}
         password: ${{ env.ICR_PASSWORD }}
 
     - name: Login to IBM Cloud Container Registry DE
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         registry: de.icr.io
         username: ${{ env.ICR_USERNAME }}
         password: ${{ env.ICR_PASSWORD }}
 
     - name: Login to IBM Cloud Container Registry AU
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         registry: au.icr.io
         username: ${{ env.ICR_USERNAME }}
         password: ${{ env.ICR_PASSWORD }}
 
     - name: Login to IBM Cloud Container Registry JP
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         registry: jp.icr.io
         username: ${{ env.ICR_USERNAME }}
@@ -105,35 +105,35 @@ jobs:
       uses: docker/setup-buildx-action@v1
 
     - name: Login to IBM Cloud Container Registry US
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         registry: us.icr.io
         username: ${{ env.ICR_USERNAME }}
         password: ${{ env.ICR_PASSWORD }}
 
     - name: Login to IBM Cloud Container Registry UK
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         registry: uk.icr.io
         username: ${{ env.ICR_USERNAME }}
         password: ${{ env.ICR_PASSWORD }}
 
     - name: Login to IBM Cloud Container Registry DE
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         registry: de.icr.io
         username: ${{ env.ICR_USERNAME }}
         password: ${{ env.ICR_PASSWORD }}
 
     - name: Login to IBM Cloud Container Registry AU
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         registry: au.icr.io
         username: ${{ env.ICR_USERNAME }}
         password: ${{ env.ICR_PASSWORD }}
 
     - name: Login to IBM Cloud Container Registry JP
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         registry: jp.icr.io
         username: ${{ env.ICR_USERNAME }}
@@ -173,35 +173,35 @@ jobs:
       uses: docker/setup-buildx-action@v1
 
     - name: Login to IBM Cloud Container Registry US
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         registry: us.icr.io
         username: ${{ env.ICR_USERNAME }}
         password: ${{ env.ICR_PASSWORD }}
 
     - name: Login to IBM Cloud Container Registry UK
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         registry: uk.icr.io
         username: ${{ env.ICR_USERNAME }}
         password: ${{ env.ICR_PASSWORD }}
 
     - name: Login to IBM Cloud Container Registry DE
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         registry: de.icr.io
         username: ${{ env.ICR_USERNAME }}
         password: ${{ env.ICR_PASSWORD }}
 
     - name: Login to IBM Cloud Container Registry AU
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         registry: au.icr.io
         username: ${{ env.ICR_USERNAME }}
         password: ${{ env.ICR_PASSWORD }}
 
     - name: Login to IBM Cloud Container Registry JP
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         registry: jp.icr.io
         username: ${{ env.ICR_USERNAME }}
@@ -240,35 +240,35 @@ jobs:
       uses: docker/setup-buildx-action@v1
 
     - name: Login to IBM Cloud Container Registry US
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         registry: us.icr.io
         username: ${{ env.ICR_USERNAME }}
         password: ${{ env.ICR_PASSWORD }}
 
     - name: Login to IBM Cloud Container Registry UK
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         registry: uk.icr.io
         username: ${{ env.ICR_USERNAME }}
         password: ${{ env.ICR_PASSWORD }}
 
     - name: Login to IBM Cloud Container Registry DE
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         registry: de.icr.io
         username: ${{ env.ICR_USERNAME }}
         password: ${{ env.ICR_PASSWORD }}
 
     - name: Login to IBM Cloud Container Registry AU
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         registry: au.icr.io
         username: ${{ env.ICR_USERNAME }}
         password: ${{ env.ICR_PASSWORD }}
 
     - name: Login to IBM Cloud Container Registry JP
-      uses: docker/login-action@v1
+      uses: docker/login-action@v2
       with:
         registry: jp.icr.io
         username: ${{ env.ICR_USERNAME }}
