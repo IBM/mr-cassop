@@ -111,7 +111,7 @@ jobs:
         password: ${{ secrets.ARTIFACTORY_PASS }}
 
     - name: Build operator image
-      uses: docker/build-push-action@v2
+      uses: docker/build-push-action@v3
       with:
         file: Dockerfile
         build-args: |
@@ -158,7 +158,7 @@ jobs:
         password: ${{ secrets.ARTIFACTORY_PASS }}
 
     - name: Build cassandra image
-      uses: docker/build-push-action@v2
+      uses: docker/build-push-action@v3
       with:
         file: ./cassandra/Dockerfile
         context: ./cassandra
@@ -204,7 +204,7 @@ jobs:
         password: ${{ secrets.ARTIFACTORY_PASS }}
 
     - name: Build prober image
-      uses: docker/build-push-action@v2
+      uses: docker/build-push-action@v3
       with:
         file: ./prober/Dockerfile
         context: ./prober
@@ -252,7 +252,7 @@ jobs:
         password: ${{ secrets.ARTIFACTORY_PASS }}
 
     - name: Build jolokia image
-      uses: docker/build-push-action@v2
+      uses: docker/build-push-action@v3
       with:
         file: ./jolokia/Dockerfile
         context: ./jolokia
