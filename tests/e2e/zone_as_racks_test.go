@@ -41,7 +41,8 @@ var _ = Describe("Cassandra cluster", func() {
 			cmd := []string{
 				"sh",
 				"-c",
-				fmt.Sprintf("nodetool -u %s -pw \"%s\" info | grep Rack | awk '{ print $3 }'", activeAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole], string(activeAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword])),
+				// We use `-Dcom.sun.jndi.rmiURLParsing=legacy` because of the bug with JDK 1.8.0_332 https://issues.apache.org/jira/browse/CASSANDRA-17581
+				fmt.Sprintf("nodetool -Dcom.sun.jndi.rmiURLParsing=legacy -u %s -pw \"%s\" info | grep Rack | awk '{ print $3 }'", activeAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole], string(activeAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword])),
 			}
 
 			for _, p := range podList.Items {

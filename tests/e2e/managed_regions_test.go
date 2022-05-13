@@ -156,7 +156,8 @@ func expectNumberOfNodes(podName, podNamespace, roleName, rolePassword string, e
 	cmd := []string{
 		"sh",
 		"-c",
-		fmt.Sprintf("nodetool -u %s -pw %s status | awk '/^(U|D)(N|L|J|M)/{print $2}'", roleName, rolePassword),
+		// We use `-Dcom.sun.jndi.rmiURLParsing=legacy` because of the bug with JDK 1.8.0_332 https://issues.apache.org/jira/browse/CASSANDRA-17581
+		fmt.Sprintf("nodetool -Dcom.sun.jndi.rmiURLParsing=legacy -u %s -pw %s status | awk '/^(U|D)(N|L|J|M)/{print $2}'", roleName, rolePassword),
 	}
 	var stdout, stderr string
 	Eventually(func() error {
