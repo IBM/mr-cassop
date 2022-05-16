@@ -7,8 +7,8 @@ import (
 	"software.sslmate.com/src/go-pkcs12"
 )
 
-func GeneratePFXKeystore(privateKey interface{}, certificate *x509.Certificate, caCertificate *x509.Certificate, keystorePassword string) ([]byte, error) {
-	keystorePFXBytes, err := pkcs12.Encode(rand.Reader, privateKey, certificate, []*x509.Certificate{caCertificate}, keystorePassword)
+func GeneratePFXKeystore(privateKey interface{}, certificate *x509.Certificate, caCertificates []*x509.Certificate, keystorePassword string) ([]byte, error) {
+	keystorePFXBytes, err := pkcs12.Encode(rand.Reader, privateKey, certificate, caCertificates, keystorePassword)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Cannot encode PFX Keystore")
 	}
@@ -21,8 +21,8 @@ func GeneratePFXKeystore(privateKey interface{}, certificate *x509.Certificate, 
 	return keystorePFXBytes, nil
 }
 
-func GeneratePFXTruststore(certificate *x509.Certificate, keystorePassword string) ([]byte, error) {
-	truststorePFXBytes, err := pkcs12.EncodeTrustStore(rand.Reader, []*x509.Certificate{certificate}, keystorePassword)
+func GeneratePFXTruststore(caCertificates []*x509.Certificate, keystorePassword string) ([]byte, error) {
+	truststorePFXBytes, err := pkcs12.EncodeTrustStore(rand.Reader, caCertificates, keystorePassword)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Cannot encode PFX Truststore")
 	}

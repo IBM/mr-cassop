@@ -72,7 +72,6 @@ var _ = Describe("Reaper test", func() {
 			cluster.ConnectTimeout = time.Second * 10
 			cluster.Timeout = time.Second * 10
 			cluster.Consistency = gocql.LocalQuorum
-			cluster.ProtoVersion = 4
 			cluster.Authenticator = gocql.PasswordAuthenticator{
 				Username: string(activeAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminRole]),
 				Password: string(activeAdminSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword]),

@@ -77,6 +77,7 @@ deploy:
         monitoring.serviceMonitor.scrapeInterval: 30s
       createNamespace: true
       wait: true
+      recreatePods: true
       packaged:
         version: "0.0.0-{{.USER}}"
         appVersion: "0.0.0-{{.USER}}"

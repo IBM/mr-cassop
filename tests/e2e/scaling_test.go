@@ -113,7 +113,6 @@ var _ = Describe("scaling", func() {
 		clusterConfig.ConnectTimeout = time.Second * 10
 		clusterConfig.Timeout = time.Second * 10
 		clusterConfig.Consistency = gocql.LocalQuorum
-		clusterConfig.ProtoVersion = 4
 		clusterConfig.Authenticator = gocql.PasswordAuthenticator{
 			Username: testAdminRole,
 			Password: testAdminPassword,

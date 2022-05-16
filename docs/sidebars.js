@@ -25,6 +25,7 @@ module.exports = {
         'server-tls-encryption-configuration',
         'client-tls-encryption-configuration',
         'create-tls-secret',
+        'update-tls-secret',
       ],
     },
     'exposing-clusters',

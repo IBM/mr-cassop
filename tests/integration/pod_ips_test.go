@@ -78,7 +78,7 @@ var _ = Describe("pod IPs", func() {
 				}
 			}
 			return true
-		}, mediumRetry, mediumRetry).Should(BeTrue(), "the IP should not be updated in the config map until the pod is ready")
+		}, mediumTimeout, mediumRetry).Should(BeTrue(), "the IP should not be updated in the config map until the pod is ready")
 
 		firstPod = currentPodsList.Items[0]
 		firstPod.Status.ContainerStatuses[0].Ready = true

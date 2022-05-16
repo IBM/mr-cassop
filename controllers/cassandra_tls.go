@@ -2,10 +2,12 @@ package controllers
 
 import (
 	"context"
+	"crypto/x509"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
+	"regexp"
 
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/certs"
@@ -20,6 +22,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
+
+var caEntryRegexp = regexp.MustCompile(`^.*.crt`)
 
 type tlsSecretType int
 
@@ -177,7 +181,7 @@ func (r *CassandraClusterReconciler) reconcileServerEncryption(ctx context.Conte
 
 	if cc.Spec.Encryption.Server.NodeTLSSecret.Name == "" {
 		// Generate TLS CA Secret bc user didn't set Node TLS Secret name
-		err := r.handleCASecret(ctx, cc, cc.Spec.Encryption.Server.CATLSSecret.Name)
+		err := r.handleCASecret(ctx, cc, cc.Spec.Encryption.Server.CATLSSecret)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to handle Cluster TLS CA Secret")
 		}
@@ -191,7 +195,7 @@ func (r *CassandraClusterReconciler) reconcileServerEncryption(ctx context.Conte
 	}
 
 	// Node TLS Secret will be generated if not exist
-	err := r.handleNodeSecret(ctx, cc, cc.Spec.Encryption.Server.CATLSSecret.Name, cc.Spec.Encryption.Server.NodeTLSSecret)
+	err := r.handleNodeSecret(ctx, cc, cc.Spec.Encryption.Server.CATLSSecret, cc.Spec.Encryption.Server.NodeTLSSecret)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to handle Cluster TLS Node Secret")
 	}
@@ -212,7 +216,7 @@ func (r *CassandraClusterReconciler) reconcileClientEncryption(ctx context.Conte
 
 	if cc.Spec.Encryption.Client.NodeTLSSecret.Name == "" {
 		// Generate TLS CA Secret bc user didn't set Node TLS Secret name
-		err := r.handleCASecret(ctx, cc, cc.Spec.Encryption.Client.CATLSSecret.Name)
+		err := r.handleCASecret(ctx, cc, cc.Spec.Encryption.Client.CATLSSecret)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to handle Client TLS CA Secret")
 		}
@@ -226,7 +230,7 @@ func (r *CassandraClusterReconciler) reconcileClientEncryption(ctx context.Conte
 	}
 
 	// Node TLS Secret will be generated if not exist
-	err := r.handleNodeSecret(ctx, cc, cc.Spec.Encryption.Client.CATLSSecret.Name, cc.Spec.Encryption.Client.NodeTLSSecret)
+	err := r.handleNodeSecret(ctx, cc, cc.Spec.Encryption.Client.CATLSSecret, cc.Spec.Encryption.Client.NodeTLSSecret)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to handle Client TLS Node Secret")
 	}
@@ -239,15 +243,15 @@ func (r *CassandraClusterReconciler) reconcileClientEncryption(ctx context.Conte
 	return nil
 }
 
-func (r *CassandraClusterReconciler) handleCASecret(ctx context.Context, cc *dbv1alpha1.CassandraCluster, casSecretName string) error {
+func (r *CassandraClusterReconciler) handleCASecret(ctx context.Context, cc *dbv1alpha1.CassandraCluster, caTLSSecret dbv1alpha1.CATLSSecret) error {
 	actualTLSCA := &v1.Secret{}
-	err := r.Get(ctx, types.NamespacedName{Namespace: cc.Namespace, Name: casSecretName}, actualTLSCA)
+	err := r.Get(ctx, types.NamespacedName{Namespace: cc.Namespace, Name: caTLSSecret.Name}, actualTLSCA)
 	if err != nil && kerrors.IsNotFound(err) {
-		r.Log.Infof("TLS CA Secret `%s` not found. Generating it...", casSecretName)
+		r.Log.Infof("TLS CA Secret `%s` not found. Generating it...", caTLSSecret.Name)
 
-		desiredTLSCA, err := genCASecret(cc, casSecretName)
+		desiredTLSCA, err := genCASecret(cc, caTLSSecret)
 		if err != nil {
-			return errors.Wrapf(err, "Unable to handle TLS CA Secret `%s`", casSecretName)
+			return errors.Wrapf(err, "Unable to handle TLS CA Secret `%s`", caTLSSecret.Name)
 		}
 
 		if err = controllerutil.SetControllerReference(cc, desiredTLSCA, r.Scheme); err != nil {
@@ -259,34 +263,35 @@ func (r *CassandraClusterReconciler) handleCASecret(ctx context.Context, cc *dbv
 		}
 
 	} else if err != nil {
-		return errors.Wrapf(err, "Failed to get TLS CA Secret `%s`", casSecretName)
+		return errors.Wrapf(err, "Failed to get TLS CA Secret `%s`", caTLSSecret.Name)
 	}
-	r.Log.Debugf("TLS CA Secret was found `%s`", casSecretName)
+	r.Log.Debugf("TLS CA Secret was found `%s`", caTLSSecret.Name)
+
+	err = r.Get(ctx, types.NamespacedName{Namespace: cc.Namespace, Name: caTLSSecret.Name}, actualTLSCA)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to get TLS CA Secret `%s`", caTLSSecret.Name)
+	}
 
 	return nil
 }
 
-func (r *CassandraClusterReconciler) handleNodeSecret(ctx context.Context, cc *dbv1alpha1.CassandraCluster, casSecretName string, nodeTLSSecret dbv1alpha1.NodeTLSSecret) error {
+func (r *CassandraClusterReconciler) handleNodeSecret(ctx context.Context, cc *dbv1alpha1.CassandraCluster, caTLSSecret dbv1alpha1.CATLSSecret, nodeTLSSecret dbv1alpha1.NodeTLSSecret) error {
 	actualTLSNode := &v1.Secret{}
+	actualTLSCA := &v1.Secret{}
+
 	err := r.Get(ctx, types.NamespacedName{Namespace: cc.Namespace, Name: nodeTLSSecret.Name}, actualTLSNode)
 	if err != nil && kerrors.IsNotFound(err) {
 		r.Log.Infof("TLS Node Secret `%s` not found. Generating it...", nodeTLSSecret.Name)
-		r.Log.Infof("Reading data from TLS CA Secret `%s`...", casSecretName)
-		actualTLSCA := &v1.Secret{}
-		err = r.Get(ctx, types.NamespacedName{Namespace: cc.Namespace, Name: casSecretName}, actualTLSCA)
+		r.Log.Infof("Reading data from TLS CA Secret `%s`...", caTLSSecret.Name)
+
+		err = r.Get(ctx, types.NamespacedName{Namespace: cc.Namespace, Name: caTLSSecret.Name}, actualTLSCA)
 		if err != nil && kerrors.IsNotFound(err) {
-			return errors.Wrapf(err, "TLS CA Secret `%s` not found", casSecretName)
+			return errors.Wrapf(err, "TLS CA Secret `%s` not found", caTLSSecret.Name)
 		} else if err != nil {
-			return errors.Wrapf(err, "Failed to get TLS CA Secret `%s`", casSecretName)
+			return errors.Wrapf(err, "Failed to get TLS CA Secret `%s`", caTLSSecret.Name)
 		}
 
-		caKp := certs.Keypair{
-			Crt: actualTLSCA.Data["ca.crt"],
-			Pk:  actualTLSCA.Data["ca.key"],
-		}
-
-		opts := certs.MakeDefaultOptions()
-		desiredTLSNodeSecret, err := genNodeSecret(caKp, opts, cc, nodeTLSSecret)
+		desiredTLSNodeSecret, err := genNodeSecret(cc, nodeTLSSecret, caTLSSecret, actualTLSCA)
 		if err != nil {
 			return errors.Wrapf(err, "Failed to generate TLS Node Secret")
 		}
@@ -309,12 +314,45 @@ func (r *CassandraClusterReconciler) handleNodeSecret(ctx context.Context, cc *d
 
 	r.Log.Debugf("TLS Node Secret was found `%s`", nodeTLSSecret.Name)
 
+	r.Log.Debugf("Checking TLS CA Secret for %s: `%s`...", dbv1alpha1.CassandraClusterChecksum, caTLSSecret.Name)
+	err = r.Get(ctx, types.NamespacedName{Namespace: cc.Namespace, Name: caTLSSecret.Name}, actualTLSCA)
+	if err != nil && kerrors.IsNotFound(err) {
+		r.Log.Debugf("TLS CA Secret not found: `%s`. Assuming user provided only Node TLS Secret.", caTLSSecret.Name)
+		return nil
+	} else if err != nil {
+		return errors.Wrapf(err, "Failed to get TLS CA Secret `%s`", caTLSSecret.Name)
+	}
+
+	if actualTLSCA.Annotations[dbv1alpha1.CassandraClusterChecksum] != util.Sha1(fmt.Sprintf("%v", actualTLSCA.Data)) {
+		r.Log.Infof("TLS CA Secret data has changed `%s`. Applying new config to the cluster.", actualTLSCA.Name)
+
+		desiredTLSNodeSecret, err := genNodeSecret(cc, nodeTLSSecret, caTLSSecret, actualTLSCA)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to generate TLS Node Secret")
+		}
+
+		r.Log.Infof("Updating TLS Node Secret `%s`...", nodeTLSSecret.Name)
+		actualTLSNode.Data = desiredTLSNodeSecret.Data
+		if err = r.Update(ctx, actualTLSNode); err != nil {
+			return errors.Wrapf(err, "Failed to update TLS Node Secret")
+		}
+
+		r.Log.Infof("Updating TLS CA Secret `%s`...", actualTLSCA.Name)
+		annotations := make(map[string]string)
+		annotations[dbv1alpha1.CassandraClusterChecksum] = util.Sha1(fmt.Sprintf("%v", actualTLSCA.Data))
+		annotations[dbv1alpha1.CassandraClusterInstance] = cc.Name
+		err = r.reconcileAnnotations(ctx, actualTLSCA, annotations)
+		if err != nil {
+			return errors.Wrapf(err, "failed to reconcile annotations for secret `%s`", actualTLSCA.Name)
+		}
+	}
+
 	return nil
 }
 
-func genCASecret(cc *dbv1alpha1.CassandraCluster, caSecretName string) (*v1.Secret, error) {
+func genCASecret(cc *dbv1alpha1.CassandraCluster, caTLSSecret dbv1alpha1.CATLSSecret) (*v1.Secret, error) {
 	opts := certs.MakeDefaultOptions()
-	opts.Org = "Cassandra Operator"
+	opts.Org = "cassandra_operator"
 
 	caKp, err := certs.CreateCA(opts)
 	if err != nil {
@@ -324,7 +362,7 @@ func genCASecret(cc *dbv1alpha1.CassandraCluster, caSecretName string) (*v1.Secr
 	desiredTLSCA := &v1.Secret{
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      caSecretName,
+			Name:      caTLSSecret.Name,
 			Namespace: cc.Namespace,
 			Labels:    labels.CombinedComponentLabels(cc, dbv1alpha1.CassandraClusterComponentCassandra),
 		},
@@ -332,14 +370,16 @@ func genCASecret(cc *dbv1alpha1.CassandraCluster, caSecretName string) (*v1.Secr
 	}
 
 	data := make(map[string][]byte)
-	data["ca.crt"] = caKp.Crt
-	data["ca.key"] = caKp.Pk
+	data[caTLSSecret.CrtFileKey] = caKp.Crt
+	data[caTLSSecret.FileKey] = caKp.Pk
 	desiredTLSCA.Data = data
 
 	return desiredTLSCA, nil
 }
 
-func genNodeSecret(caKp certs.Keypair, opts *certs.CertOpts, cc *dbv1alpha1.CassandraCluster, nodeTLSSecret dbv1alpha1.NodeTLSSecret) (*v1.Secret, error) {
+func genNodeSecret(cc *dbv1alpha1.CassandraCluster, nodeTLSSecret dbv1alpha1.NodeTLSSecret, caTLSSecret dbv1alpha1.CATLSSecret, actualTLSCA *v1.Secret) (*v1.Secret, error) {
+	var parsedCAs []*x509.Certificate
+
 	desiredTLSNodeSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      nodeTLSSecret.Name,
@@ -349,15 +389,26 @@ func genNodeSecret(caKp certs.Keypair, opts *certs.CertOpts, cc *dbv1alpha1.Cass
 		Type: v1.SecretTypeOpaque,
 	}
 
+	caKp := certs.Keypair{
+		Crt: actualTLSCA.Data[caTLSSecret.CrtFileKey],
+		Pk:  actualTLSCA.Data[caTLSSecret.FileKey],
+	}
+
+	opts := certs.MakeDefaultOptions()
 	opts.DnsNames = []string{"localhost"}
 	kp, err := certs.CreateCertificate(caKp, opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create TLS Node keypair")
 	}
 
-	parsedCACrt, err := certs.ParseCertificate(caKp.Crt)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Cannot parse CA certificate")
+	for crtKey, crtData := range actualTLSCA.Data {
+		if caEntryRegexp.MatchString(crtKey) {
+			parsedExtraCA, err := certs.ParseCertificate(crtData)
+			if err != nil {
+				return nil, errors.Wrapf(err, "cannot parse CA certificate: `%s`", crtKey)
+			}
+			parsedCAs = append(parsedCAs, parsedExtraCA)
+		}
 	}
 
 	parsedCrt, err := certs.ParseCertificate(kp.Crt)
@@ -370,12 +421,12 @@ func genNodeSecret(caKp certs.Keypair, opts *certs.CertOpts, cc *dbv1alpha1.Cass
 		return nil, errors.Wrapf(err, "Cannot parse private key")
 	}
 
-	keystorePFXBytes, err := certs.GeneratePFXKeystore(parsedKey, parsedCrt, parsedCACrt, nodeTLSSecret.GenerateKeystorePassword)
+	keystorePFXBytes, err := certs.GeneratePFXKeystore(parsedKey, parsedCrt, parsedCAs, nodeTLSSecret.GenerateKeystorePassword)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Cannot create PFX keystore")
 	}
 
-	truststorePFXBytes, err := certs.GeneratePFXTruststore(parsedCACrt, nodeTLSSecret.GenerateKeystorePassword)
+	truststorePFXBytes, err := certs.GeneratePFXTruststore(parsedCAs, nodeTLSSecret.GenerateKeystorePassword)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Cannot create PFX trustore")
 	}

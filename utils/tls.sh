@@ -10,6 +10,7 @@ NODE_TLS_CRT_VALIDITY=1825
 KEY_SIZE=4096
 SERVER_CERT_CN=localhost
 SERVER_ALT_NAME=localhost
+CA_ALIAS=""
 
 
 function prepare() {
@@ -29,8 +30,9 @@ function ca_keypair() {
   # Create CA key
   openssl genrsa -out ${tmp_dir}/ca_key.pem $KEY_SIZE
   # Create CA certificate
+  read -rp "CA Alias: " CA_ALIAS
   openssl req -x509 -new -nodes -key ${tmp_dir}/ca_key.pem -sha256 -days $CA_TLS_CRT_VALIDITY -out ${tmp_dir}/ca_crt.pem \
-    -subj "/C=US/O=cassandra_root/OU=cassandra_root AG/CN=cassandra_ca"
+    -subj "/O=$CA_ALIAS"
 }
 
 function create_ca_tls_secret() {

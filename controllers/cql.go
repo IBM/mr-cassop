@@ -20,7 +20,6 @@ func newCassandraConfig(cc *v1alpha1.CassandraCluster, adminRole string, adminPw
 
 	cassCfg.Timeout = 6 * time.Second
 	cassCfg.ConnectTimeout = 6 * time.Second
-	cassCfg.ProtoVersion = 4
 	cassCfg.Consistency = gocql.LocalQuorum
 	cassCfg.ReconnectionPolicy = &gocql.ConstantReconnectionPolicy{
 		MaxRetries: 3,

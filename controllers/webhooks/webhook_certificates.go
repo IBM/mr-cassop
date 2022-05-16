@@ -14,7 +14,7 @@ import (
 func setupWebhookTLS(operatorConfig *config.Config) (*certs.Keypair, error) {
 	// Every time operator start we renew the certificates
 	opts := certs.MakeDefaultOptions()
-	opts.Org = "Cassandra Operator"
+	opts.Org = "cassandra_operator"
 
 	caKp, err := certs.CreateCA(opts)
 	if err != nil {

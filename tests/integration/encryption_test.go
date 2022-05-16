@@ -1,9 +1,11 @@
 package integration
 
 import (
+	"fmt"
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/names"
+	"github.com/ibm/cassandra-operator/controllers/util"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -92,6 +94,8 @@ var _ = Describe("Cassandra TLS encryption", func() {
 				Type: v1.SecretTypeOpaque,
 			}
 
+			caDataSha1Sum := util.Sha1(fmt.Sprintf("%v", caTLSSecret.Data))
+
 			Expect(k8sClient.Create(ctx, caTLSSecret)).To(Succeed())
 
 			cc := baseCC.DeepCopy()
@@ -103,7 +107,9 @@ var _ = Describe("Cassandra TLS encryption", func() {
 			}
 
 			createReadyCluster(cc)
-			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.CassandraClusterTLSNode(cassandraObjectMeta.Name), Namespace: cassandraObjectMeta.Namespace}, nodeTLSSecret))
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: caTLSSecret.Name, Namespace: cassandraObjectMeta.Namespace}, caTLSSecret)).To(Succeed())
+			Expect(caTLSSecret.Annotations[v1alpha1.CassandraClusterChecksum]).To(Equal(caDataSha1Sum))
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.CassandraClusterTLSNode(cassandraObjectMeta.Name), Namespace: cassandraObjectMeta.Namespace}, nodeTLSSecret)).To(Succeed())
 			Expect(nodeTLSSecret.Data).To(HaveKey("ca.crt"))
 			Expect(nodeTLSSecret.Data).To(HaveKey("tls.crt"))
 			Expect(nodeTLSSecret.Data).To(HaveKey("tls.key"))
@@ -113,6 +119,16 @@ var _ = Describe("Cassandra TLS encryption", func() {
 			Expect(nodeTLSSecret.Data).To(HaveKey("truststore.password"))
 
 			checkVolume("server-keystore", "dc1")
+
+			// Check hashsum after TLS CA Secret update
+			caTLSSecret.Data["ca2.crt"] = ca2CrtBytes
+			caDataSha1Sum = util.Sha1(fmt.Sprintf("%v", caTLSSecret.Data))
+			Expect(k8sClient.Update(ctx, caTLSSecret)).To(Succeed())
+
+			Eventually(func() bool {
+				Expect(k8sClient.Get(ctx, types.NamespacedName{Name: caTLSSecret.Name, Namespace: cassandraObjectMeta.Namespace}, caTLSSecret)).To(Succeed())
+				return caTLSSecret.Annotations[v1alpha1.CassandraClusterChecksum] == caDataSha1Sum
+			}, longTimeout, shortRetry).Should(BeTrue())
 
 			Expect(k8sClient.Delete(ctx, caTLSSecret)).To(Succeed())
 		})
