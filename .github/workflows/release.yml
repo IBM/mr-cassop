@@ -383,7 +383,7 @@ jobs:
                  "type": "section",
                  "text": {
                    "type": "mrkdwn",
-                   "text": "Take a look at the <https://github.com/TheWeatherCompany/cassandra-operator/releases/tag/${{ needs.helm-release.outputs.tag }}|release notes> to get more details.\nRead <https://cassandra-operator-docs.dev.sun.weather.com/|official documentation> to get started.\nWhen upgrading to a new major version, remember to first check <https://cassandra-operator-docs.dev.sun.weather.com/upgrading|upgrading steps>."
+                   "text": "Take a look at the <https://github.com/TheWeatherCompany/cassandra-operator/releases/tag/${{ needs.helm-release.outputs.tag }}|release notes> to get more details.\nRead <https://cassandra-operator-docs.dev.sun.weather.com/|official documentation> to get started."
                  }
                }
              ]
@@ -410,7 +410,7 @@ jobs:
                  "type": "section",
                  "text": {
                    "type": "mrkdwn",
-                   "text": "Take a look at the <https://github.com/TheWeatherCompany/cassandra-operator/releases/tag/${{ needs.helm-release.outputs.tag }}|release notes> to get more details.\nRead <https://cassandra-operator-docs.dev.sun.weather.com/|official documentation> to get started.\nWhen upgrading to a new major version, remember to first check <https://cassandra-operator-docs.dev.sun.weather.com/upgrading|upgrading steps>."
+                   "text": "Take a look at the <https://github.com/TheWeatherCompany/cassandra-operator/releases/tag/${{ needs.helm-release.outputs.tag }}|release notes> to get more details.\nRead <https://cassandra-operator-docs.dev.sun.weather.com/|official documentation> to get started."
                  }
                }
              ]

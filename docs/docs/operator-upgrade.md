@@ -19,4 +19,4 @@ Plan your upgrade accordingly.
 :::
 
 Depending on the change in the operator, additional steps may be required during upgrade.
-Version specific upgrade instructions can be found [here](upgrading.md).
+Version specific upgrade instructions can be found in the release notes.
