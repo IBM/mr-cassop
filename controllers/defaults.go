@@ -95,14 +95,6 @@ func (r *CassandraClusterReconciler) defaultReaper(cc *dbv1alpha1.CassandraClust
 		cc.Spec.Reaper.RepairThreadCount = 1
 	}
 
-	if len(cc.Spec.Reaper.Tolerations) == 0 {
-		cc.Spec.Reaper.Tolerations = nil
-	}
-
-	if len(cc.Spec.Reaper.NodeSelector) == 0 {
-		cc.Spec.Reaper.NodeSelector = nil
-	}
-
 	if len(cc.Spec.Reaper.RepairSchedules.Repairs) != 0 {
 		for i, repair := range cc.Spec.Reaper.RepairSchedules.Repairs {
 			if repair.RepairParallelism == "" {

@@ -296,9 +296,12 @@ type Prober struct {
 	// +kubebuilder:validation:Enum:=info;debug;trace
 	LogLevel string `json:"logLevel,omitempty"`
 	// +kubebuilder:validation:Enum:=console;json
-	LogFormat      string         `json:"logFormat,omitempty"`
-	Jolokia        Jolokia        `json:"jolokia,omitempty"`
-	ServiceMonitor ServiceMonitor `json:"serviceMonitor,omitempty"`
+	LogFormat      string            `json:"logFormat,omitempty"`
+	Jolokia        Jolokia           `json:"jolokia,omitempty"`
+	ServiceMonitor ServiceMonitor    `json:"serviceMonitor,omitempty"`
+	Tolerations    []v1.Toleration   `json:"tolerations,omitempty"`
+	NodeSelector   map[string]string `json:"nodeSelector,omitempty"`
+	Affinity       *v1.Affinity      `json:"affinity,omitempty"`
 }
 
 type Jolokia struct {
