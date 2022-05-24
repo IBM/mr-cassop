@@ -73,6 +73,9 @@ var _ = Describe("cassandracluster validation", func() {
 							Image:           "jolokia/image",
 							ImagePullPolicy: v1.PullAlways,
 						},
+						Tolerations:  nil,
+						NodeSelector: nil,
+						Affinity:     nil,
 					},
 					Maintenance: []v1alpha1.Maintenance{
 						{
