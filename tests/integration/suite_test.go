@@ -113,9 +113,9 @@ var (
 )
 
 const (
-	longTimeout   = time.Second * 15
-	mediumTimeout = time.Second * 5
-	shortTimeout  = time.Second * 1
+	longTimeout   = time.Second * 20
+	mediumTimeout = time.Second * 10
+	shortTimeout  = time.Second * 3
 
 	mediumRetry = time.Second * 2
 	shortRetry  = time.Millisecond * 300
@@ -606,14 +606,24 @@ func createNodes(nodeIPs []string) {
 }
 
 func markAllDCsReady(cc *v1alpha1.CassandraCluster) {
-	dcs := &apps.StatefulSetList{}
-	err := k8sClient.List(ctx, dcs, client.InNamespace(cc.Namespace), client.MatchingLabels{v1alpha1.CassandraClusterInstance: cc.Name})
-	Expect(err).ShouldNot(HaveOccurred())
-	for _, dc := range dcs.Items {
-		dc := dc
-		dc.Status.Replicas = *dc.Spec.Replicas
-		dc.Status.ReadyReplicas = *dc.Spec.Replicas
-		Expect(k8sClient.Status().Update(ctx, &dc)).To(Succeed())
+	for _, dc := range cc.Spec.DCs {
+		Eventually(func() error { //eventually so we handle conflict errors
+			sts := &apps.StatefulSet{}
+			err := k8sClient.Get(ctx, types.NamespacedName{Name: names.DC(cc.Name, dc.Name), Namespace: cc.Namespace}, sts)
+			if err != nil {
+				return err
+			}
+
+			sts.Status.Replicas = *dc.Replicas
+			sts.Status.ReadyReplicas = *dc.Replicas
+
+			err = k8sClient.Status().Update(ctx, sts)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}, longTimeout, mediumRetry).Should(Succeed())
 	}
 }
 
@@ -630,7 +640,7 @@ func waitForDCsToBeCreated(cc *v1alpha1.CassandraCluster) {
 func waitForResourceToBeCreated(name types.NamespacedName, obj client.Object) {
 	Eventually(func() error {
 		return k8sClient.Get(ctx, name, obj)
-	}, mediumTimeout, mediumRetry).Should(Succeed())
+	}, longTimeout, mediumRetry).Should(Succeed())
 }
 
 func createReadyCluster(cc *v1alpha1.CassandraCluster) {
