@@ -6,17 +6,20 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/julienschmidt/httprouter"
 )
 
 func (p *Prober) healthCheck(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	broadcastIp := ps.ByName("broadcastip")
-	isReady, states := p.processReadinessProbe(r.RemoteAddr, broadcastIp)
+	broadcastIP := ps.ByName("broadcastip")
+	podIP := strings.Split(r.RemoteAddr, ":")[0]
+
+	isReady, states := p.processReadinessProbe(podIP, broadcastIP)
 	if isReady {
 		w.WriteHeader(http.StatusOK)
 	} else {
-		p.log.Infow("health check failed", "host", r.RemoteAddr, "broadcastIP", broadcastIp, "isReady", isReady)
+		p.log.Infow("health check failed", "podIP", podIP, "broadcastIP", broadcastIP, "isReady", isReady)
 		w.WriteHeader(http.StatusNotFound)
 	}
 	response, _ := json.Marshal(states)

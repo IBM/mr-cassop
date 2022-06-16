@@ -2,8 +2,9 @@ package prober
 
 import (
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/ibm/cassandra-operator/prober/config"
 	"github.com/ibm/cassandra-operator/prober/jolokia"
@@ -27,6 +28,7 @@ type state struct {
 	reaperReady bool
 	dcs         []dc
 	nodes       map[string]nodeState
+	podIPs      map[string]string
 }
 
 type dc struct {
@@ -47,7 +49,8 @@ func NewProber(cfg config.Config, jolokiaClient jolokia.Jolokia, auth UserAuth, 
 		kubeClient: clientset,
 		log:        logr,
 		state: state{
-			nodes: make(map[string]nodeState),
+			nodes:  make(map[string]nodeState),
+			podIPs: make(map[string]string),
 		},
 	}
 }

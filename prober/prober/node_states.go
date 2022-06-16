@@ -1,6 +1,7 @@
 package prober
 
 import (
+	"fmt"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -16,19 +17,15 @@ type nodeState struct {
 	jolokia.EndpointState
 }
 
-func (p *Prober) processReadinessProbe(podIp string, broadcastIp string) (bool, map[string]string) {
-	ip := "/"
-	if broadcastIp != "" {
-		ip += broadcastIp
-	} else {
-		ip += podIp
-	}
-	if _, ok := p.state.nodes[ip]; !ok {
-		p.log.Infow("new ip from readiness probe", "ip", ip)
-		p.state.nodes[ip] = nodeState{}
+func (p *Prober) processReadinessProbe(podIP string, broadcastIP string) (bool, map[string]string) {
+	broadcastIP = fmt.Sprintf("/%s", broadcastIP)
+	if _, ok := p.state.nodes[broadcastIP]; !ok {
+		p.log.Infow("new ip from readiness probe", "remoteIP", podIP)
+		p.state.nodes[broadcastIP] = nodeState{}
+		p.state.podIPs[broadcastIP] = fmt.Sprintf("/%s", podIP)
 	}
 
-	return p.isNodeReady(ip)
+	return p.isNodeReady(broadcastIP)
 }
 
 // isNodeReady checks if all nodes (including the one being checked) see the node as ready
@@ -84,13 +81,13 @@ func (p *Prober) updateNodesRequest() {
 	responses := p.allNodesStates()
 
 	newNodeStates := make(map[string]nodeState)
-	for polledIp, nodeStateResponse := range responses {
+	for polledIP, nodeStateResponse := range responses {
 		newNodeState := nodeState{}
 
 		if nodeStateResponse.Status == http.StatusOK { // responses[i].Value is not nil
 			cassandraNodeState := nodeStateResponse.Value
 			newNodeState.SimpleStates = cassandraNodeState.SimpleStates
-			newNodeState.EndpointState = cassandraNodeState.AllEndpointStates[polledIp]
+			newNodeState.EndpointState = cassandraNodeState.AllEndpointStates[polledIP]
 			// lookup new nodes from node's peers (`.AllEndpointsStates`)
 			for ip, endpointState := range cassandraNodeState.AllEndpointStates {
 				// if the peer node is not in the list of discovered DCs and it belongs to the DC owned by prober
@@ -105,9 +102,9 @@ func (p *Prober) updateNodesRequest() {
 			}
 		} else {
 			newNodeState.SimpleStates = make(map[string]string)
-			newNodeState.SimpleStates[polledIp] = strconv.Itoa(nodeStateResponse.Status)
+			newNodeState.SimpleStates[polledIP] = strconv.Itoa(nodeStateResponse.Status)
 		}
-		newNodeStates[polledIp] = newNodeState
+		newNodeStates[polledIP] = newNodeState
 	}
 
 	for ip, newNodeState := range newNodeStates {
@@ -130,7 +127,7 @@ func (p *Prober) updateNodesRequest() {
 func (p *Prober) allNodesStates() map[string]jolokia.CassandraResponse {
 	responses := make(map[string]jolokia.CassandraResponse)
 	for nodeIP := range p.state.nodes {
-		response, err := p.jolokia.CassandraNodeState(nodeIP)
+		response, err := p.jolokia.CassandraNodeState(p.state.podIPs[nodeIP])
 		if err != nil {
 			p.log.Errorf("jolokia request for IP %q failed: %s", nodeIP, err.Error())
 			response = jolokia.CassandraResponse{

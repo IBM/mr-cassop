@@ -29,14 +29,18 @@ func TestHealthCheck(t *testing.T) {
 		expectedState  state
 	}{
 		{
-			name:       "healthcheck for a healthy node",
-			remoteAddr: "10.134.3.4",
+			name:          "healthcheck for a healthy node",
+			remoteAddr:    "172.16.16.4",
+			broadcastAddr: "10.134.3.4",
 			state: state{
 				nodes: map[string]nodeState{
 					"/10.134.3.4": {
 						SimpleStates:  map[string]string{"/10.134.3.4": "UP"},
 						EndpointState: endpointState("/10.134.3.4", "NORMAL"),
 					},
+				},
+				podIPs: map[string]string{
+					"/10.134.3.4": "/172.16.16.4",
 				},
 			},
 			expectedState: state{
@@ -46,13 +50,17 @@ func TestHealthCheck(t *testing.T) {
 						EndpointState: endpointState("/10.134.3.4", "NORMAL"),
 					},
 				},
+				podIPs: map[string]string{
+					"/10.134.3.4": "/172.16.16.4",
+				},
 			},
 			expectedStatus: http.StatusOK,
 			expectedBody:   []byte(`{"/10.134.3.4":"UP"}`),
 		},
 		{
-			name:       "new node",
-			remoteAddr: "10.134.3.5",
+			name:          "new node",
+			remoteAddr:    "172.16.16.5",
+			broadcastAddr: "10.134.3.5",
 			state: state{
 				nodes: map[string]nodeState{
 					"/10.134.3.4": {
@@ -60,6 +68,7 @@ func TestHealthCheck(t *testing.T) {
 						EndpointState: endpointState("/10.134.3.4", "NORMAL"),
 					},
 				},
+				podIPs: map[string]string{},
 			},
 			expectedState: state{
 				nodes: map[string]nodeState{
@@ -69,13 +78,17 @@ func TestHealthCheck(t *testing.T) {
 					},
 					"/10.134.3.5": {},
 				},
+				podIPs: map[string]string{
+					"/10.134.3.5": "/192.0.2.1", // 192.x is default RemoteAddr from net/http/httptest/httptest_test.go
+				},
 			},
 			expectedStatus: http.StatusNotFound,
 			expectedBody:   []byte(`{"/10.134.3.4":"?","/10.134.3.5":"?"}`),
 		},
 		{
-			name:       "node not ready",
-			remoteAddr: "10.134.3.5",
+			name:          "node not ready",
+			remoteAddr:    "172.16.16.5",
+			broadcastAddr: "10.134.3.5",
 			state: state{
 				nodes: map[string]nodeState{
 					"/10.134.3.4": {
@@ -92,6 +105,9 @@ func TestHealthCheck(t *testing.T) {
 						},
 						EndpointState: endpointState("/10.134.3.5", "NORMAL"),
 					},
+				},
+				podIPs: map[string]string{
+					"/10.134.3.5": "/172.16.16.5",
 				},
 			},
 			expectedState: state{
@@ -111,13 +127,16 @@ func TestHealthCheck(t *testing.T) {
 						EndpointState: endpointState("/10.134.3.5", "NORMAL"),
 					},
 				},
+				podIPs: map[string]string{
+					"/10.134.3.5": "/172.16.16.5",
+				},
 			},
 			expectedStatus: http.StatusNotFound,
 			expectedBody:   []byte(`{"/10.134.3.4":"DOWN","/10.134.3.5":"UP"}`),
 		},
 		{
 			name:          "broadcast address is set",
-			remoteAddr:    "10.134.3.5",
+			remoteAddr:    "172.16.16.213",
 			broadcastAddr: "43.23.111.213",
 			state: state{
 				nodes: map[string]nodeState{
@@ -130,6 +149,10 @@ func TestHealthCheck(t *testing.T) {
 						EndpointState: endpointState("/43.23.111.213", "NORMAL"),
 					},
 				},
+				podIPs: map[string]string{
+					"/43.23.111.212": "/172.16.16.212",
+					"/43.23.111.213": "/172.16.16.213",
+				},
 			},
 			expectedState: state{
 				nodes: map[string]nodeState{
@@ -141,6 +164,10 @@ func TestHealthCheck(t *testing.T) {
 						SimpleStates:  map[string]string{"/43.23.111.212": "UP", "/43.23.111.213": "UP"},
 						EndpointState: endpointState("/43.23.111.213", "NORMAL"),
 					},
+				},
+				podIPs: map[string]string{
+					"/43.23.111.212": "/172.16.16.212",
+					"/43.23.111.213": "/172.16.16.213",
 				},
 			},
 			expectedStatus: http.StatusOK,
@@ -148,7 +175,7 @@ func TestHealthCheck(t *testing.T) {
 		},
 		{
 			name:          "none of the nodes are ready",
-			remoteAddr:    "10.134.3.5",
+			remoteAddr:    "172.16.16.213",
 			broadcastAddr: "43.23.111.213",
 			state: state{
 				nodes: map[string]nodeState{
@@ -161,6 +188,10 @@ func TestHealthCheck(t *testing.T) {
 						EndpointState: endpointState("/43.23.111.213", "DOWN"),
 					},
 				},
+				podIPs: map[string]string{
+					"/43.23.111.212": "/172.16.16.212",
+					"/43.23.111.213": "/172.16.16.213",
+				},
 			},
 			expectedState: state{
 				nodes: map[string]nodeState{
@@ -172,6 +203,10 @@ func TestHealthCheck(t *testing.T) {
 						SimpleStates:  map[string]string{"/43.23.111.212": "DOWN", "/43.23.111.213": "DOWN"},
 						EndpointState: endpointState("/43.23.111.213", "DOWN"),
 					},
+				},
+				podIPs: map[string]string{
+					"/43.23.111.212": "/172.16.16.212",
+					"/43.23.111.213": "/172.16.16.213",
 				},
 			},
 			expectedStatus: http.StatusNotFound,
@@ -190,13 +225,7 @@ func TestHealthCheck(t *testing.T) {
 
 		testProber.state = testCase.state
 
-		ip := testCase.remoteAddr
-		if len(testCase.broadcastAddr) > 0 {
-			ip = testCase.broadcastAddr
-		}
-
-		request := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/healthz/%s", ip), nil)
-		request.RemoteAddr = testCase.remoteAddr
+		request := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/healthz/%s", testCase.broadcastAddr), nil)
 		recorder := httptest.NewRecorder()
 		router := httprouter.New()
 		setupRoutes(router, testProber)

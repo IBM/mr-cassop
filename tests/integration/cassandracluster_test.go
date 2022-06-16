@@ -117,7 +117,7 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 						"/docker-entrypoint.sh -f -R " +
 						"-Dcassandra.jmx.remote.port=7199 " +
 						"-Dcom.sun.management.jmxremote.rmi.port=7199 " +
-						"-Djava.rmi.server.hostname=$CASSANDRA_BROADCAST_ADDRESS " +
+						"-Djava.rmi.server.hostname=$POD_IP " +
 						"-Dcom.sun.management.jmxremote.authenticate=true " +
 						"-Dcassandra.storagedir=/var/lib/cassandra " +
 						"${replace_address} " +

@@ -73,6 +73,11 @@ func TestUpdateNodeStates(t *testing.T) {
 					"/10.12.13.44": {},
 					"/10.12.13.45": {},
 				},
+				podIPs: map[string]string{
+					"/10.12.13.43": "172.143.32.1",
+					"/10.12.13.44": "172.143.32.2",
+					"/10.12.13.45": "172.143.32.3",
+				},
 				dcs: []dc{
 					{
 						Name:     "dc1",
@@ -81,6 +86,11 @@ func TestUpdateNodeStates(t *testing.T) {
 				},
 			},
 			expectedState: state{
+				podIPs: map[string]string{
+					"/10.12.13.43": "172.143.32.1",
+					"/10.12.13.44": "172.143.32.2",
+					"/10.12.13.45": "172.143.32.3",
+				},
 				nodes: map[string]nodeState{
 					"/10.12.13.43": {
 						SimpleStates:  map[string]string{"/10.12.13.45": "UP", "/10.12.13.43": "UP", "/10.12.13.44": "UP", "/10.12.13.46": "UP"},
@@ -106,7 +116,7 @@ func TestUpdateNodeStates(t *testing.T) {
 				},
 			},
 			nodeStates: map[string]jolokia.CassandraResponse{
-				"/10.12.13.43": {
+				"172.143.32.1": {
 					Response: successJMXResponse,
 					Value: cassandraResponse(map[string]string{
 						"10.12.13.43": "UP",
@@ -115,7 +125,7 @@ func TestUpdateNodeStates(t *testing.T) {
 						"10.12.13.46": "UP",
 					}),
 				},
-				"/10.12.13.44": {
+				"172.143.32.2": {
 					Response: successJMXResponse,
 					Value: cassandraResponse(map[string]string{
 						"10.12.13.43": "UP",
@@ -124,7 +134,7 @@ func TestUpdateNodeStates(t *testing.T) {
 						"10.12.13.46": "UP",
 					}),
 				},
-				"/10.12.13.45": {
+				"172.143.32.3": {
 					Response: successJMXResponse,
 					Value: cassandraResponse(map[string]string{
 						"10.12.13.43": "UP",
@@ -138,12 +148,14 @@ func TestUpdateNodeStates(t *testing.T) {
 		{
 			name: "0 discovered nodes",
 			initialState: state{
-				nodes: map[string]nodeState{},
-				dcs:   []dc{},
+				nodes:  map[string]nodeState{},
+				dcs:    []dc{},
+				podIPs: map[string]string{},
 			},
 			expectedState: state{
-				nodes: map[string]nodeState{},
-				dcs:   []dc{},
+				nodes:  map[string]nodeState{},
+				dcs:    []dc{},
+				podIPs: map[string]string{},
 			},
 			nodeStates: map[string]jolokia.CassandraResponse{},
 		},
@@ -161,6 +173,12 @@ func TestUpdateNodeStates(t *testing.T) {
 						Name:     "dc1",
 						Replicas: 3,
 					},
+				},
+				podIPs: map[string]string{
+					"/10.12.13.43": "172.16.16.43",
+					"/10.12.13.44": "172.16.16.44",
+					"/10.12.13.45": "172.16.16.45",
+					"/10.12.13.46": "172.16.16.46",
 				},
 			},
 			expectedState: state{
@@ -184,9 +202,15 @@ func TestUpdateNodeStates(t *testing.T) {
 						Replicas: 3,
 					},
 				},
+				podIPs: map[string]string{
+					"/10.12.13.43": "172.16.16.43",
+					"/10.12.13.44": "172.16.16.44",
+					"/10.12.13.45": "172.16.16.45",
+					"/10.12.13.46": "172.16.16.46",
+				},
 			},
 			nodeStates: map[string]jolokia.CassandraResponse{
-				"/10.12.13.43": {
+				"172.16.16.43": {
 					Response: successJMXResponse,
 					Value: cassandraResponse(map[string]string{
 						"10.12.13.43": "UP",
@@ -194,7 +218,7 @@ func TestUpdateNodeStates(t *testing.T) {
 						"10.12.13.45": "UP",
 					}),
 				},
-				"/10.12.13.44": {
+				"172.16.16.44": {
 					Response: successJMXResponse,
 					Value: cassandraResponse(map[string]string{
 						"10.12.13.43": "UP",
@@ -202,7 +226,7 @@ func TestUpdateNodeStates(t *testing.T) {
 						"10.12.13.45": "UP",
 					}),
 				},
-				"/10.12.13.45": {
+				"172.16.16.45": {
 					Response: successJMXResponse,
 					Value: cassandraResponse(map[string]string{
 						"10.12.13.43": "UP",
@@ -234,6 +258,11 @@ func TestUpdateNodeStates(t *testing.T) {
 						Name:     "dc1",
 						Replicas: 3,
 					},
+				},
+				podIPs: map[string]string{
+					"/10.12.13.43": "172.16.16.43",
+					"/10.12.13.44": "172.16.16.44",
+					"/10.12.13.45": "172.16.16.45",
 				},
 			},
 			expectedState: state{
@@ -275,9 +304,14 @@ func TestUpdateNodeStates(t *testing.T) {
 						Replicas: 3,
 					},
 				},
+				podIPs: map[string]string{
+					"/10.12.13.43": "172.16.16.43",
+					"/10.12.13.44": "172.16.16.44",
+					"/10.12.13.45": "172.16.16.45",
+				},
 			},
 			nodeStates: map[string]jolokia.CassandraResponse{
-				"/10.12.13.43": {
+				"172.16.16.43": {
 					Response: successJMXResponse,
 					Value: cassandraResponse(map[string]string{
 						"10.12.13.43": "UP",
@@ -285,7 +319,7 @@ func TestUpdateNodeStates(t *testing.T) {
 						"10.12.13.45": "UP",
 					}),
 				},
-				"/10.12.13.44": {
+				"172.16.16.44": {
 					Response: successJMXResponse,
 					Value: cassandraResponse(map[string]string{
 						"10.12.13.43": "UP",
@@ -293,7 +327,7 @@ func TestUpdateNodeStates(t *testing.T) {
 						"10.12.13.45": "UP",
 					}),
 				},
-				"/10.12.13.45": {
+				"172.16.16.45": {
 					Response: successJMXResponse,
 					Value: cassandraResponse(map[string]string{
 						"10.12.13.43": "UP",
