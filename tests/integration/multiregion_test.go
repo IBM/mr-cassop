@@ -93,6 +93,7 @@ var _ = Describe("multiple regions", func() {
 
 		Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cc.Name, Namespace: cc.Namespace}, cc)).To(Succeed())
 
+		createNodes(nodeIPs)
 		createCassandraPods(cc)
 		markAllDCsReady(cc)
 

@@ -3,6 +3,7 @@ package webhooks
 import (
 	"context"
 	"github.com/gogo/protobuf/proto"
+	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/certs"
 	"github.com/ibm/cassandra-operator/controllers/config"
 	"github.com/ibm/cassandra-operator/controllers/names"
@@ -69,7 +70,7 @@ func CreateValidatingWebhookConf(namespace string, clusterRole *rbac.ClusterRole
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              names.ValidatingWebhookName(),
 			CreationTimestamp: metav1.Time{},
-			Labels:            map[string]string{"operator": "cassandra-operator"},
+			Labels:            dbv1alpha1.CassandraOperatorPodLabels,
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: "rbac.authorization.k8s.io/v1",

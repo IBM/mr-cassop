@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
+	"github.com/ibm/cassandra-operator/controllers/labels"
 	"net/url"
 	"path/filepath"
 	"strconv"
@@ -98,9 +99,7 @@ var (
 	keystoreBytes, _   = base64.StdEncoding.DecodeString("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")
 	truststoreBytes, _ = base64.StdEncoding.DecodeString("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")
 	keystorePass       = "cassandra"
-)
 
-var (
 	cassandraObjectMeta = metav1.ObjectMeta{
 		Namespace: "default",
 		Name:      "test-cassandra-cluster",
@@ -109,6 +108,16 @@ var (
 	reaperDeploymentLabels = map[string]string{
 		v1alpha1.CassandraClusterComponent: v1alpha1.CassandraClusterComponentReaper,
 		v1alpha1.CassandraClusterInstance:  cassandraObjectMeta.Name,
+	}
+
+	nodeIPs = []string{
+		"10.3.23.41",
+		"10.3.23.42",
+		"10.3.23.43",
+		"10.3.23.44",
+		"10.3.23.45",
+		"10.3.23.46",
+		"10.3.23.47",
 	}
 )
 
@@ -397,6 +406,8 @@ func CleanUpCreatedResources(ccName, ccNamespace string) {
 		resourcesToDelete = append(resourcesToDelete, resourceToDelete{name: names.DCService(cc.Name, dc.Name), objType: &v1.Service{}})
 		resourcesToDelete = append(resourcesToDelete, resourceToDelete{name: names.ReaperDeployment(cc.Name, dc.Name), objType: &apps.Deployment{}})
 		resourcesToDelete = append(resourcesToDelete, resourceToDelete{name: names.ConfigMap(cc.Name), objType: &v1.ConfigMap{}})
+		resourcesToDelete = append(resourcesToDelete, resourceToDelete{name: names.ReaperDeployment(cc.Name, dc.Name), objType: &v1.Pod{}})
+
 	}
 
 	// add Cassandra Pods
@@ -404,6 +415,7 @@ func CleanUpCreatedResources(ccName, ccNamespace string) {
 		for i := 0; i < int(*dc.Replicas); i++ {
 			resourcesToDelete = append(resourcesToDelete, resourceToDelete{name: names.DC(cc.Name, dc.Name) + "-" + strconv.Itoa(i), objType: &v1.Pod{}})
 		}
+
 	}
 
 	for _, resource := range resourcesToDelete {
@@ -525,16 +537,6 @@ func validateNumberOfDeployments(namespace string, labels map[string]string, num
 }
 
 func createCassandraPods(cc *v1alpha1.CassandraCluster) {
-	nodeIPs := []string{
-		"10.3.23.41",
-		"10.3.23.42",
-		"10.3.23.43",
-		"10.3.23.44",
-		"10.3.23.45",
-		"10.3.23.46",
-		"10.3.23.47",
-	}
-	createNodes(nodeIPs)
 	for dcID, dc := range cc.Spec.DCs {
 		sts := &apps.StatefulSet{}
 		err := k8sClient.Get(ctx, types.NamespacedName{Name: names.DC(cc.Name, dc.Name), Namespace: cc.Namespace}, sts)
@@ -562,7 +564,8 @@ func createCassandraPods(cc *v1alpha1.CassandraCluster) {
 			Eventually(func() error {
 				actualPod := &v1.Pod{}
 				Expect(k8sClient.Get(ctx, types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, actualPod)).To(Succeed())
-				actualPod.Status.PodIP = fmt.Sprintf("10.0.%d.%d", dcID, replicaID)
+				actualPod.Status.PodIP = fmt.Sprintf("172.0.%d.%d", dcID, replicaID)
+				actualPod.Status.HostIP = fmt.Sprintf(nodeIPs[0])
 				actualPod.Status.ContainerStatuses = []v1.ContainerStatus{
 					{
 						Name:  "cassandra",
@@ -574,6 +577,50 @@ func createCassandraPods(cc *v1alpha1.CassandraCluster) {
 
 			Expect(err).ShouldNot(HaveOccurred())
 		}
+	}
+}
+
+func createReaperPods(cc *v1alpha1.CassandraCluster) {
+	for dcID, dc := range cc.Spec.DCs {
+		reaperDeploymentName := types.NamespacedName{Name: names.ReaperDeployment(cc.Name, dc.Name), Namespace: cc.Namespace}
+		waitForResourceToBeCreated(reaperDeploymentName, &apps.Deployment{})
+		markDeploymentAsReady(reaperDeploymentName)
+
+		reaperLabels := labels.ComponentLabels(cc, v1alpha1.CassandraClusterComponentReaper)
+		reaperLabels["cassandra-cluster-dc"] = dc.Name
+
+		pod := &v1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      reaperDeploymentName.Name,
+				Namespace: cc.Namespace,
+				Labels:    labels.ComponentLabels(cc, v1alpha1.CassandraClusterComponentReaper),
+			},
+			Spec: v1.PodSpec{
+				Containers: []v1.Container{
+					{
+						Name:  "reaper",
+						Image: "thelastpickle/cassandra-reaper:latest",
+					},
+				},
+				NodeName: nodeIPs[0],
+			},
+		}
+		Expect(k8sClient.Create(ctx, pod)).To(Succeed())
+		logr.Debug(fmt.Sprintf("created pod %s", pod.Name))
+		Eventually(func() error {
+			actualPod := &v1.Pod{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, actualPod)).To(Succeed())
+			actualPod.Status.PodIP = fmt.Sprintf("172.0.0.%d", dcID+1)
+			actualPod.Status.HostIP = fmt.Sprintf(nodeIPs[0])
+			actualPod.Status.ContainerStatuses = []v1.ContainerStatus{
+				{
+					Name:  "reaper",
+					Ready: true,
+				},
+			}
+			return k8sClient.Status().Update(ctx, actualPod)
+		}, mediumTimeout, mediumRetry).Should(Succeed())
+
 	}
 }
 
@@ -649,12 +696,9 @@ func createReadyCluster(cc *v1alpha1.CassandraCluster) {
 	markMocksAsReady(cc)
 	waitForDCsToBeCreated(cc)
 	markAllDCsReady(cc)
+	createNodes(nodeIPs)
 	createCassandraPods(cc)
-	for _, dc := range cc.Spec.DCs {
-		reaperDeploymentName := types.NamespacedName{Name: names.ReaperDeployment(cc.Name, dc.Name), Namespace: cc.Namespace}
-		waitForResourceToBeCreated(reaperDeploymentName, &apps.Deployment{})
-		markDeploymentAsReady(reaperDeploymentName)
-	}
+	createReaperPods(cc)
 }
 
 func createAdminSecret(cc *v1alpha1.CassandraCluster) {

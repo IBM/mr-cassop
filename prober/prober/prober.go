@@ -29,6 +29,7 @@ type state struct {
 	dcs         []dc
 	nodes       map[string]nodeState
 	podIPs      map[string]string
+	regionIPs   []string
 }
 
 type dc struct {
@@ -83,6 +84,8 @@ func setupRoutes(router *httprouter.Router, prober *Prober) {
 	router.GET("/dcs", prober.BasicAuth(prometheusMiddleware(prober.getDCs)))
 	router.PUT("/dcs", prober.BasicAuth(prometheusMiddleware(prober.putDCs)))
 	router.Handler("GET", "/metrics", promhttp.Handler())
+	router.GET("/region-ips", prober.BasicAuth(prometheusMiddleware(prober.getRegionIPs)))
+	router.PUT("/region-ips", prober.BasicAuth(prometheusMiddleware(prober.putRegionIPs)))
 }
 
 func (p *Prober) BasicAuth(h httprouter.Handle) httprouter.Handle {

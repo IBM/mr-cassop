@@ -61,6 +61,7 @@ deploy:
         container.imagePullSecret: icm-coreeng-pull-secret
         container.imagePullPolicy: Always
         logLevel: debug
+        logFormat: console
         proberImage: "us.icr.io/cassandra-operator/prober:{{.USER}}"
         jolokiaImage: "us.icr.io/cassandra-operator/jolokia:{{.USER}}"
         cassandraImage: "us.icr.io/cassandra-operator/cassandra:{{.USER}}"

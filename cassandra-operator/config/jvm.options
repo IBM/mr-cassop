@@ -52,7 +52,7 @@
 # Allows overriding of the default RING_DELAY (30000ms), which is the amount of time a node waits
 # before joining the ring.
 # getting WARNING messages with Migration Service
--Dcassandra.ring_delay_ms=3000
+-Dcassandra.ring_delay_ms=30000
 -Dcassandra.migration_task_wait_in_seconds=1
 
 # Set the port for the Thrift RPC service, which is used for client connections. (Default: 9160)

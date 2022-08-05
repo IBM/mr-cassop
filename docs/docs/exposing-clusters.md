@@ -40,7 +40,7 @@ Valid port names are: `intra`, `tls`, `cql`, `thrift`, `jmx`. Ports `jmx`, `intr
 
 Since you're exposing the region to the world it is strongly advised to enable encryption. Both server side so the nodes talk to each other securely and client side so that Cassandra clients have secure connections to the cluster.
 
-See [client](client-tls-encryption-configuration.md) and [server](server-tls-encryption-configuration.md) side encryption configuration for more details.
+See [client](security/client-tls-encryption-configuration.md) and [server](security/server-tls-encryption-configuration.md) side encryption configuration for more details.
 
 ### NetworkPolicies
 

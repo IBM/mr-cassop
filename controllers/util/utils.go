@@ -76,3 +76,16 @@ func EmptySecretFields(secret *v1.Secret, fields []string) []string {
 	}
 	return emptyFields
 }
+
+func Uniq(s []string) []string {
+	var result []string
+	inResult := make(map[string]bool)
+
+	for _, str := range s {
+		if _, ok := inResult[str]; !ok {
+			inResult[str] = true
+			result = append(result, str)
+		}
+	}
+	return result
+}

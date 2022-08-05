@@ -10,22 +10,28 @@ module.exports = {
     'keyspace-management',
     {
       type: 'category',
+      label: 'Security',
+      items: [
+        'security/network-policies',
+        {
+          type: 'category',
+          label: 'TLS Encryption',
+          items: [
+            'security/server-tls-encryption-configuration',
+            'security/client-tls-encryption-configuration',
+            'security/create-tls-secret',
+            'security/update-tls-secret',
+          ],
+        },
+      ],
+    },
+    {
+      type: 'category',
       label: 'Reaper',
       collapsed: true,
       items: [
         'reaper',
         'reaper-repairs-configuration',
-      ],
-    },
-    {
-      type: 'category',
-      label: 'TLS Encryption',
-      collapsed: true,
-      items: [
-        'server-tls-encryption-configuration',
-        'client-tls-encryption-configuration',
-        'create-tls-secret',
-        'update-tls-secret',
       ],
     },
     'exposing-clusters',

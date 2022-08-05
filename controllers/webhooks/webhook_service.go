@@ -3,6 +3,7 @@ package webhooks
 import (
 	"context"
 	"github.com/gogo/protobuf/proto"
+	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/config"
 	"github.com/ibm/cassandra-operator/controllers/names"
 	"github.com/ibm/cassandra-operator/controllers/util"
@@ -30,7 +31,7 @@ func setupWebhookService(kubeClient *kubernetes.Clientset, operatorConfig *confi
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      names.WebhooksServiceName(),
 			Namespace: operatorConfig.Namespace,
-			Labels:    map[string]string{"operator": "cassandra-operator"},
+			Labels:    dbv1alpha1.CassandraOperatorPodLabels,
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: "apps/v1",
@@ -51,7 +52,7 @@ func setupWebhookService(kubeClient *kubernetes.Clientset, operatorConfig *confi
 					},
 				},
 			},
-			Selector: map[string]string{"operator": "cassandra-operator"},
+			Selector: dbv1alpha1.CassandraOperatorPodLabels,
 			Type:     v1.ServiceTypeClusterIP,
 		},
 	}

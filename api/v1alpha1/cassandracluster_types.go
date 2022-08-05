@@ -31,6 +31,7 @@ const (
 	CassandraClusterComponentProber    = "prober"
 	CassandraClusterComponentReaper    = "reaper"
 	CassandraClusterComponentCassandra = "cassandra"
+	CassandraClusterNetworkPolicy      = "network-policy"
 
 	CassandraAgentTlp         = "tlp"
 	CassandraAgentInstaclustr = "instaclustr"
@@ -42,6 +43,9 @@ const (
 	CassandraOperatorAdminPassword = "admin-password"
 	CassandraOperatorJmxUsername   = "jmx-username"
 	CassandraOperatorJmxPassword   = "jmx-password"
+
+	CassandraOperatorInstance     = "operator"
+	CassandraOperatorInstanceName = "cassandra-operator"
 
 	ProberServicePort    = 80
 	JolokiaContainerPort = 8080
@@ -69,6 +73,8 @@ const (
 	ISOFormat = "2006-01-02T" + HMS // YYYY-MM-DDThh:mm:ss format (reaper API dates do not include timezone)
 )
 
+var CassandraOperatorPodLabels = map[string]string{CassandraOperatorInstance: CassandraOperatorInstanceName}
+
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 // Run "make" to regenerate code after modifying this file.
 
@@ -95,6 +101,10 @@ type CassandraClusterSpec struct {
 	// +kubebuilder:validation:Enum:=local_files;internal
 	JMXAuth    string     `json:"jmxAuth,omitempty"`
 	Encryption Encryption `json:"encryption,omitempty"`
+	// (Optional) Network policies for C* cluster
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Network Policies for C* cluster"
+	// +optional
+	NetworkPolicies NetworkPolicies `json:"networkPolicies,omitempty"`
 }
 
 type ExternalRegions struct {
@@ -377,6 +387,21 @@ type Ingress struct {
 	Secret           string            `json:"secret,omitempty"`
 	Annotations      map[string]string `json:"annotations,omitempty"`
 	IngressClassName *string           `json:"ingressClassName,omitempty"`
+}
+
+// NetworkPolicies enables network policies for C* cluster
+type NetworkPolicies struct {
+	Enabled              bool                `json:"enabled,omitempty"`
+	ExtraIngressRules    []NetworkPolicyRule `json:"extraIngressRules,omitempty"`
+	ExtraPrometheusRules []NetworkPolicyRule `json:"extraPrometheusRules,omitempty"`
+	ExtraCassandraRules  []NetworkPolicyRule `json:"extraCassandraRules,omitempty"`
+	ExtraCassandraIPs    []string            `json:"extraCassandraIPs,omitempty"`
+}
+
+type NetworkPolicyRule struct {
+	PodSelector       *metav1.LabelSelector `json:"podSelector,omitempty"`
+	NamespaceSelector *metav1.LabelSelector `json:"namespaceSelector,omitempty"`
+	Ports             []int32               `json:"ports,omitempty"`
 }
 
 func init() {

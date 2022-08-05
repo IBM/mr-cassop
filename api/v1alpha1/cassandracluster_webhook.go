@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	"fmt"
 	"github.com/google/go-cmp/cmp"
+	"github.com/ibm/cassandra-operator/controllers/util"
 	"time"
 
 	"go.uber.org/zap"
@@ -97,6 +98,10 @@ func validateCreateUpdate(cc *CassandraCluster, ccOld *CassandraCluster) (errors
 	}
 
 	if err = validateIngress(cc); err != nil {
+		errors = append(errors, err...)
+	}
+
+	if err = validateNetworkPolicies(cc); err != nil {
 		errors = append(errors, err...)
 	}
 
@@ -242,11 +247,21 @@ func validateIngress(cc *CassandraCluster) (errors []error) {
 		if !cc.Spec.HostPort.Enabled {
 			errors = append(errors, fmt.Errorf("hostPort must be enabled if an ingress domain is specified or external regions are in use"))
 		}
+
+		if !cc.Spec.NetworkPolicies.Enabled {
+			webhookLogger.Warnf("Network policies are not enabled but the cluster `%s` is exposed via ingress", cc.Name)
+		}
 	}
 
 	if cc.Spec.ExternalRegions.Managed != nil {
 		if len(cc.Spec.Ingress.Domain) == 0 {
 			errors = append(errors, fmt.Errorf("an ingress domain must be set if external regions are specified"))
+		}
+	}
+
+	for _, extRegion := range cc.Spec.ExternalRegions.Managed {
+		if extRegion.Domain == cc.Spec.Ingress.Domain && extRegion.Namespace == "" {
+			errors = append(errors, fmt.Errorf("namespace for external region must be set if ingress and managed domain names match"))
 		}
 	}
 
@@ -273,4 +288,32 @@ func checkRepairIntensity(intensity string) error {
 	}
 
 	return nil
+}
+
+func validateNetworkPolicies(cc *CassandraCluster) (errors []error) {
+	if !cc.Spec.NetworkPolicies.Enabled {
+		return nil
+	}
+
+	cassandraAllowedPorts := []string{
+		strconv.Itoa(IntraPort),
+		strconv.Itoa(TlsPort),
+		strconv.Itoa(JmxPort),
+		strconv.Itoa(CqlPort),
+		strconv.Itoa(ThriftPort),
+	}
+
+	for _, rule := range cc.Spec.NetworkPolicies.ExtraCassandraRules {
+		for _, port := range rule.Ports {
+			if !util.Contains(cassandraAllowedPorts, strconv.Itoa(int(port))) {
+				errors = append(errors, fmt.Errorf("provided port `%v` doesn't allowed. Allowed ports: %s", port, cassandraAllowedPorts))
+			}
+		}
+	}
+
+	if cc.Spec.NetworkPolicies.ExtraIngressRules == nil {
+		webhookLogger.Warnf("Prober is not secured by network policies. You may setup `networkPolicies.extraIngressRules` to enable network policies for prober component")
+	}
+
+	return errors
 }

@@ -150,3 +150,39 @@ func CassandraClientTLSCA(clusterName string) string {
 func CassandraClientTLSNode(clusterName string) string {
 	return clusterName + "-client-tls-node"
 }
+
+func CassandraClusterNetworkPolicyName(clustername string) string {
+	return clustername + "-cassandra-cluster-policies"
+}
+
+func CassandraHostPortPolicyName(clustername string) string {
+	return clustername + "-cassandra-hostport-policies"
+}
+
+func CassandraHostPortReaperPolicyName(clustername string) string {
+	return clustername + "-cassandra-hostport-reaper-policies"
+}
+
+func CassandraExternalManagedRegionsPolicyName(clustername string) string {
+	return clustername + "-cassandra-ext-managed-regions-policies"
+}
+
+func CassandraExtraRulesPolicyName(clustername string) string {
+	return clustername + "-cassandra-extra-rules-policies"
+}
+
+func CassandraExtraPrometheusRulesPolicyName(clustername string) string {
+	return clustername + "-cassandra-prometheus-rules-policies"
+}
+
+func CassandraExtraIpsPolicyName(clustername string) string {
+	return clustername + "-cassandra-extra-ips-policies"
+}
+
+func ProberNetworkPolicyName(clustername string) string {
+	return clustername + "-prober-policies"
+}
+
+func ReaperNetworkPolicyName(clustername string) string {
+	return clustername + "-reaper-policies"
+}

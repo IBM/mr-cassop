@@ -476,7 +476,7 @@ jobs:
     - name: Get go dependencies
       run: go mod download
     - name: Install Ginkgo
-      run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.1.0
+      run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.1.4
     - name: Run e2e tests
       id: e2e
       run: make e2e-tests

@@ -39,9 +39,8 @@ var (
 	restClientConfig *rest.Config
 	k8sClientset     *kubernetes.Clientset
 
-	operatorPodLabel = map[string]string{"operator": "cassandra-operator"}
-	ctx              = context.Background()
-	cfg              = testConfig{}
+	ctx = context.Background()
+	cfg = testConfig{}
 )
 
 type testConfig struct {
@@ -106,7 +105,7 @@ var _ = JustAfterEach(func() {
 		Expect(kubeClient.List(ctx, ccList)).To(Succeed())
 
 		GinkgoWriter.Println("Gathering log info for Cassandra Operator")
-		showPodLogs(operatorPodLabel, cfg.operatorNamespace)
+		showPodLogs(v1alpha1.CassandraOperatorPodLabels, cfg.operatorNamespace)
 
 		for _, cc := range ccList.Items {
 			GinkgoWriter.Printf("Gathering log info for CassandraCluster %s/%s\n", cc.Namespace, cc.Name)

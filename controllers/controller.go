@@ -98,7 +98,7 @@ type CassandraClusterReconciler struct {
 // +kubebuilder:rbac:groups="",resources=pods/status,verbs=get;patch;update
 // +kubebuilder:rbac:groups="",resources=pods/exec,verbs=create
 // +kubebuilder:rbac:groups=apps,resources=deployments;statefulsets,verbs=list;get;watch;create;update;delete
-// +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses;networkpolicies,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=services;serviceaccounts,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups="",resources=endpoints,verbs=list;watch
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
@@ -126,6 +126,7 @@ func (r *CassandraClusterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	cc := &v1alpha1.CassandraCluster{}
+
 	err := r.Get(ctx, types.NamespacedName{Name: req.Name, Namespace: req.Namespace}, cc)
 	if err != nil {
 		if apierrors.IsNotFound(err) { //do not react to CRD delete events
@@ -136,6 +137,10 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	}
 
 	r.defaultCassandraCluster(cc)
+
+	if err = r.cleanupNetworkPolicies(ctx, cc); err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Failed to cleanup network policies")
+	}
 
 	if err = r.reconcileTLSSecrets(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling TLS Secrets")
@@ -247,6 +252,11 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling statefulsets")
 	}
 
+	err = r.reconcileNetworkPolicies(ctx, cc, proberClient, podList)
+	if err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error reconciling network policies")
+	}
+
 	allDCs, err := r.getAllDCs(ctx, cc, proberClient)
 	if err != nil {
 		if errors.Cause(err) == ErrRegionNotReady {
@@ -326,8 +336,8 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	reaperClient := r.ReaperClient(reaperServiceURL(cc), cc.Name, cc.Spec.Reaper.RepairThreadCount)
 	isRunning, err := reaperClient.IsRunning(ctx)
 	if err != nil {
-		if err = proberClient.UpdateReaperStatus(ctx, false); err != nil {
-			return ctrl.Result{}, err
+		if updErr := proberClient.UpdateReaperStatus(ctx, false); updErr != nil {
+			return ctrl.Result{}, updErr
 		}
 		r.Log.Warnf("Reaper ping request failed: %s. Trying again in %s...", err.Error(), r.Cfg.RetryDelay)
 		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil

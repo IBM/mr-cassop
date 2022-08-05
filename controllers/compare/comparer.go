@@ -43,6 +43,8 @@ var (
 	secretOpts = []cmp.Option{cmpopts.IgnoreFields(v1.Secret{}, sharedIgnoreMetadata...)}
 
 	ingressOpts = []cmp.Option{cmpopts.IgnoreFields(nwv1.Ingress{}, sharedIgnoreMetadata...), cmpopts.IgnoreFields(nwv1.Ingress{}, sharedIgnoreStatus...)}
+
+	nwPolicyOpts = []cmp.Option{cmpopts.IgnoreFields(nwv1.NetworkPolicy{}, sharedIgnoreMetadata...)}
 )
 
 // EqualStatefulSet compares 2 statefulsets for equality
@@ -143,4 +145,12 @@ func EqualServiceMonitor(actual, desired *unstructured.Unstructured) bool {
 // DiffStatefulSet generates a patch diff between 2 servicemonitors
 func DiffServiceMonitor(actual, desired *unstructured.Unstructured) string {
 	return cmp.Diff(actual.Object["spec"], desired.Object["spec"]) + "\n" + cmp.Diff(actual.GetLabels(), desired.GetLabels())
+}
+
+func EqualNetworkPolicy(actual, desired *nwv1.NetworkPolicy) bool {
+	return cmp.Equal(actual, desired, nwPolicyOpts...)
+}
+
+func DiffNetworkPolicy(actual, desired *nwv1.NetworkPolicy) string {
+	return cmp.Diff(actual, desired, nwPolicyOpts...)
 }
