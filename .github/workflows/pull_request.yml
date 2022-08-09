@@ -123,7 +123,7 @@ jobs:
         outputs: type=docker,dest=cassandra-operator.tar
 
     - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@0.6.1
+      uses: aquasecurity/trivy-action@0.6.2
       with:
         input: "cassandra-operator.tar"
         exit-code: "1"
@@ -170,7 +170,7 @@ jobs:
         outputs: type=docker,dest=cassandra.tar
 
     - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@0.6.1
+      uses: aquasecurity/trivy-action@0.6.2
       with:
         input: "cassandra.tar"
         exit-code: "1"
@@ -219,7 +219,7 @@ jobs:
         outputs: type=docker,dest=prober.tar
 
     - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@0.6.1
+      uses: aquasecurity/trivy-action@0.6.2
       with:
         input: "prober.tar"
         exit-code: "1"
@@ -266,7 +266,7 @@ jobs:
         outputs: type=docker,dest=jolokia.tar
 
     - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@0.6.1
+      uses: aquasecurity/trivy-action@0.6.2
       with:
         input: "jolokia.tar"
         exit-code: "1"

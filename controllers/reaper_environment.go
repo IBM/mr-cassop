@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"fmt"
+	"github.com/ibm/cassandra-operator/controllers/util"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -12,7 +14,7 @@ import (
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 )
 
-func reaperEnvironment(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC, adminSecretChecksumStr string, clientTLSSecret *v1.Secret) []v1.EnvVar {
+func reaperEnvironment(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC, adminSecretChecksumStr string, clientTLSSecret *v1.Secret, broadcastAddresses map[string]string) []v1.EnvVar {
 	reaperEnv := []v1.EnvVar{
 		// http://cassandra-reaper.io/docs/configuration/docker_vars/
 		{Name: "ACTIVE_ADMIN_SECRET_SHA1", Value: adminSecretChecksumStr},
@@ -125,7 +127,33 @@ func reaperEnvironment(cc *v1alpha1.CassandraCluster, dc v1alpha1.DC, adminSecre
 		reaperEnv = append(reaperEnv, repairOpts...)
 	}
 
+	if cc.Spec.HostPort.Enabled {
+		reaperEnv = append(reaperEnv, jmxAddrTranslator(cc, dc, broadcastAddresses)...)
+	}
+
 	return reaperEnv
+}
+
+// jmxAddrTranslator maps C* node ips to internal address using service
+func jmxAddrTranslator(cc *dbv1alpha1.CassandraCluster, dc v1alpha1.DC, broadcastAddresses map[string]string) []v1.EnvVar {
+	var translatorMapping []string
+
+	for _, addr := range broadcastAddresses {
+		translatorMapping = append(translatorMapping, fmt.Sprintf("%s:%s.%s.svc.cluster.local", addr, names.DCService(cc.Name, dc.Name), cc.Namespace))
+	}
+
+	translatorMapping = util.Uniq(translatorMapping)
+	sort.Strings(translatorMapping)
+	translatorMappingVar := strings.Join(translatorMapping, ",")
+
+	return []v1.EnvVar{
+		{
+			Name: "JMX_ADDRESS_TRANSLATOR_TYPE", Value: "multiIpPerNode",
+		},
+		{
+			Name: "JMX_ADDRESS_TRANSLATOR_MAPPING", Value: translatorMappingVar,
+		},
+	}
 }
 
 func incrementalRepairOpts(cc *v1alpha1.CassandraCluster) []v1.EnvVar {

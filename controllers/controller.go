@@ -329,7 +329,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling reaper keyspace")
 	}
 
-	if res, err := r.reconcileReaper(ctx, cc); needsRequeue(res, err) {
+	if res, err := r.reconcileReaper(ctx, cc, podList, nodeList); needsRequeue(res, err) {
 		return res, err
 	}
 

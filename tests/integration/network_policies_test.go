@@ -135,7 +135,7 @@ var _ = Describe("network policies", func() {
 				netPolList := &nwv1.NetworkPolicyList{}
 				Expect(k8sClient.List(ctx, netPolList, client.InNamespace(cc.Namespace), client.MatchingLabels(labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterNetworkPolicy))))
 				return len(netPolList.Items)
-			}, mediumTimeout, mediumRetry).Should(BeEquivalentTo(9))
+			}, mediumTimeout, mediumRetry).Should(BeEquivalentTo(8))
 
 			netPol := &nwv1.NetworkPolicy{}
 
@@ -250,33 +250,6 @@ var _ = Describe("network policies", func() {
 							},
 							{
 								Port:     &intstr.IntOrString{IntVal: dbv1alpha1.IntraPort},
-								Protocol: &protocolTCP,
-							},
-						},
-						From: []nwv1.NetworkPolicyPeer{
-							{
-								IPBlock: &nwv1.IPBlock{CIDR: fmt.Sprintf("%s/32", nodeIP)},
-							},
-						},
-					},
-				},
-				PolicyTypes: []nwv1.PolicyType{"Ingress"},
-			}
-
-			Expect(netPol.Spec).To(BeEquivalentTo(expectedCasNetPolSpec))
-
-			By("Checking Cassandra HostPort Reaper network policy")
-			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.CassandraHostPortReaperPolicyName(cc.Name), Namespace: cc.Namespace}, netPol)).To(Succeed())
-
-			expectedCasNetPolSpec = nwv1.NetworkPolicySpec{
-				PodSelector: metav1.LabelSelector{
-					MatchLabels: map[string]string{dbv1alpha1.CassandraClusterComponent: dbv1alpha1.CassandraClusterComponentCassandra},
-				},
-				Ingress: []nwv1.NetworkPolicyIngressRule{
-					{
-						Ports: []nwv1.NetworkPolicyPort{
-							{
-								Port:     &intstr.IntOrString{IntVal: dbv1alpha1.JmxPort},
 								Protocol: &protocolTCP,
 							},
 						},

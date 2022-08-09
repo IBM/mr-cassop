@@ -26,13 +26,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-func (r *CassandraClusterReconciler) reconcileReaper(ctx context.Context, cc *dbv1alpha1.CassandraCluster) (ctrl.Result, error) {
+func (r *CassandraClusterReconciler) reconcileReaper(ctx context.Context, cc *dbv1alpha1.CassandraCluster, podList *v1.PodList, nodeList *v1.NodeList) (ctrl.Result, error) {
 	if err := r.reconcileShiroConfigMap(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling shiro configmap")
 	}
 
 	for index, dc := range cc.Spec.DCs {
-		if err := r.reconcileReaperDeployment(ctx, cc, dc); err != nil {
+		if err := r.reconcileReaperDeployment(ctx, cc, dc, podList, nodeList); err != nil {
 			return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile reaper deployment")
 		}
 
@@ -61,7 +61,7 @@ func (r *CassandraClusterReconciler) reconcileReaper(ctx context.Context, cc *db
 	return ctrl.Result{}, nil
 }
 
-func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Context, cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC) error {
+func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Context, cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, podList *v1.PodList, nodeList *v1.NodeList) error {
 	adminRoleSecret := &v1.Secret{}
 	err := r.Get(ctx, types.NamespacedName{Namespace: cc.Namespace, Name: names.ActiveAdminSecret(cc.Name)}, adminRoleSecret)
 	if err != nil {
@@ -75,6 +75,14 @@ func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Conte
 		clientTLSSecret, err = r.getSecret(ctx, cc.Spec.Encryption.Client.NodeTLSSecret.Name, cc.Namespace)
 		if err != nil {
 			return err
+		}
+	}
+
+	broadcastAddresses := make(map[string]string)
+	if cc.Spec.HostPort.Enabled {
+		broadcastAddresses, err = getBroadcastAddresses(cc, podList.Items, nodeList.Items)
+		if err != nil {
+			return errors.Wrap(err, "error getting broadcast addresses")
 		}
 	}
 
@@ -107,7 +115,7 @@ func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Conte
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
-						reaperContainer(cc, dc, adminSecretChecksum, clientTLSSecret),
+						reaperContainer(cc, dc, adminSecretChecksum, clientTLSSecret, broadcastAddresses),
 					},
 					Volumes:                       reaperVolumes(cc),
 					ImagePullSecrets:              imagePullSecrets(cc),
@@ -223,7 +231,7 @@ func (r *CassandraClusterReconciler) reconcileReaperService(ctx context.Context,
 	return nil
 }
 
-func reaperContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, adminSecretChecksum string, clientTLSSecret *v1.Secret) v1.Container {
+func reaperContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, adminSecretChecksum string, clientTLSSecret *v1.Secret, broadcastAddresses map[string]string) v1.Container {
 	container := v1.Container{
 		Name:            "reaper",
 		Image:           cc.Spec.Reaper.Image,
@@ -269,7 +277,7 @@ func reaperContainer(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, adminSec
 			InitialDelaySeconds: 600, //first init may take a long time because of the DB migration
 		},
 		Resources: cc.Spec.Reaper.Resources,
-		Env:       reaperEnvironment(cc, dc, adminSecretChecksum, clientTLSSecret),
+		Env:       reaperEnvironment(cc, dc, adminSecretChecksum, clientTLSSecret, broadcastAddresses),
 		VolumeMounts: []v1.VolumeMount{
 			{
 				Name:      "shiro-config",

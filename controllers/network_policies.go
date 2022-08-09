@@ -66,10 +66,6 @@ func (r *CassandraClusterReconciler) reconcileCassandraNetworkPolicies(ctx conte
 		return errors.Wrap(err, "Failed to reconcile network policy")
 	}
 
-	if err = r.cassandraClusterHostPortReaperPolicy(ctx, cc, baseCasPolicy); err != nil {
-		return errors.Wrap(err, "Failed to reconcile network policy")
-	}
-
 	if err = r.cassandraClusterExternalManagedRegionsPolicy(ctx, cc, baseCasPolicy, proberClient); err != nil {
 		return errors.Wrap(err, "Failed to reconcile network policy")
 	}
@@ -372,39 +368,6 @@ func (r *CassandraClusterReconciler) cassandraClusterHostportPolicy(ctx context.
 
 		if err := r.reconcileNetworkPolicy(ctx, cc, desiredHostPortClusterPolicy); err != nil {
 			return errors.Wrapf(err, "Failed to create/update network policy `%s`", desiredHostPortClusterPolicy.Name)
-		}
-	}
-
-	return nil
-}
-
-func (r *CassandraClusterReconciler) cassandraClusterHostPortReaperPolicy(ctx context.Context, cc *dbv1alpha1.CassandraCluster, baseNetworkPolicy *nwv1.NetworkPolicy) error {
-	var reaperPeers []nwv1.NetworkPolicyPeer
-
-	if cc.Spec.HostPort.Enabled {
-		desiredReaperHostportClusterPolicy := baseNetworkPolicy.DeepCopy()
-		desiredReaperHostportClusterPolicy.Name = names.CassandraHostPortReaperPolicyName(cc.Name)
-		reaperPodList := &v1.PodList{}
-		if err := r.List(ctx, reaperPodList, client.InNamespace(cc.Namespace), client.MatchingLabels(labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterComponentReaper))); err != nil {
-			return errors.Wrapf(err, "Failed to get reaper deployment")
-		}
-
-		for _, pod := range reaperPodList.Items {
-			reaperPeers = append(reaperPeers, nwv1.NetworkPolicyPeer{
-				IPBlock: &nwv1.IPBlock{CIDR: fmt.Sprintf("%s/32", pod.Status.HostIP)},
-			})
-		}
-
-		desiredReaperHostportClusterPolicy.Spec.Ingress = append(desiredReaperHostportClusterPolicy.Spec.Ingress, nwv1.NetworkPolicyIngressRule{
-			// Allow Reaper pods access C* via JMX
-			Ports: []nwv1.NetworkPolicyPort{
-				nwPolicyPort(dbv1alpha1.JmxPort),
-			},
-			From: reaperPeers,
-		})
-
-		if err := r.reconcileNetworkPolicy(ctx, cc, desiredReaperHostportClusterPolicy); err != nil {
-			return errors.Wrapf(err, "Failed to create/update network policy `%s`", desiredReaperHostportClusterPolicy.Name)
 		}
 	}
 
