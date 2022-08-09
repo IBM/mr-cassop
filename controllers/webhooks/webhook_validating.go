@@ -79,7 +79,6 @@ func CreateValidatingWebhookConf(namespace string, clusterRole *rbac.ClusterRole
 					UID:        clusterRole.UID,
 				},
 			},
-			ClusterName: "", // Not required as we are going to use single webhook for all clusters
 		},
 		Webhooks: []admissionv1.ValidatingWebhook{
 			{

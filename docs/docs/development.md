@@ -6,7 +6,7 @@ slug: /development
 ### Requirements:
 
 * Kubernetes 1.19 or newer. You can use [minikube](https://kubernetes.io/docs/setup/minikube/) or [kind](https://github.com/kubernetes-sigs/kind) for local development.
-* Go 1.17+ with enabled go modules
+* Go 1.18+ with enabled go modules
 * [OperatorSDK](https://github.com/operator-framework/operator-sdk) v1.15.0+
 * [kustomize](https://github.com/kubernetes-sigs/kustomize) 4.4.1+
 * [helm](https://helm.sh/) v3.7.02+

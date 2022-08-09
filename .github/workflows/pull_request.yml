@@ -4,8 +4,8 @@ on:
   pull_request:
 
 env:
-  GO_VERSION: 1.17
-  HELM_VERSION: v3.8.1
+  GO_VERSION: 1.18
+  HELM_VERSION: v3.9.2
   PYTHON_VERSION: 3.7 # required for helm tester
   IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
   IBM_CLOUD_REGION: us-south
@@ -59,7 +59,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        k8s: [1.19.2, 1.20.2, 1.21.2, 1.22.1, 1.23.1]
+        k8s: [1.20.2, 1.21.4, 1.22.1, 1.23.5, 1.24.2]
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -472,7 +472,7 @@ jobs:
     - name: Set up Go with latest minor version 1.x
       uses: actions/setup-go@v3
       with:
-        go-version: ^1.17
+        go-version: ^1.18
     - name: Get go dependencies
       run: go mod download
     - name: Install Ginkgo

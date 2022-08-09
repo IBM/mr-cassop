@@ -58,7 +58,7 @@ func (cc *CassandraCluster) ValidateUpdate(old runtime.Object) error {
 
 	ccOld, ok := old.(*CassandraCluster)
 	if !ok {
-		return fmt.Errorf("old casandra cluster object: (%s) is not of type CassandraCluster", ccOld.ClusterName)
+		return fmt.Errorf("old casandra cluster object: (%s) is not of type CassandraCluster", ccOld.Name)
 	}
 
 	return kerrors.NewAggregate(validateCreateUpdate(cc, ccOld))
