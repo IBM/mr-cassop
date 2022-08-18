@@ -392,6 +392,7 @@ type Ingress struct {
 // NetworkPolicies enables network policies for C* cluster
 type NetworkPolicies struct {
 	Enabled              bool                `json:"enabled,omitempty"`
+	AllowReaperNodeIPs   *bool               `json:"allowReaperNodeIPs,omitempty"`
 	ExtraIngressRules    []NetworkPolicyRule `json:"extraIngressRules,omitempty"`
 	ExtraPrometheusRules []NetworkPolicyRule `json:"extraPrometheusRules,omitempty"`
 	ExtraCassandraRules  []NetworkPolicyRule `json:"extraCassandraRules,omitempty"`

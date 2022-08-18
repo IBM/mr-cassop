@@ -125,3 +125,22 @@ func (p *Prober) putRegionIPs(w http.ResponseWriter, r *http.Request, _ httprout
 		p.state.regionIPs = ips
 	}
 }
+
+func (p *Prober) getReaperIPs(w http.ResponseWriter, _ *http.Request, _ httprouter.Params) {
+	response, _ := json.Marshal(p.state.reaperIPs)
+	p.write(w, response)
+}
+
+func (p *Prober) putReaperIPs(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	var ips []string
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		p.log.Error(err)
+		w.WriteHeader(http.StatusInternalServerError)
+	} else if json.Unmarshal(body, &ips) != nil {
+		p.log.Error(err)
+		w.WriteHeader(http.StatusBadRequest)
+	} else {
+		p.state.reaperIPs = ips
+	}
+}

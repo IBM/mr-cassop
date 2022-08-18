@@ -54,6 +54,10 @@ func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.Cass
 		cc.Spec.TopologySpreadByZone = proto.Bool(true)
 	}
 
+	if cc.Spec.NetworkPolicies.AllowReaperNodeIPs == nil {
+		cc.Spec.NetworkPolicies.AllowReaperNodeIPs = proto.Bool(true)
+	}
+
 	r.defaultServerTLS(cc)
 	r.defaultClientTLS(cc)
 

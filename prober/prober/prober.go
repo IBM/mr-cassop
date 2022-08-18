@@ -30,6 +30,7 @@ type state struct {
 	nodes       map[string]nodeState
 	podIPs      map[string]string
 	regionIPs   []string
+	reaperIPs   []string
 }
 
 type dc struct {
@@ -86,6 +87,8 @@ func setupRoutes(router *httprouter.Router, prober *Prober) {
 	router.Handler("GET", "/metrics", promhttp.Handler())
 	router.GET("/region-ips", prober.BasicAuth(prometheusMiddleware(prober.getRegionIPs)))
 	router.PUT("/region-ips", prober.BasicAuth(prometheusMiddleware(prober.putRegionIPs)))
+	router.GET("/reaper-ips", prober.BasicAuth(prometheusMiddleware(prober.getReaperIPs)))
+	router.PUT("/reaper-ips", prober.BasicAuth(prometheusMiddleware(prober.putReaperIPs)))
 }
 
 func (p *Prober) BasicAuth(h httprouter.Handle) httprouter.Handle {

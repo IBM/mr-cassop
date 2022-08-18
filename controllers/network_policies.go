@@ -70,6 +70,10 @@ func (r *CassandraClusterReconciler) reconcileCassandraNetworkPolicies(ctx conte
 		return errors.Wrap(err, "Failed to reconcile network policy")
 	}
 
+	if err = r.cassandraClusterHostPortReaperPolicy(ctx, cc, baseCasPolicy, proberClient); err != nil {
+		return errors.Wrap(err, "Failed to reconcile network policy")
+	}
+
 	if err = r.cassandraClusterExtraRulesPolicy(ctx, cc, baseCasPolicy); err != nil {
 		return errors.Wrap(err, "Failed to reconcile network policy")
 	}
@@ -323,7 +327,6 @@ func (r *CassandraClusterReconciler) cassandraClusterPolicy(ctx context.Context,
 }
 
 func (r *CassandraClusterReconciler) cassandraClusterHostportPolicy(ctx context.Context, cc *dbv1alpha1.CassandraCluster, baseNetworkPolicy *nwv1.NetworkPolicy, proberClient prober.ProberClient, podList *v1.PodList) error {
-	var casPeers []nwv1.NetworkPolicyPeer
 	var curRegionNodeIPs []string
 
 	if cc.Spec.HostPort.Enabled {
@@ -342,28 +345,17 @@ func (r *CassandraClusterReconciler) cassandraClusterHostportPolicy(ctx context.
 			return errors.Errorf("node ip list is empty")
 		}
 
-		if err := proberClient.UpdateRegionIps(ctx, curRegionNodeIPs); err != nil {
+		if err := proberClient.UpdateRegionIPs(ctx, curRegionNodeIPs); err != nil {
 			return err
 		}
 
-		// Pods can be scheduled on the same node, so we don't want to keep duplicated rules in nw policy
-		curRegionNodeIPs = util.Uniq(curRegionNodeIPs)
-		// need to sort to avoid for correct objects compare
-		sort.Strings(curRegionNodeIPs)
-		// Obtain C* pod ips within the current region
-		for _, ip := range curRegionNodeIPs {
-			casPeers = append(casPeers, nwv1.NetworkPolicyPeer{
-				IPBlock: &nwv1.IPBlock{CIDR: fmt.Sprintf("%s/32", ip)},
-			})
-		}
-
 		desiredHostPortClusterPolicy.Spec.Ingress = append(desiredHostPortClusterPolicy.Spec.Ingress, nwv1.NetworkPolicyIngressRule{
-			// Allow C* node ips from current region
+			// Allow C* node IPs from current region
 			Ports: []nwv1.NetworkPolicyPort{
 				nwPolicyPort(dbv1alpha1.TlsPort),
 				nwPolicyPort(dbv1alpha1.IntraPort),
 			},
-			From: casPeers,
+			From: generatePeers(curRegionNodeIPs),
 		})
 
 		if err := r.reconcileNetworkPolicy(ctx, cc, desiredHostPortClusterPolicy); err != nil {
@@ -376,41 +368,57 @@ func (r *CassandraClusterReconciler) cassandraClusterHostportPolicy(ctx context.
 
 func (r *CassandraClusterReconciler) cassandraClusterExternalManagedRegionsPolicy(ctx context.Context, cc *dbv1alpha1.CassandraCluster, baseNetworkPolicy *nwv1.NetworkPolicy, proberClient prober.ProberClient) error {
 	if cc.Spec.HostPort.Enabled && len(cc.Spec.ExternalRegions.Managed) > 0 {
+
 		desiredManagedRegionsCasPolicy := baseNetworkPolicy.DeepCopy()
 		desiredManagedRegionsCasPolicy.Name = names.CassandraExternalManagedRegionsPolicyName(cc.Name)
 
-		// Obtain C* pod ips from external regions
-		for _, managedRegion := range cc.Spec.ExternalRegions.Managed {
-			proberHost := names.ProberIngressDomain(cc, managedRegion)
-			managedRegionNodeIPs, err := proberClient.GetRegionIps(ctx, proberHost, "https")
+		casIPs := r.getExternalCassandraIPs(ctx, cc, proberClient)
 
-			if err == nil {
-				var casPeers []nwv1.NetworkPolicyPeer
-				managedRegionNodeIPs = util.Uniq(managedRegionNodeIPs)
-				// need to sort to avoid for correct objects compare
-				sort.Strings(managedRegionNodeIPs)
-				for _, ip := range managedRegionNodeIPs {
-					casPeers = append(casPeers, nwv1.NetworkPolicyPeer{
-						IPBlock: &nwv1.IPBlock{CIDR: fmt.Sprintf("%s/32", ip)},
-					})
-				}
-
-				desiredManagedRegionsCasPolicy.Spec.Ingress = append(desiredManagedRegionsCasPolicy.Spec.Ingress, nwv1.NetworkPolicyIngressRule{
-					// Allow C* node ips from external region
-					Ports: []nwv1.NetworkPolicyPort{
-						nwPolicyPort(dbv1alpha1.TlsPort),
-						nwPolicyPort(dbv1alpha1.IntraPort),
-					},
-					From: casPeers,
-				})
-			} else {
-				r.Log.Warnf("Failed to get C* ips from region `https://%s/region-ips`. Network Policies willn't be created in this region. Error: %v", proberHost, err)
-			}
-		}
+		desiredManagedRegionsCasPolicy.Spec.Ingress = append(desiredManagedRegionsCasPolicy.Spec.Ingress, nwv1.NetworkPolicyIngressRule{
+			// Allow C* node IPs from external region
+			Ports: []nwv1.NetworkPolicyPort{
+				nwPolicyPort(dbv1alpha1.TlsPort),
+				nwPolicyPort(dbv1alpha1.IntraPort),
+			},
+			From: generatePeers(casIPs),
+		})
 
 		if err := r.reconcileNetworkPolicy(ctx, cc, desiredManagedRegionsCasPolicy); err != nil {
 			return errors.Wrapf(err, "Failed to create/update network policy `%s`", desiredManagedRegionsCasPolicy.Name)
 		}
+	}
+
+	return nil
+}
+
+// This logic is needed to allow reaper pods from managed regions and all dcs within current region to talk to C* nodes via JMX through worker node's network
+func (r *CassandraClusterReconciler) cassandraClusterHostPortReaperPolicy(ctx context.Context, cc *dbv1alpha1.CassandraCluster, baseNetworkPolicy *nwv1.NetworkPolicy, proberClient prober.ProberClient) error {
+	if !*cc.Spec.NetworkPolicies.AllowReaperNodeIPs || !cc.Spec.HostPort.Enabled {
+		return nil
+	}
+
+	desiredExternalReaperPolicy := baseNetworkPolicy.DeepCopy()
+	desiredExternalReaperPolicy.Name = names.CassandraHostPortReaperPolicyName(cc.Name)
+
+	reaperIPs, err := r.getExternalReaperIPs(ctx, cc, proberClient)
+	if err != nil {
+		return err
+	}
+
+	r.Log.Debugf("reaperIPs: %s", reaperIPs)
+
+	desiredExternalReaperPolicy.Spec.Ingress = append(desiredExternalReaperPolicy.Spec.Ingress, nwv1.NetworkPolicyIngressRule{
+		// Allow Reaper IPs
+		Ports: []nwv1.NetworkPolicyPort{
+			nwPolicyPort(dbv1alpha1.JmxPort),
+		},
+		From: generatePeers(reaperIPs),
+	})
+
+	r.Log.Debug(desiredExternalReaperPolicy.Spec.Ingress)
+
+	if err := r.reconcileNetworkPolicy(ctx, cc, desiredExternalReaperPolicy); err != nil {
+		return errors.Wrapf(err, "Failed to create/update network policy `%s`", desiredExternalReaperPolicy.Name)
 	}
 
 	return nil
@@ -483,24 +491,17 @@ func (r *CassandraClusterReconciler) cassandraClusterExtraPrometheusRulesPolicy(
 
 func (r *CassandraClusterReconciler) cassandraClusterExtraIPsPolicy(ctx context.Context, cc *dbv1alpha1.CassandraCluster, baseNetworkPolicy *nwv1.NetworkPolicy) error {
 	if len(cc.Spec.NetworkPolicies.ExtraCassandraIPs) > 0 {
-		var addIps []nwv1.NetworkPolicyPeer
 
 		desiredAdditionalCasIpsPolicy := baseNetworkPolicy.DeepCopy()
 		desiredAdditionalCasIpsPolicy.Name = names.CassandraExtraIpsPolicyName(cc.Name)
 
-		for _, ip := range cc.Spec.NetworkPolicies.ExtraCassandraIPs {
-			addIps = append(addIps, nwv1.NetworkPolicyPeer{
-				IPBlock: &nwv1.IPBlock{CIDR: fmt.Sprintf("%s/32", ip)},
-			})
-		}
-
 		desiredAdditionalCasIpsPolicy.Spec.Ingress = []nwv1.NetworkPolicyIngressRule{
-			{ // Allow C* node ips from external region
+			{ // Allow C* node IPs from external region
 				Ports: []nwv1.NetworkPolicyPort{
 					nwPolicyPort(dbv1alpha1.TlsPort),
 					nwPolicyPort(dbv1alpha1.IntraPort),
 				},
-				From: addIps,
+				From: generatePeers(cc.Spec.NetworkPolicies.ExtraCassandraIPs),
 			},
 		}
 
@@ -510,6 +511,54 @@ func (r *CassandraClusterReconciler) cassandraClusterExtraIPsPolicy(ctx context.
 	}
 
 	return nil
+}
+
+func (r *CassandraClusterReconciler) getExternalCassandraIPs(ctx context.Context, cc *dbv1alpha1.CassandraCluster, proberClient prober.ProberClient) []string {
+	var casIPs []string
+
+	for _, managedRegion := range cc.Spec.ExternalRegions.Managed {
+		proberHost := names.ProberIngressDomain(cc, managedRegion)
+		managedRegionCasIPs, err := proberClient.GetRegionIPs(ctx, proberHost)
+		if err == nil {
+			casIPs = append(casIPs, managedRegionCasIPs...)
+		} else {
+			r.Log.Warnf("Failed to get C* IPs from region `https://%s/region-ips`. Network Policy rule won't be created for this region. Error: %v", proberHost, err)
+		}
+	}
+
+	return casIPs
+}
+
+func (r *CassandraClusterReconciler) getExternalReaperIPs(ctx context.Context, cc *dbv1alpha1.CassandraCluster, proberClient prober.ProberClient) ([]string, error) {
+	var reaperIPs []string
+
+	reaperPods := &v1.PodList{}
+	err := r.List(ctx, reaperPods, client.InNamespace(cc.Namespace), client.MatchingLabels(labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterComponentReaper)))
+	if err != nil {
+		r.Log.Error(err, "Cannot get reaper pod list")
+	}
+
+	// Obtain Reaper node IPs within the region
+	for _, pod := range reaperPods.Items {
+		reaperIPs = append(reaperIPs, pod.Status.HostIP)
+	}
+
+	if err = proberClient.UpdateReaperIPs(ctx, reaperIPs); err != nil {
+		return nil, errors.Wrapf(err, "Failed to update reaper ips")
+	}
+
+	// Obtain Reaper node ips from external regions
+	for _, managedRegion := range cc.Spec.ExternalRegions.Managed {
+		proberHost := names.ProberIngressDomain(cc, managedRegion)
+		externalReaperIPs, err := proberClient.GetReaperIPs(ctx, proberHost)
+		if err == nil {
+			reaperIPs = append(reaperIPs, externalReaperIPs...)
+		} else {
+			r.Log.Warnf("Failed to get Reaper IPs from region `https://%s/reaper-ips`. Network Policy rule won't be created for this region. Error: %v", proberHost, err)
+		}
+	}
+
+	return reaperIPs, nil
 }
 
 func nwPolicyPort(port int32) nwv1.NetworkPolicyPort {
@@ -530,4 +579,19 @@ func nwPolicyPeer(componentLabels map[string]string, namespace string) nwv1.Netw
 			MatchLabels: map[string]string{v1.LabelMetadataName: namespace},
 		},
 	}
+}
+
+func generatePeers(ips []string) []nwv1.NetworkPolicyPeer {
+	var peers []nwv1.NetworkPolicyPeer
+
+	ips = util.Uniq(ips)
+	sort.Strings(ips)
+
+	for _, ip := range ips {
+		peers = append(peers, nwv1.NetworkPolicyPeer{
+			IPBlock: &nwv1.IPBlock{CIDR: fmt.Sprintf("%s/32", ip)},
+		})
+	}
+
+	return peers
 }

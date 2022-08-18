@@ -25,8 +25,10 @@ type ProberClient interface {
 	RegionReady(ctx context.Context, host string) (bool, error)
 	ReaperReady(ctx context.Context, host string) (bool, error)
 	UpdateReaperStatus(ctx context.Context, ready bool) error
-	GetRegionIps(ctx context.Context, host, protocol string) ([]string, error)
-	UpdateRegionIps(ctx context.Context, ips []string) error
+	GetRegionIPs(ctx context.Context, host string) ([]string, error)
+	UpdateRegionIPs(ctx context.Context, ips []string) error
+	GetReaperIPs(ctx context.Context, host string) ([]string, error)
+	UpdateReaperIPs(ctx context.Context, ips []string) error
 }
 
 type proberClient struct {
@@ -247,7 +249,7 @@ func (p *proberClient) ReaperReady(ctx context.Context, host string) (bool, erro
 	return ready, nil
 }
 
-func (p *proberClient) UpdateRegionIps(ctx context.Context, ips []string) error {
+func (p *proberClient) UpdateRegionIPs(ctx context.Context, ips []string) error {
 	body, _ := json.Marshal(ips)
 	req, err := p.newRequestWithAuth(ctx, http.MethodPut, p.url("/region-ips"), body)
 	if err != nil {
@@ -261,8 +263,8 @@ func (p *proberClient) UpdateRegionIps(ctx context.Context, ips []string) error 
 	return nil
 }
 
-func (p *proberClient) GetRegionIps(ctx context.Context, host, protocol string) ([]string, error) {
-	req, err := p.newRequestWithAuth(ctx, http.MethodGet, fmt.Sprintf("%s://%s/region-ips", protocol, host), nil)
+func (p *proberClient) GetRegionIPs(ctx context.Context, host string) ([]string, error) {
+	req, err := p.newRequestWithAuth(ctx, http.MethodGet, fmt.Sprintf("https://%s/region-ips", host), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -270,6 +272,51 @@ func (p *proberClient) GetRegionIps(ctx context.Context, host, protocol string) 
 	resp, err := p.client.Do(req)
 	if err != nil {
 		return []string{}, errors.Wrap(err, "Get request to prober's `/region-ips` failed")
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return []string{}, fmt.Errorf("response status %q (code %v) is not %q",
+			http.StatusText(resp.StatusCode), resp.Status, http.StatusText(http.StatusOK))
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return []string{}, errors.Wrap(err, "Unable to read response body")
+	}
+
+	var ips []string
+	if err := json.Unmarshal(body, &ips); err != nil {
+		return []string{}, errors.Wrap(err, "Error unmarshalling response body")
+	}
+
+	return ips, nil
+}
+
+func (p *proberClient) UpdateReaperIPs(ctx context.Context, ips []string) error {
+	body, _ := json.Marshal(ips)
+	req, err := p.newRequestWithAuth(ctx, http.MethodPut, p.url("/reaper-ips"), body)
+	if err != nil {
+		return err
+	}
+
+	if _, err := p.client.Do(req); err != nil {
+		return errors.Wrap(err, "PUT request to prober's `/reaper-ips` endpoint failed")
+	}
+
+	return nil
+}
+
+func (p *proberClient) GetReaperIPs(ctx context.Context, host string) ([]string, error) {
+	req, err := p.newRequestWithAuth(ctx, http.MethodGet, fmt.Sprintf("https://%s/reaper-ips", host), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return []string{}, errors.Wrap(err, "Get request to prober's `/reaper-ips` failed")
 	}
 
 	defer resp.Body.Close()

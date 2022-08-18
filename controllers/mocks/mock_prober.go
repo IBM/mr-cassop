@@ -50,19 +50,34 @@ func (mr *MockProberClientMockRecorder) GetDCs(ctx, host interface{}) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDCs", reflect.TypeOf((*MockProberClient)(nil).GetDCs), ctx, host)
 }
 
-// GetRegionIps mocks base method.
-func (m *MockProberClient) GetRegionIps(ctx context.Context, host, protocol string) ([]string, error) {
+// GetReaperIPs mocks base method.
+func (m *MockProberClient) GetReaperIPs(ctx context.Context, host string) ([]string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetRegionIps", ctx, host, protocol)
+	ret := m.ctrl.Call(m, "GetReaperIPs", ctx, host)
 	ret0, _ := ret[0].([]string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetRegionIps indicates an expected call of GetRegionIps.
-func (mr *MockProberClientMockRecorder) GetRegionIps(ctx, host, protocol interface{}) *gomock.Call {
+// GetReaperIPs indicates an expected call of GetReaperIPs.
+func (mr *MockProberClientMockRecorder) GetReaperIPs(ctx, host interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRegionIps", reflect.TypeOf((*MockProberClient)(nil).GetRegionIps), ctx, host, protocol)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReaperIPs", reflect.TypeOf((*MockProberClient)(nil).GetReaperIPs), ctx, host)
+}
+
+// GetRegionIPs mocks base method.
+func (m *MockProberClient) GetRegionIPs(ctx context.Context, host string) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRegionIPs", ctx, host)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetRegionIPs indicates an expected call of GetRegionIPs.
+func (mr *MockProberClientMockRecorder) GetRegionIPs(ctx, host interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRegionIPs", reflect.TypeOf((*MockProberClient)(nil).GetRegionIPs), ctx, host)
 }
 
 // GetSeeds mocks base method.
@@ -139,6 +154,20 @@ func (mr *MockProberClientMockRecorder) UpdateDCs(ctx, dcs interface{}) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateDCs", reflect.TypeOf((*MockProberClient)(nil).UpdateDCs), ctx, dcs)
 }
 
+// UpdateReaperIPs mocks base method.
+func (m *MockProberClient) UpdateReaperIPs(ctx context.Context, ips []string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateReaperIPs", ctx, ips)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateReaperIPs indicates an expected call of UpdateReaperIPs.
+func (mr *MockProberClientMockRecorder) UpdateReaperIPs(ctx, ips interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateReaperIPs", reflect.TypeOf((*MockProberClient)(nil).UpdateReaperIPs), ctx, ips)
+}
+
 // UpdateReaperStatus mocks base method.
 func (m *MockProberClient) UpdateReaperStatus(ctx context.Context, ready bool) error {
 	m.ctrl.T.Helper()
@@ -153,18 +182,18 @@ func (mr *MockProberClientMockRecorder) UpdateReaperStatus(ctx, ready interface{
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateReaperStatus", reflect.TypeOf((*MockProberClient)(nil).UpdateReaperStatus), ctx, ready)
 }
 
-// UpdateRegionIps mocks base method.
-func (m *MockProberClient) UpdateRegionIps(ctx context.Context, ips []string) error {
+// UpdateRegionIPs mocks base method.
+func (m *MockProberClient) UpdateRegionIPs(ctx context.Context, ips []string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateRegionIps", ctx, ips)
+	ret := m.ctrl.Call(m, "UpdateRegionIPs", ctx, ips)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// UpdateRegionIps indicates an expected call of UpdateRegionIps.
-func (mr *MockProberClientMockRecorder) UpdateRegionIps(ctx, ips interface{}) *gomock.Call {
+// UpdateRegionIPs indicates an expected call of UpdateRegionIPs.
+func (mr *MockProberClientMockRecorder) UpdateRegionIPs(ctx, ips interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateRegionIps", reflect.TypeOf((*MockProberClient)(nil).UpdateRegionIps), ctx, ips)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateRegionIPs", reflect.TypeOf((*MockProberClient)(nil).UpdateRegionIPs), ctx, ips)
 }
 
 // UpdateRegionStatus mocks base method.

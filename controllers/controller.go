@@ -16,6 +16,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"time"
 
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/config"
@@ -252,11 +253,6 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling statefulsets")
 	}
 
-	err = r.reconcileNetworkPolicies(ctx, cc, proberClient, podList)
-	if err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "Error reconciling network policies")
-	}
-
 	allDCs, err := r.getAllDCs(ctx, cc, proberClient)
 	if err != nil {
 		if errors.Cause(err) == ErrRegionNotReady {
@@ -375,7 +371,12 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, err
 	}
 
-	return ctrl.Result{}, nil
+	err = r.reconcileNetworkPolicies(ctx, cc, proberClient, podList)
+	if err != nil {
+		return ctrl.Result{}, errors.Wrap(err, "Error reconciling network policies")
+	}
+
+	return ctrl.Result{RequeueAfter: time.Minute * 1}, nil
 }
 
 func needsRequeue(result ctrl.Result, err error) bool {

@@ -3,9 +3,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"net"
-	"net/url"
-
 	"github.com/gogo/protobuf/proto"
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
@@ -21,6 +18,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"net"
+	"net/url"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -62,6 +61,8 @@ func (r *CassandraClusterReconciler) reconcileReaper(ctx context.Context, cc *db
 }
 
 func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Context, cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, podList *v1.PodList, nodeList *v1.NodeList) error {
+	var broadcastAddresses map[string]string
+
 	adminRoleSecret := &v1.Secret{}
 	err := r.Get(ctx, types.NamespacedName{Namespace: cc.Namespace, Name: names.ActiveAdminSecret(cc.Name)}, adminRoleSecret)
 	if err != nil {
@@ -78,9 +79,8 @@ func (r *CassandraClusterReconciler) reconcileReaperDeployment(ctx context.Conte
 		}
 	}
 
-	broadcastAddresses := make(map[string]string)
 	if cc.Spec.HostPort.Enabled {
-		broadcastAddresses, err = getBroadcastAddresses(cc, podList.Items, nodeList.Items)
+		broadcastAddresses, err = getBroadcastAddresses(cc, filterPodsByDCName(podList.Items, dc.Name), nodeList.Items)
 		if err != nil {
 			return errors.Wrap(err, "error getting broadcast addresses")
 		}
@@ -442,4 +442,14 @@ func (r *CassandraClusterReconciler) reInitReaperIfNeeded(ctx context.Context, c
 	}
 
 	return nil
+}
+
+func filterPodsByDCName(podList []v1.Pod, dcName string) []v1.Pod {
+	var resPodList []v1.Pod
+	for _, pod := range podList {
+		if pod.Labels[dbv1alpha1.CassandraClusterDC] == dcName {
+			resPodList = append(resPodList, pod)
+		}
+	}
+	return resPodList
 }

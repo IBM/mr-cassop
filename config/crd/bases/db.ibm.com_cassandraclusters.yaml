@@ -1660,6 +1660,8 @@ spec:
               networkPolicies:
                 description: (Optional) Network policies for C* cluster
                 properties:
+                  allowReaperNodeIPs:
+                    type: boolean
                   enabled:
                     type: boolean
                   extraCassandraIPs:

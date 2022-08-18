@@ -107,7 +107,8 @@ var _ = Describe("network policies", func() {
 			mockProberClient.readyClusters = make(map[string]bool)
 			mockProberClient.seeds = make(map[string][]string)
 			mockProberClient.dcs = make(map[string][]dbv1alpha1.DC)
-			mockProberClient.regionIps = make(map[string][]string)
+			mockProberClient.regionIPs = make(map[string][]string)
+			mockProberClient.reaperIPs = make(map[string][]string)
 
 			for i, managedRegion := range cc.Spec.ExternalRegions.Managed {
 				ingressHost := names.ProberIngressDomain(cc, managedRegion)
@@ -119,7 +120,8 @@ var _ = Describe("network policies", func() {
 						Replicas: proto.Int32(3),
 					},
 				}
-				mockProberClient.regionIps[ingressHost] = []string{managedRegionNodeIP}
+				mockProberClient.regionIPs[ingressHost] = []string{managedRegionNodeIP}
+				mockProberClient.reaperIPs[ingressHost] = []string{managedRegionNodeIP}
 
 			}
 
@@ -135,7 +137,7 @@ var _ = Describe("network policies", func() {
 				netPolList := &nwv1.NetworkPolicyList{}
 				Expect(k8sClient.List(ctx, netPolList, client.InNamespace(cc.Namespace), client.MatchingLabels(labels.ComponentLabels(cc, dbv1alpha1.CassandraClusterNetworkPolicy))))
 				return len(netPolList.Items)
-			}, mediumTimeout, mediumRetry).Should(BeEquivalentTo(8))
+			}, mediumTimeout, mediumRetry).Should(BeEquivalentTo(9))
 
 			netPol := &nwv1.NetworkPolicy{}
 
@@ -287,6 +289,36 @@ var _ = Describe("network policies", func() {
 						From: []nwv1.NetworkPolicyPeer{
 							{
 								IPBlock: &nwv1.IPBlock{CIDR: fmt.Sprintf("%s/32", managedRegionNodeIP)},
+							},
+						},
+					},
+				},
+				PolicyTypes: []nwv1.PolicyType{"Ingress"},
+			}
+
+			Expect(netPol.Spec).To(BeEquivalentTo(expectedCasNetPolSpec))
+
+			By("Checking Cassandra HostPort Reaper network policy")
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: names.CassandraHostPortReaperPolicyName(cc.Name), Namespace: cc.Namespace}, netPol)).To(Succeed())
+
+			expectedCasNetPolSpec = nwv1.NetworkPolicySpec{
+				PodSelector: metav1.LabelSelector{
+					MatchLabels: map[string]string{dbv1alpha1.CassandraClusterComponent: dbv1alpha1.CassandraClusterComponentCassandra},
+				},
+				Ingress: []nwv1.NetworkPolicyIngressRule{
+					{
+						Ports: []nwv1.NetworkPolicyPort{
+							{
+								Port:     &intstr.IntOrString{IntVal: dbv1alpha1.JmxPort},
+								Protocol: &protocolTCP,
+							},
+						},
+						From: []nwv1.NetworkPolicyPeer{
+							{
+								IPBlock: &nwv1.IPBlock{CIDR: fmt.Sprintf("%s/32", managedRegionNodeIP)},
+							},
+							{
+								IPBlock: &nwv1.IPBlock{CIDR: fmt.Sprintf("%s/32", nodeIP)},
 							},
 						},
 					},

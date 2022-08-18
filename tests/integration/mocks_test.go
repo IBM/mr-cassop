@@ -25,7 +25,8 @@ type proberMock struct {
 	readyClusters map[string]bool
 	readyReaper   map[string]bool
 	err           error
-	regionIps     map[string][]string
+	regionIPs     map[string][]string
+	reaperIPs     map[string][]string
 }
 
 type cqlMock struct {
@@ -90,11 +91,19 @@ func (r proberMock) ReaperReady(ctx context.Context, host string) (bool, error) 
 	return reaperReady, nil
 }
 
-func (r proberMock) GetRegionIps(ctx context.Context, host, protocol string) ([]string, error) {
-	return r.regionIps[host], r.err
+func (r proberMock) GetRegionIPs(ctx context.Context, host string) ([]string, error) {
+	return r.regionIPs[host], r.err
 }
 
-func (r proberMock) UpdateRegionIps(ctx context.Context, ips []string) error {
+func (r proberMock) UpdateRegionIPs(ctx context.Context, ips []string) error {
+	return r.err
+}
+
+func (r proberMock) GetReaperIPs(ctx context.Context, host string) ([]string, error) {
+	return r.reaperIPs[host], r.err
+}
+
+func (r proberMock) UpdateReaperIPs(ctx context.Context, ips []string) error {
 	return r.err
 }
 
