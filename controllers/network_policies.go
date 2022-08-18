@@ -405,8 +405,6 @@ func (r *CassandraClusterReconciler) cassandraClusterHostPortReaperPolicy(ctx co
 		return err
 	}
 
-	r.Log.Debugf("reaperIPs: %s", reaperIPs)
-
 	desiredExternalReaperPolicy.Spec.Ingress = append(desiredExternalReaperPolicy.Spec.Ingress, nwv1.NetworkPolicyIngressRule{
 		// Allow Reaper IPs
 		Ports: []nwv1.NetworkPolicyPort{
@@ -414,8 +412,6 @@ func (r *CassandraClusterReconciler) cassandraClusterHostPortReaperPolicy(ctx co
 		},
 		From: generatePeers(reaperIPs),
 	})
-
-	r.Log.Debug(desiredExternalReaperPolicy.Spec.Ingress)
 
 	if err := r.reconcileNetworkPolicy(ctx, cc, desiredExternalReaperPolicy); err != nil {
 		return errors.Wrapf(err, "Failed to create/update network policy `%s`", desiredExternalReaperPolicy.Name)
