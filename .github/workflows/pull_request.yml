@@ -314,7 +314,7 @@ jobs:
       run: ct lint --target-branch=main --check-version-increment=false
 
     - name: Download Pluto
-      uses: FairwindsOps/pluto/github-action@v5.10.3
+      uses: FairwindsOps/pluto/github-action@v5.10.5
 
     - name: Scan for deprecated k8s APIs
       run: helm template cassandra-operator/ | pluto detect -
