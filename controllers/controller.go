@@ -82,7 +82,7 @@ type CassandraClusterReconciler struct {
 	Cfg           config.Config
 	Events        *events.EventRecorder
 	Jobs          *jobs.JobManager
-	ProberClient  func(url *url.URL, auth prober.Auth) prober.ProberClient
+	ProberClient  func(url *url.URL, user, password string) prober.ProberClient
 	CqlClient     func(cluster *gocql.ClusterConfig) (cql.CqlClient, error)
 	ReaperClient  func(url *url.URL, clusterName string, defaultRepairThreadCount int32) reaper.ReaperClient
 	NodectlClient func(jolokiaAddr, jmxUser, jmxPassword string, logr *zap.SugaredLogger) nodectl.Nodectl
@@ -127,7 +127,6 @@ func (r *CassandraClusterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	cc := &v1alpha1.CassandraCluster{}
-
 	err := r.Get(ctx, types.NamespacedName{Name: req.Name, Namespace: req.Namespace}, cc)
 	if err != nil {
 		if apierrors.IsNotFound(err) { //do not react to CRD delete events
@@ -141,6 +140,22 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 
 	if err = r.cleanupNetworkPolicies(ctx, cc); err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Failed to cleanup network policies")
+	}
+
+	clusterReady := false
+	ccStatus := cc.DeepCopy()
+	defer func() {
+		if ccStatus.Status.Ready != clusterReady {
+			ccStatus.Status.Ready = clusterReady
+			statusErr := r.Status().Update(ctx, ccStatus)
+			if statusErr != nil {
+				r.Log.Errorf("Failed to update cluster readiness state: %#v", statusErr)
+			}
+		}
+	}()
+	err = r.reconcileCassandraRBAC(ctx, cc)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	if err = r.reconcileTLSSecrets(ctx, cc); err != nil {
@@ -161,7 +176,12 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrapf(err, "Failed to get secret: %s", names.ActiveAdminSecret(cc.Name))
 	}
 
-	adminRole, adminPassword, err := extractCredentials(baseAdminSecret)
+	err = r.reconcileAnnotations(ctx, baseAdminSecret, map[string]string{v1alpha1.CassandraClusterInstance: cc.Name})
+	if err != nil {
+		return ctrl.Result{}, errors.Wrapf(err, "failed to reconcile annotations")
+	}
+
+	desiredAdminRole, desiredAdminPassword, err := extractCredentials(baseAdminSecret)
 	if err != nil {
 		errMsg := fmt.Sprintf("admin secret %q is invalid: %s", cc.Spec.AdminRoleSecretName, err.Error())
 		r.Log.Warn(errMsg)
@@ -169,12 +189,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 	}
 
-	proberAuth := prober.Auth{
-		Username: adminRole,
-		Password: adminPassword,
-	}
-
-	err = r.reconcileAdminAuth(ctx, cc, baseAdminSecret, proberAuth)
+	auth, err := r.reconcileAdminAuth(ctx, cc, desiredAdminRole, desiredAdminPassword)
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling Admin Auth Secrets")
 	}
@@ -199,7 +214,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		return ctrl.Result{}, errors.Wrap(err, "Error reconciling prober")
 	}
 
-	proberClient := r.ProberClient(proberURL(cc), proberAuth)
+	proberClient := r.ProberClient(proberURL(cc), auth.desiredRole, auth.desiredPassword)
 
 	proberReady, err := proberClient.Ready(ctx)
 	if err != nil {
@@ -230,7 +245,7 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 	nodeList := &v1.NodeList{}
 	//optimization - node info needed only if hostport or zoneAsRacks enabled
 	if cc.Spec.HostPort.Enabled || cc.Spec.Cassandra.ZonesAsRacks {
-		err := r.List(ctx, nodeList)
+		err = r.List(ctx, nodeList)
 		if err != nil {
 			return ctrl.Result{}, errors.Wrap(err, "can't get list of nodes")
 		}
@@ -290,17 +305,18 @@ func (r *CassandraClusterReconciler) reconcileWithContext(ctx context.Context, r
 		}
 	}
 
-	ready, err := r.clusterReady(ctx, cc, proberClient)
+	clusterReady, err = r.clusterReady(ctx, cc, proberClient)
 	if err != nil {
+		clusterReady = false
 		return ctrl.Result{}, err
 	}
 
-	if !ready {
+	if !clusterReady {
 		r.Log.Infof("Cluster not ready. Trying again in %s...", r.Cfg.RetryDelay)
 		return ctrl.Result{RequeueAfter: r.Cfg.RetryDelay}, nil
 	}
 
-	cqlClient, err := r.reconcileAdminRole(ctx, cc, allDCs)
+	cqlClient, err := r.reconcileAdminRole(ctx, cc, auth, allDCs)
 	if err != nil {
 		return ctrl.Result{}, errors.Wrap(err, "Failed to reconcile Admin Role")
 	}

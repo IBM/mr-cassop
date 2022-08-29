@@ -1,11 +1,12 @@
 package config
 
 import (
+	"reflect"
+	"time"
+
 	"github.com/caarlos0/env/v6"
 	"github.com/pkg/errors"
 	"go.uber.org/zap/zapcore"
-	"reflect"
-	"time"
 )
 
 var (
@@ -29,6 +30,7 @@ type Config struct {
 	DefaultProberImage    string        `env:"DEFAULT_PROBER_IMAGE,required"`
 	DefaultJolokiaImage   string        `env:"DEFAULT_JOLOKIA_IMAGE,required"`
 	DefaultReaperImage    string        `env:"DEFAULT_REAPER_IMAGE,required"`
+	DefaultIcarusImage    string        `env:"DEFAULT_ICARUS_IMAGE,required"`
 }
 
 func LoadConfig() (*Config, error) {

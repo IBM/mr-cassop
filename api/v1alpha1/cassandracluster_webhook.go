@@ -18,9 +18,11 @@ package v1alpha1
 
 import (
 	"fmt"
+	"strconv"
+	"time"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/ibm/cassandra-operator/controllers/util"
-	"time"
 
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,7 +30,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/yaml"
-	"strconv"
 )
 
 var webhookLogger = zap.NewNop().Sugar()
@@ -49,7 +50,7 @@ var _ webhook.Validator = &CassandraCluster{}
 func (cc *CassandraCluster) ValidateCreate() error {
 	webhookLogger.Infof("Validating webhook has been called on create request for cluster: %s", cc.Name)
 
-	return kerrors.NewAggregate(validateCreateUpdate(cc, nil))
+	return kerrors.NewAggregate(validateClusterCreateUpdate(cc, nil))
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
@@ -61,7 +62,7 @@ func (cc *CassandraCluster) ValidateUpdate(old runtime.Object) error {
 		return fmt.Errorf("old casandra cluster object: (%s) is not of type CassandraCluster", ccOld.Name)
 	}
 
-	return kerrors.NewAggregate(validateCreateUpdate(cc, ccOld))
+	return kerrors.NewAggregate(validateClusterCreateUpdate(cc, ccOld))
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
@@ -70,7 +71,7 @@ func (cc *CassandraCluster) ValidateDelete() error {
 	return nil
 }
 
-func validateCreateUpdate(cc *CassandraCluster, ccOld *CassandraCluster) (errors []error) {
+func validateClusterCreateUpdate(cc *CassandraCluster, ccOld *CassandraCluster) (errors []error) {
 	err := validateImmutableFields(cc, ccOld)
 	if err != nil {
 		errors = append(errors, err...)
@@ -301,6 +302,7 @@ func validateNetworkPolicies(cc *CassandraCluster) (errors []error) {
 		strconv.Itoa(JmxPort),
 		strconv.Itoa(CqlPort),
 		strconv.Itoa(ThriftPort),
+		strconv.Itoa(IcarusPort),
 	}
 
 	for _, rule := range cc.Spec.NetworkPolicies.ExtraCassandraRules {

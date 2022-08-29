@@ -1,0 +1,203 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.2
+  creationTimestamp: null
+  name: cassandrabackups.db.ibm.com
+spec:
+  group: db.ibm.com
+  names:
+    kind: CassandraBackup
+    listKind: CassandraBackupList
+    plural: cassandrabackups
+    singular: cassandrabackup
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: CassandraBackup is the Schema for the CassandraBackups API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              bandwidth:
+                description: bandwidth used during uploads
+                properties:
+                  unit:
+                    enum:
+                    - BPS
+                    - KBPS
+                    - MBPS
+                    - GBPS
+                    type: string
+                  value:
+                    format: int64
+                    minimum: 1
+                    type: integer
+                required:
+                - unit
+                - value
+                type: object
+              cassandraCluster:
+                description: CassandraCluster that is being backed up
+                type: string
+              concurrentConnections:
+                description: number of threads used for upload, there might be at
+                  most so many uploading threads at any given time, when not set,
+                  it defaults to 10
+                format: int64
+                minimum: 1
+                type: integer
+              createMissingBucket:
+                description: Automatically creates a bucket if it does not exist.
+                  If a bucket does not exist, backup operation will fail. Defaults
+                  to false.
+                type: boolean
+              dc:
+                description: name of datacenter to backup, nodes in the other datacenter(s)
+                  will not be involved
+                type: string
+              duration:
+                description: Based on this field, there will be throughput per second
+                  computed based on what size data we want to upload we have. The
+                  formula is "size / duration". The lower the duration is, the higher
+                  throughput per second we will need and vice versa. This will influence
+                  e.g. responsiveness of a node to its business requests so one can
+                  control how much bandwidth is used for backup purposes in case a
+                  cluster is fully operational. The format of this field is "amount
+                  unit". 'unit' is just a (case-insensitive) java.util.concurrent.TimeUnit
+                  enum value. If not used, there will not be any restrictions as how
+                  fast an upload can be.
+                type: string
+              entities:
+                description: database entities to backup, it might be either only
+                  keyspaces or only tables (from different keyspaces if needed), e.g.
+                  'k1,k2' if one wants to backup whole keyspaces and 'ks1.t1,ks2,t2'
+                  if one wants to backup tables. These formats can not be used together
+                  so 'k1,k2.t2' is invalid. If this field is empty, all keyspaces
+                  are backed up.
+                type: string
+              insecure:
+                description: Relevant during upload to S3-like bucket only. If true,
+                  communication is done via HTTP instead of HTTPS. Defaults to false.
+                type: boolean
+              metadataDirective:
+                description: Relevant during upload to S3-like bucket only. Specifies
+                  whether the metadata is copied from the source object or replaced
+                  with metadata provided in the request. Defaults to COPY. Consult
+                  com.amazonaws.services.s3.model.MetadatDirective for more information.
+                enum:
+                - COPY
+                - REPLACE
+                type: string
+              retry:
+                properties:
+                  enabled:
+                    description: Defaults to false if not specified. If false, retry
+                      mechanism on upload / download operations in case they fail
+                      will not be used.
+                    type: boolean
+                  interval:
+                    description: Time gap between retries, linear strategy will have
+                      always this gap constant, exponential strategy will make the
+                      gap bigger exponentially (power of 2) on each attempt
+                    format: int64
+                    minimum: 1
+                    type: integer
+                  maxAttempts:
+                    description: Number of repetitions of an upload / download operation
+                      in case it fails before giving up completely.
+                    format: int64
+                    minimum: 1
+                    type: integer
+                  strategy:
+                    description: Strategy how retry should be driven, might be either
+                      'LINEAR' or 'EXPONENTIAL'
+                    enum:
+                    - LINEAR
+                    - EXPONENTIAL
+                    type: string
+                type: object
+              secretName:
+                description: Name of the secret from which credentials used for the
+                  communication to cloud storage providers are read.
+                type: string
+              skipBucketVerification:
+                description: Do not check the existence of a bucket. Some storage
+                  providers (e.g. S3) requires a special permissions to be able to
+                  list buckets or query their existence which might not be allowed.
+                  This flag will skip that check. Keep in mind that if that bucket
+                  does not exist, the whole backup operation will fail.
+                type: boolean
+              skipRefreshing:
+                description: If set to true, refreshment of an object in a remote
+                  bucket (e.g. for s3) will be skipped. This might help upon backuping
+                  to specific s3 storage providers like Dell ECS storage. You will
+                  also skip versioning creating new versions when turned off as refreshment
+                  creates new version of files as a side effect.
+                type: boolean
+              snapshotTag:
+                description: Tag name that identifies the backup. Defaulted to the
+                  name of the CassandraBackup.
+                type: string
+              storageLocation:
+                description: 'example: gcp://myBucket location where SSTables will
+                  be uploaded. A value of the storageLocation property has to have
+                  exact format which is ''protocol://bucket-name protocol is either
+                  ''gcp'', ''s3'', ''azure'', ''minio'', ''ceph'' or ''oracle''.'
+                type: string
+              timeout:
+                description: number of hours to wait until backup is considered failed
+                  if not finished already
+                format: int64
+                minimum: 1
+                type: integer
+            required:
+            - cassandraCluster
+            - secretName
+            - storageLocation
+            type: object
+          status:
+            properties:
+              errors:
+                description: Errors that occurred during backup process. Errors from
+                  all nodes are aggregated here
+                items:
+                  properties:
+                    message:
+                      description: The error message
+                      type: string
+                    source:
+                      description: Name of the node where the error occurred
+                      type: string
+                  type: object
+                type: array
+              progress:
+                description: A value from 0 to 100 indicating the progress of the
+                  backup as a percentage
+                type: integer
+              state:
+                description: The current state of the backup
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

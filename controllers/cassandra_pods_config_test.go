@@ -1311,7 +1311,7 @@ export PAUSE_REASON="pod is not paused"
 
 		reconciler := &CassandraClusterReconciler{
 			Client: tClient,
-			ProberClient: func(url *url.URL, auth prober.Auth) prober.ProberClient {
+			ProberClient: func(url *url.URL, user, password string) prober.ProberClient {
 				return proberClient
 			},
 			Scheme: baseScheme,

@@ -29,6 +29,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ibm/cassandra-operator/controllers/icarus"
+
+	"github.com/ibm/cassandra-operator/controllers/cassandrarestore"
+
+	"github.com/ibm/cassandra-operator/controllers/cassandrabackup"
+
 	"github.com/ibm/cassandra-operator/controllers/nodectl"
 
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -84,6 +90,7 @@ var mockNodectlClient = &nodectlMock{}
 var mockNodetoolClient = &nodetoolMock{}
 var mockCQLClient = &cqlMock{}
 var mockReaperClient = &reaperMock{}
+var mockIcarusClient = &icarusMock{}
 var operatorConfig = config.Config{}
 var ctx = context.Background()
 var logr = zap.NewNop()
@@ -103,6 +110,14 @@ var (
 	cassandraObjectMeta = metav1.ObjectMeta{
 		Namespace: "default",
 		Name:      "test-cassandra-cluster",
+	}
+	cassandraBackupObjectMeta = metav1.ObjectMeta{
+		Namespace: "default",
+		Name:      "test-cassandra-backup",
+	}
+	cassandraRestoreObjectMeta = metav1.ObjectMeta{
+		Namespace: "default",
+		Name:      "test-cassandra-restore",
 	}
 
 	reaperDeploymentLabels = map[string]string{
@@ -182,6 +197,7 @@ var _ = BeforeSuite(func() {
 		DefaultProberImage:    "prober/image",
 		DefaultJolokiaImage:   "jolokia/image",
 		DefaultReaperImage:    "reaper/image",
+		DefaultIcarusImage:    "icarus/image",
 	}
 	sch := scheme.Scheme
 	k8sClient, err = client.New(cfg, client.Options{Scheme: sch})
@@ -206,13 +222,21 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 	Expect(mgr).ToNot(BeNil())
 
+	err = (&v1alpha1.CassandraBackup{}).SetupWebhookWithManager(mgr)
+	Expect(err).ToNot(HaveOccurred())
+	Expect(mgr).ToNot(BeNil())
+
+	err = (&v1alpha1.CassandraRestore{}).SetupWebhookWithManager(mgr)
+	Expect(err).ToNot(HaveOccurred())
+	Expect(mgr).ToNot(BeNil())
+
 	cassandraCtrl := &controllers.CassandraClusterReconciler{
 		Log:    logr.Sugar(),
 		Scheme: sch,
 		Client: k8sClient,
 		Cfg:    operatorConfig,
 		Events: events.NewEventRecorder(&record.FakeRecorder{}),
-		ProberClient: func(url *url.URL, auth prober.Auth) prober.ProberClient {
+		ProberClient: func(url *url.URL, user, password string) prober.ProberClient {
 			return mockProberClient
 		},
 		CqlClient: func(clusterConfig *gocql.ClusterConfig) (cql.CqlClient, error) {
@@ -241,9 +265,34 @@ var _ = BeforeSuite(func() {
 		},
 	}
 
+	cassandraBackupCtrl := &cassandrabackup.CassandraBackupReconciler{
+		Log:    logr.Sugar(),
+		Scheme: sch,
+		Client: k8sClient,
+		Cfg:    operatorConfig,
+		Events: events.NewEventRecorder(&record.FakeRecorder{}),
+		IcarusClient: func(coordinatorPodURL string) icarus.Icarus {
+			return mockIcarusClient
+		},
+	}
+
+	cassandraRestoreCtrl := &cassandrarestore.CassandraRestoreReconciler{
+		Log:    logr.Sugar(),
+		Scheme: sch,
+		Client: k8sClient,
+		Cfg:    operatorConfig,
+		Events: events.NewEventRecorder(&record.FakeRecorder{}),
+		IcarusClient: func(coordinatorPodURL string) icarus.Icarus {
+			return mockIcarusClient
+		},
+	}
+
 	testReconciler := SetupTestReconcile(cassandraCtrl)
-	err = controllers.SetupCassandraReconciler(testReconciler, mgr, zap.NewNop().Sugar(), make(chan event.GenericEvent))
-	Expect(err).ToNot(HaveOccurred())
+	Expect(controllers.SetupCassandraReconciler(testReconciler, mgr, zap.NewNop().Sugar(), make(chan event.GenericEvent))).To(Succeed())
+	testBackupReconciler := SetupTestReconcile(cassandraBackupCtrl)
+	Expect(cassandrabackup.SetupCassandraBackupReconciler(testBackupReconciler, mgr)).To(Succeed())
+	testRestoreReconciler := SetupTestReconcile(cassandraRestoreCtrl)
+	Expect(cassandrarestore.SetupCassandraRestoreReconciler(testRestoreReconciler, mgr)).To(Succeed())
 
 	mgrStopCh = StartTestManager(mgr)
 })
@@ -266,11 +315,29 @@ var _ = AfterEach(func() {
 		return reconcileInProgress
 	}, longTimeout, mediumRetry).Should(BeFalse(), "Test didn't stop triggering reconcile events. See operator logs for more details.")
 	CleanUpCreatedResources(cassandraObjectMeta.Name, cassandraObjectMeta.Namespace)
+	backup := &v1alpha1.CassandraBackup{}
+	err := k8sClient.Get(ctx, types.NamespacedName{Name: cassandraBackupObjectMeta.Name, Namespace: cassandraObjectMeta.Namespace}, backup)
+	if err == nil {
+		Expect(deleteResource(types.NamespacedName{Name: backup.Spec.SecretName, Namespace: cassandraBackupObjectMeta.Namespace}, &v1.Secret{})).To(Succeed())
+		expectResourceIsDeleted(types.NamespacedName{Name: backup.Spec.SecretName, Namespace: cassandraBackupObjectMeta.Namespace}, &v1.Secret{})
+		Expect(k8sClient.Delete(ctx, backup)).To(Succeed())
+	}
+
+	restore := &v1alpha1.CassandraRestore{}
+	err = k8sClient.Get(ctx, types.NamespacedName{Name: cassandraRestoreObjectMeta.Name, Namespace: cassandraRestoreObjectMeta.Namespace}, restore)
+	if err == nil {
+		if len(restore.Spec.SecretName) > 0 {
+			Expect(deleteResource(types.NamespacedName{Name: restore.Spec.SecretName, Namespace: cassandraRestoreObjectMeta.Namespace}, &v1.Secret{})).To(Succeed())
+			expectResourceIsDeleted(types.NamespacedName{Name: restore.Spec.SecretName, Namespace: cassandraRestoreObjectMeta.Namespace}, &v1.Secret{})
+		}
+		Expect(k8sClient.Delete(ctx, restore)).To(Succeed())
+	}
 	mockProberClient = &proberMock{}
 	mockNodectlClient = &nodectlMock{}
 	mockNodetoolClient = &nodetoolMock{}
 	mockCQLClient = &cqlMock{}
 	mockReaperClient = &reaperMock{}
+	mockIcarusClient = &icarusMock{}
 	testFinished = false
 })
 

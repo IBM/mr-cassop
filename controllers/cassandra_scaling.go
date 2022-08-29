@@ -98,7 +98,7 @@ func (r *CassandraClusterReconciler) reconcileCassandraScaling(ctx context.Conte
 	return true, nil
 }
 
-func (r CassandraClusterReconciler) handleDCsDecommission(ctx context.Context, cc *dbv1alpha1.CassandraCluster, stsNames []string, stsList map[string]appsv1.StatefulSet, allDCs []dbv1alpha1.DC, adminRoleSecret *v1.Secret, broadcastAddresses map[string]string, podList *v1.PodList) error {
+func (r *CassandraClusterReconciler) handleDCsDecommission(ctx context.Context, cc *dbv1alpha1.CassandraCluster, stsNames []string, stsList map[string]appsv1.StatefulSet, allDCs []dbv1alpha1.DC, adminRoleSecret *v1.Secret, broadcastAddresses map[string]string, podList *v1.PodList) error {
 	r.Log.Infof("Decommissioning DCs %v", stsNames)
 
 	keyspacesToReconcile := desiredKeyspacesToReconcile(cc)
@@ -175,7 +175,7 @@ func (r CassandraClusterReconciler) handleDCsDecommission(ctx context.Context, c
 	return nil
 }
 
-func (r CassandraClusterReconciler) handlePodDecommission(ctx context.Context, cc *dbv1alpha1.CassandraCluster, sts appsv1.StatefulSet, broadcastAddresses map[string]string, decommissionPodName string, podList *v1.PodList) error {
+func (r *CassandraClusterReconciler) handlePodDecommission(ctx context.Context, cc *dbv1alpha1.CassandraCluster, sts appsv1.StatefulSet, broadcastAddresses map[string]string, decommissionPodName string, podList *v1.PodList) error {
 	jobName := "pod-decommission-" + decommissionPodName
 	if r.Jobs.Exists(jobName) && r.Jobs.IsRunning(jobName) {
 		r.Log.Infof("decommission in progress, waiting to finish")
@@ -257,7 +257,7 @@ func (r CassandraClusterReconciler) handlePodDecommission(ctx context.Context, c
 	return nil
 }
 
-func (r CassandraClusterReconciler) podDecommissioned(ctx context.Context, cc *dbv1alpha1.CassandraCluster, nctl nodectl.Nodectl, pods []v1.Pod, decommissionPod v1.Pod, broadcastAddresses map[string]string) (bool, error) {
+func (r *CassandraClusterReconciler) podDecommissioned(ctx context.Context, cc *dbv1alpha1.CassandraCluster, nctl nodectl.Nodectl, pods []v1.Pod, decommissionPod v1.Pod, broadcastAddresses map[string]string) (bool, error) {
 	quorum := 0 //number of pods that need to agree that the pods is decommissioned
 	for _, pod := range pods {
 		podDC := pod.Labels[dbv1alpha1.CassandraClusterDC]
@@ -296,7 +296,7 @@ func (r CassandraClusterReconciler) podDecommissioned(ctx context.Context, cc *d
 	return notLiveView >= quorum, nil
 }
 
-func (r CassandraClusterReconciler) removeDC(ctx context.Context, cc *dbv1alpha1.CassandraCluster, sts appsv1.StatefulSet) error {
+func (r *CassandraClusterReconciler) removeDC(ctx context.Context, cc *dbv1alpha1.CassandraCluster, sts appsv1.StatefulSet) error {
 	dcName := sts.Labels[dbv1alpha1.CassandraClusterDC]
 
 	reaperDeploy := &appsv1.Deployment{}

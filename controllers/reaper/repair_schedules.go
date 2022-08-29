@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 
@@ -46,7 +46,7 @@ func (r *reaperClient) CreateRepairSchedule(ctx context.Context, repair dbv1alph
 		return err
 	}
 	defer resp.Body.Close()
-	b, _ := ioutil.ReadAll(resp.Body)
+	b, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 300 {
 		return &requestFailedWithStatus{code: resp.StatusCode, message: string(b)}
 	}
@@ -71,7 +71,7 @@ func (r *reaperClient) RepairSchedules(ctx context.Context) ([]RepairSchedule, e
 	}
 	defer resp.Body.Close()
 
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +106,7 @@ func (r *reaperClient) DeleteRepairSchedule(ctx context.Context, repairScheduleI
 	}
 	defer resp.Body.Close()
 
-	b, _ := ioutil.ReadAll(resp.Body)
+	b, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 300 {
 		return &requestFailedWithStatus{code: resp.StatusCode, message: string(b)}
 	}
@@ -137,7 +137,7 @@ func (r *reaperClient) SetRepairScheduleState(ctx context.Context, repairSchedul
 	}
 	defer resp.Body.Close()
 
-	b, _ := ioutil.ReadAll(resp.Body)
+	b, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 300 {
 		return &requestFailedWithStatus{code: resp.StatusCode, message: string(b)}
 	}

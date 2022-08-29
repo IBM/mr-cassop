@@ -5,13 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
-
 	"github.com/pkg/errors"
 )
 
@@ -42,11 +41,14 @@ type Auth struct {
 	Password string
 }
 
-func NewProberClient(url *url.URL, client *http.Client, auth Auth) ProberClient {
-	return &proberClient{url, client, auth}
+func NewProberClient(url *url.URL, client *http.Client, user, password string) ProberClient {
+	return &proberClient{url, client, Auth{
+		Username: user,
+		Password: password,
+	}}
 }
 
-func (p proberClient) url(path string) string {
+func (p *proberClient) url(path string) string {
 	return p.baseUrl.String() + path
 }
 
@@ -93,7 +95,7 @@ func (p *proberClient) GetSeeds(ctx context.Context, host string) ([]string, err
 			http.StatusText(resp.StatusCode), resp.StatusCode, http.StatusText(http.StatusOK))
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return []string{}, errors.Wrap(err, "Unable to read response body")
 	}
@@ -138,7 +140,7 @@ func (p *proberClient) GetDCs(ctx context.Context, host string) ([]v1alpha1.DC, 
 			http.StatusText(resp.StatusCode), resp.StatusCode, http.StatusText(http.StatusOK))
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to read response body")
 	}
@@ -194,7 +196,7 @@ func (p *proberClient) RegionReady(ctx context.Context, host string) (bool, erro
 			http.StatusText(resp.StatusCode), resp.StatusCode, http.StatusText(http.StatusOK))
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return false, err
 	}
@@ -236,7 +238,7 @@ func (p *proberClient) ReaperReady(ctx context.Context, host string) (bool, erro
 			http.StatusText(resp.StatusCode), resp.StatusCode, http.StatusText(http.StatusOK))
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return false, err
 	}
@@ -281,7 +283,7 @@ func (p *proberClient) GetRegionIPs(ctx context.Context, host string) ([]string,
 			http.StatusText(resp.StatusCode), resp.Status, http.StatusText(http.StatusOK))
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return []string{}, errors.Wrap(err, "Unable to read response body")
 	}
@@ -326,7 +328,7 @@ func (p *proberClient) GetReaperIPs(ctx context.Context, host string) ([]string,
 			http.StatusText(resp.StatusCode), resp.Status, http.StatusText(http.StatusOK))
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return []string{}, errors.Wrap(err, "Unable to read response body")
 	}

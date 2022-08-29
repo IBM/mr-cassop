@@ -65,7 +65,7 @@ func (r *CassandraClusterReconciler) reconcileDCStatefulSet(ctx context.Context,
 		desiredSts.Spec.Selector = actualSts.Spec.Selector
 		desiredSts.Spec.Template.Labels = actualSts.Spec.Template.Labels
 		// annotation can be used by things like `kubectl rollout sts restart` so don't overwrite it
-		desiredSts.Spec.Template.Annotations = actualSts.Spec.Template.Annotations
+		desiredSts.Spec.Template.Annotations = util.MergeMap(actualSts.Spec.Template.Annotations, desiredSts.Spec.Template.Annotations)
 		// scaling is handled by the scaling logic
 		desiredSts.Spec.Replicas = actualSts.Spec.Replicas
 		if !compare.EqualStatefulSet(desiredSts, actualSts) {
@@ -111,10 +111,15 @@ func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, res
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: stsLabels,
+					Annotations: map[string]string{
+						// https://kubernetes.io/docs/reference/labels-annotations-taints/#kubectl-kubernetes-io-default-container
+						"kubectl.kubernetes.io/default-container": "cassandra",
+					},
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
 						cassandraContainer(cc, dc, restartChecksum, clientTLSSecret),
+						icarusContainer(cc),
 					},
 					InitContainers: []v1.Container{
 						privilegedInitContainer(cc),
@@ -128,6 +133,7 @@ func cassandraStatefulSet(cc *dbv1alpha1.CassandraCluster, dc dbv1alpha1.DC, res
 						podsConfigVolume(cc),
 						authVolume(cc),
 					},
+					ServiceAccountName:            names.CassandraServiceAccount(cc.Name),
 					Affinity:                      dc.Affinity,
 					Tolerations:                   dc.Tolerations,
 					RestartPolicy:                 v1.RestartPolicyAlways,
@@ -267,6 +273,10 @@ func authVolume(cc *dbv1alpha1.CassandraCluster) v1.Volume {
 		{
 			Key:  dbv1alpha1.CassandraOperatorAdminPassword,
 			Path: dbv1alpha1.CassandraOperatorAdminPassword,
+		},
+		{
+			Key:  "icarus-jmx",
+			Path: "icarus-jmx",
 		},
 	}
 

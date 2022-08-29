@@ -62,7 +62,9 @@ func CreateValidatingWebhookConf(namespace string, clusterRole *rbac.ClusterRole
 		sideEffectNone    = admissionv1.SideEffectClassNone
 		failurePolicyType = admissionv1.Fail
 		namespacedScope   = admissionv1.NamespacedScope
-		webhookPath       = "/validate-db-ibm-com-v1alpha1-cassandracluster"
+		ccWebhookPath     = "/validate-db-ibm-com-v1alpha1-cassandracluster"
+		cbWebhookPath     = "/validate-db-ibm-com-v1alpha1-cassandrabackup"
+		crWebhookPath     = "/validate-db-ibm-com-v1alpha1-cassandrarestore"
 	)
 
 	return admissionv1.ValidatingWebhookConfiguration{
@@ -88,7 +90,7 @@ func CreateValidatingWebhookConf(namespace string, clusterRole *rbac.ClusterRole
 					Service: &admissionv1.ServiceReference{
 						Namespace: namespace,
 						Name:      names.WebhooksServiceName(),
-						Path:      &webhookPath,
+						Path:      &ccWebhookPath,
 						Port:      proto.Int32(443),
 					},
 					CABundle: caCrtBytes,
@@ -100,6 +102,68 @@ func CreateValidatingWebhookConf(namespace string, clusterRole *rbac.ClusterRole
 							APIGroups:   []string{"db.ibm.com"},
 							APIVersions: []string{"v1alpha1"},
 							Resources:   []string{"cassandraclusters"},
+							Scope:       &namespacedScope,
+						},
+					},
+				},
+				FailurePolicy:           &failurePolicyType,
+				MatchPolicy:             nil,
+				NamespaceSelector:       nil,
+				ObjectSelector:          nil,
+				SideEffects:             &sideEffectNone,
+				TimeoutSeconds:          nil,
+				AdmissionReviewVersions: []string{"v1", "v1beta1"},
+			},
+			{
+				Name: "vcassandrabackup.kb.io",
+				ClientConfig: admissionv1.WebhookClientConfig{
+					URL: nil,
+					Service: &admissionv1.ServiceReference{
+						Namespace: namespace,
+						Name:      names.WebhooksServiceName(),
+						Path:      &cbWebhookPath,
+						Port:      proto.Int32(443),
+					},
+					CABundle: caCrtBytes,
+				},
+				Rules: []admissionv1.RuleWithOperations{
+					{
+						Operations: []admissionv1.OperationType{admissionv1.Create, admissionv1.Update},
+						Rule: admissionv1.Rule{
+							APIGroups:   []string{"db.ibm.com"},
+							APIVersions: []string{"v1alpha1"},
+							Resources:   []string{"cassandrabackups"},
+							Scope:       &namespacedScope,
+						},
+					},
+				},
+				FailurePolicy:           &failurePolicyType,
+				MatchPolicy:             nil,
+				NamespaceSelector:       nil,
+				ObjectSelector:          nil,
+				SideEffects:             &sideEffectNone,
+				TimeoutSeconds:          nil,
+				AdmissionReviewVersions: []string{"v1", "v1beta1"},
+			},
+			{
+				Name: "vcassandrarestore.kb.io",
+				ClientConfig: admissionv1.WebhookClientConfig{
+					URL: nil,
+					Service: &admissionv1.ServiceReference{
+						Namespace: namespace,
+						Name:      names.WebhooksServiceName(),
+						Path:      &crWebhookPath,
+						Port:      proto.Int32(443),
+					},
+					CABundle: caCrtBytes,
+				},
+				Rules: []admissionv1.RuleWithOperations{
+					{
+						Operations: []admissionv1.OperationType{admissionv1.Create, admissionv1.Update},
+						Rule: admissionv1.Rule{
+							APIGroups:   []string{"db.ibm.com"},
+							APIVersions: []string{"v1alpha1"},
+							Resources:   []string{"cassandrarestores"},
 							Scope:       &namespacedScope,
 						},
 					},

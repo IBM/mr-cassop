@@ -156,7 +156,7 @@ func (r *CassandraClusterReconciler) reconcileSystemAuthKeyspace(ctx context.Con
 	return nil
 }
 
-func (r CassandraClusterReconciler) reconcileSystemAuthIfReady(ctx context.Context, cc *dbv1alpha1.CassandraCluster, allDCs []dbv1alpha1.DC) error {
+func (r *CassandraClusterReconciler) reconcileSystemAuthIfReady(ctx context.Context, cc *dbv1alpha1.CassandraCluster, allDCs []dbv1alpha1.DC) error {
 	adminRoleSecret := &v1.Secret{}
 	err := r.Get(ctx, types.NamespacedName{Namespace: cc.Namespace, Name: cc.Spec.AdminRoleSecretName}, adminRoleSecret)
 	if err != nil {

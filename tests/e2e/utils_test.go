@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -185,7 +185,7 @@ func doHTTPRequest(method string, url string) ([]byte, int, error) {
 	defer func() { _ = resp.Body.Close() }()
 
 	// Parse response
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -222,7 +222,7 @@ func getPodLogs(pod v1.Pod, podLogOpts v1.PodLogOptions) (string, error) {
 	return str, err
 }
 
-func execPod(podName string, namespace string, cmd []string) (ExecResult, error) {
+func execPod(podName string, namespace string, cmd []string, containerName string) (ExecResult, error) {
 	req := k8sClientset.CoreV1().RESTClient().Post().Resource("pods").Name(podName).
 		Namespace(namespace).SubResource("exec")
 	option := &v1.PodExecOptions{
@@ -231,6 +231,10 @@ func execPod(podName string, namespace string, cmd []string) (ExecResult, error)
 		Stdout:  true,
 		Stderr:  true,
 		TTY:     false,
+	}
+
+	if len(containerName) != 0 {
+		option.Container = containerName
 	}
 
 	req.VersionedParams(
@@ -300,31 +304,22 @@ func showPodLogs(labels map[string]string, namespace string) {
 	}
 
 	for _, pod := range podList.Items {
-		fmt.Println("Logs from pod: ", pod.Name)
-
 		for _, container := range pod.Spec.Containers {
 			logFileName := fmt.Sprintf("%s%s-%s-%s.txt", debugLogsDir, pod.Namespace, pod.Name, container.Name)
-			str, err := getPodLogs(pod, v1.PodLogOptions{TailLines: &cfg.tailLines, Container: container.Name})
-			if err != nil {
-				fileContent := []byte(fmt.Sprintf("couldn't get logs for pod %s/%s: %s", pod.Namespace, pod.Name, err.Error()))
-				Expect(ioutil.WriteFile(logFileName, fileContent, 0777)).To(Succeed())
-				continue
-			}
-			fmt.Println(str)
 			allLogs, err := getPodLogs(pod, v1.PodLogOptions{Container: container.Name})
 			if err != nil {
 				fileContent := []byte(fmt.Sprintf("couldn't get logs for pod %s/%s container %s: %s", pod.Namespace, pod.Name, container.Name, err.Error()))
-				Expect(ioutil.WriteFile(logFileName, fileContent, 0777)).To(Succeed())
+				Expect(os.WriteFile(logFileName, fileContent, 0777)).To(Succeed())
 				continue
 			}
 
-			Expect(ioutil.WriteFile(logFileName, []byte(allLogs), 0777)).To(Succeed())
+			Expect(os.WriteFile(logFileName, []byte(allLogs), 0777)).To(Succeed())
 		}
 	}
 }
 
-// showClusterEvents shows all events from the cluster. Helpful if the pods were not able to be schedule
-func showClusterEvents() {
+// writeClusterEvents write all events from the cluster to a file. Helpful if the pods were not able to be schedule
+func writeClusterEvents() {
 	eventsList := &v1.EventList{}
 	err := kubeClient.List(ctx, eventsList)
 	if err != nil {
@@ -342,14 +337,7 @@ func showClusterEvents() {
 		))
 	}
 
-	startIndex := len(eventsOutput) - int(cfg.tailLines)
-	if startIndex < 0 {
-		startIndex = 0
-	}
-
-	fmt.Println("Kubernetes events: ")
-	fmt.Print(strings.Join(eventsOutput[startIndex:], "\n"))
-	Expect(ioutil.WriteFile(debugLogsDir+"cluster-events.txt", []byte(strings.Join(eventsOutput, "\n")), 0777)).To(Succeed())
+	Expect(os.WriteFile(debugLogsDir+"cluster-events.txt", []byte(strings.Join(eventsOutput, "\n")), 0777)).To(Succeed())
 
 }
 

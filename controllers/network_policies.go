@@ -3,6 +3,8 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"sort"
+
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/compare"
 	"github.com/ibm/cassandra-operator/controllers/events"
@@ -19,7 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sort"
 )
 
 func (r *CassandraClusterReconciler) reconcileNetworkPolicies(ctx context.Context, cc *dbv1alpha1.CassandraCluster, proberClient prober.ProberClient, podList *v1.PodList) error {
@@ -174,7 +175,7 @@ func (r *CassandraClusterReconciler) reconcileProberNetworkPolicies(ctx context.
 	return nil
 }
 
-func (r CassandraClusterReconciler) reconcileReaperNetworkPolicies(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
+func (r *CassandraClusterReconciler) reconcileReaperNetworkPolicies(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
 	var err error
 
 	desiredReaperPolicy := &nwv1.NetworkPolicy{
@@ -284,6 +285,7 @@ func (r *CassandraClusterReconciler) cassandraClusterPolicy(ctx context.Context,
 			Ports: []nwv1.NetworkPolicyPort{
 				nwPolicyPort(dbv1alpha1.TlsPort),
 				nwPolicyPort(dbv1alpha1.IntraPort),
+				nwPolicyPort(dbv1alpha1.IcarusPort),
 			},
 			From: []nwv1.NetworkPolicyPeer{
 				nwPolicyPeer(map[string]string{dbv1alpha1.CassandraClusterComponent: dbv1alpha1.CassandraClusterComponentCassandra}, cc.Namespace),
@@ -293,6 +295,7 @@ func (r *CassandraClusterReconciler) cassandraClusterPolicy(ctx context.Context,
 		{
 			Ports: []nwv1.NetworkPolicyPort{
 				nwPolicyPort(dbv1alpha1.CqlPort),
+				nwPolicyPort(dbv1alpha1.IcarusPort),
 			},
 			From: []nwv1.NetworkPolicyPeer{
 				nwPolicyPeer(dbv1alpha1.CassandraOperatorPodLabels, r.Cfg.Namespace),
@@ -354,6 +357,7 @@ func (r *CassandraClusterReconciler) cassandraClusterHostportPolicy(ctx context.
 			Ports: []nwv1.NetworkPolicyPort{
 				nwPolicyPort(dbv1alpha1.TlsPort),
 				nwPolicyPort(dbv1alpha1.IntraPort),
+				nwPolicyPort(dbv1alpha1.IcarusPort),
 			},
 			From: generatePeers(curRegionNodeIPs),
 		})
@@ -379,6 +383,7 @@ func (r *CassandraClusterReconciler) cassandraClusterExternalManagedRegionsPolic
 			Ports: []nwv1.NetworkPolicyPort{
 				nwPolicyPort(dbv1alpha1.TlsPort),
 				nwPolicyPort(dbv1alpha1.IntraPort),
+				nwPolicyPort(dbv1alpha1.IcarusPort),
 			},
 			From: generatePeers(casIPs),
 		})

@@ -2,13 +2,13 @@ package webhooks
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/ibm/cassandra-operator/controllers/certs"
 	"github.com/ibm/cassandra-operator/controllers/config"
 	"github.com/ibm/cassandra-operator/controllers/names"
 	"github.com/pkg/errors"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 )
 
 func setupWebhookTLS(operatorConfig *config.Config) (*certs.Keypair, error) {
@@ -47,11 +47,11 @@ func writeWebhookTLS(dir string, kp certs.Keypair) error {
 
 	fMode := os.FileMode(0600)
 
-	if err := ioutil.WriteFile(filepath.Join(dir, "tls.crt"), kp.Crt, fMode); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "tls.crt"), kp.Crt, fMode); err != nil {
 		return errors.Wrap(err, "failed to write Webhook TLS certificate to container's filesystem")
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(dir, "tls.key"), kp.Pk, fMode); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "tls.key"), kp.Pk, fMode); err != nil {
 		return errors.Wrap(err, "failed to write Webhook TLS key to container's filesystem")
 	}
 

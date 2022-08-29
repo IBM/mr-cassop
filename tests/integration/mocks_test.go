@@ -4,6 +4,9 @@ import (
 	"context"
 	"reflect"
 	"strconv"
+	"time"
+
+	"github.com/ibm/cassandra-operator/controllers/icarus"
 
 	"github.com/ibm/cassandra-operator/controllers/nodectl"
 
@@ -45,6 +48,92 @@ type reaperMock struct {
 	clusters        []string
 	clusterName     string
 	err             error
+}
+
+type icarusMock struct {
+	backups  []icarus.Backup
+	restores []icarus.Restore
+	error
+}
+
+func (i *icarusMock) Backup(ctx context.Context, req icarus.BackupRequest) (icarus.Backup, error) {
+	backup := icarus.Backup{
+		ID:            "random_id",
+		State:         icarus.StateRunning,
+		Progress:      0.0,
+		Type:          "backup",
+		CreationTime:  time.Now().Format(time.RFC3339),
+		StartTime:     time.Now().Format(time.RFC3339),
+		Errors:        nil,
+		SchemaVersion: "schema-1",
+
+		StorageLocation:        req.StorageLocation,
+		Duration:               req.Duration,
+		SnapshotTag:            req.SnapshotTag,
+		ConcurrentConnections:  req.ConcurrentConnections,
+		Entities:               req.Entities,
+		K8sSecretName:          req.K8sSecretName,
+		K8sNamespace:           req.K8sNamespace,
+		Retry:                  req.Retry,
+		MetadataDirective:      req.MetadataDirective,
+		Timeout:                req.Timeout,
+		SkipBucketVerification: req.SkipBucketVerification,
+		SkipRefreshing:         req.SkipRefreshing,
+		CreateMissingBucket:    req.CreateMissingBucket,
+		DC:                     req.DC,
+		Insecure:               req.Insecure,
+		DataDirs:               req.DataDirs,
+		Bandwidth:              req.Bandwidth,
+		GlobalRequest:          req.GlobalRequest,
+	}
+
+	i.backups = append(i.backups, backup)
+	return backup, i.error
+}
+
+func (i *icarusMock) Backups(ctx context.Context) ([]icarus.Backup, error) {
+	return i.backups, i.error
+}
+
+func (i *icarusMock) Restore(ctx context.Context, req icarus.RestoreRequest) error {
+	restore := icarus.Restore{
+		Id:                        "random_id",
+		CreationTime:              time.Now().Format(time.RFC3339),
+		State:                     icarus.StateRunning,
+		Errors:                    nil,
+		Progress:                  0.0,
+		StartTime:                 time.Now().Format(time.RFC3339),
+		Type:                      "restore",
+		StorageLocation:           req.StorageLocation,
+		ConcurrentConnections:     req.ConcurrentConnections,
+		SnapshotTag:               req.SnapshotTag,
+		Entities:                  req.Entities,
+		RestorationStrategyType:   req.RestorationStrategyType,
+		RestorationPhase:          req.RestorationPhase,
+		Import:                    req.Import,
+		NoDeleteTruncates:         req.NoDeleteTruncates,
+		NoDeleteDownloads:         req.NoDeleteDownloads,
+		NoDownloadData:            req.NoDownloadData,
+		ExactSchemaVersion:        req.ExactSchemaVersion,
+		GlobalRequest:             req.GlobalRequest,
+		Timeout:                   req.Timeout,
+		ResolveHostIdFromTopology: req.ResolveHostIdFromTopology,
+		Insecure:                  req.Insecure,
+		SkipBucketVerification:    req.SkipBucketVerification,
+		Retry:                     req.Retry,
+		SinglePhase:               req.SinglePhase,
+		DataDirs:                  req.DataDirs,
+		DC:                        req.DC,
+		K8sNamespace:              req.K8sNamespace,
+		K8sSecretName:             req.K8sSecretName,
+		Rename:                    req.Rename,
+	}
+	i.restores = append(i.restores, restore)
+	return i.error
+}
+
+func (i *icarusMock) Restores(ctx context.Context) ([]icarus.Restore, error) {
+	return i.restores, i.error
 }
 
 func (r proberMock) Ready(ctx context.Context) (bool, error) {

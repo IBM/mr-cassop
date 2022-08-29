@@ -23,6 +23,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/ibm/cassandra-operator/controllers/icarus"
+
 	"github.com/go-logr/zapr"
 	"github.com/gocql/gocql"
 	"go.uber.org/zap"
@@ -40,6 +42,8 @@ import (
 
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers"
+	"github.com/ibm/cassandra-operator/controllers/cassandrabackup"
+	"github.com/ibm/cassandra-operator/controllers/cassandrarestore"
 	operatorCfg "github.com/ibm/cassandra-operator/controllers/config"
 	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/ibm/cassandra-operator/controllers/events"
@@ -127,8 +131,8 @@ func main() {
 		Scheme: mgr.GetScheme(),
 		Cfg:    *operatorConfig,
 		Events: eventRecorder,
-		ProberClient: func(url *url.URL, auth prober.Auth) prober.ProberClient {
-			return prober.NewProberClient(url, httpClient, auth)
+		ProberClient: func(url *url.URL, user, password string) prober.ProberClient {
+			return prober.NewProberClient(url, httpClient, user, password)
 		},
 		CqlClient: func(cluster *gocql.ClusterConfig) (cql.CqlClient, error) { return cql.NewCQLClient(cluster) },
 		NodectlClient: func(jolokiaAddr, jmxUser, jmxPassword string, logr *zap.SugaredLogger) nodectl.Nodectl {
@@ -142,6 +146,38 @@ func main() {
 	err = controllers.SetupCassandraReconciler(cassandraReconciler, mgr, logr, reconcileChan)
 	if err != nil {
 		logr.With(zap.Error(err)).Error("unable to create controller", "controller", "CassandraCluster")
+		os.Exit(1)
+	}
+
+	cassandraBackupReconciler := &cassandrabackup.CassandraBackupReconciler{
+		Client: mgr.GetClient(),
+		Log:    logr,
+		Scheme: mgr.GetScheme(),
+		Cfg:    *operatorConfig,
+		Events: eventRecorder,
+		IcarusClient: func(coordinatorPodURL string) icarus.Icarus {
+			return icarus.New(coordinatorPodURL)
+		},
+	}
+	err = cassandrabackup.SetupCassandraBackupReconciler(cassandraBackupReconciler, mgr)
+	if err != nil {
+		logr.With(zap.Error(err)).Error("unable to create controller", "controller", "CassandraBackup")
+		os.Exit(1)
+	}
+
+	cassandraRestoreReconciler := &cassandrarestore.CassandraRestoreReconciler{
+		Client: mgr.GetClient(),
+		Log:    logr,
+		Scheme: mgr.GetScheme(),
+		Cfg:    *operatorConfig,
+		Events: eventRecorder,
+		IcarusClient: func(coordinatorPodURL string) icarus.Icarus {
+			return icarus.New(coordinatorPodURL)
+		},
+	}
+	err = cassandrarestore.SetupCassandraRestoreReconciler(cassandraRestoreReconciler, mgr)
+	if err != nil {
+		logr.With(zap.Error(err)).Error("unable to create controller", "controller", "CassandraRestore")
 		os.Exit(1)
 	}
 
@@ -164,7 +200,15 @@ func main() {
 		mgr.GetWebhookServer().Port = int(operatorConfig.WebhooksPort)
 		mgr.GetWebhookServer().CertDir = names.OperatorWebhookTLSDir()
 		if err = (&dbv1alpha1.CassandraCluster{}).SetupWebhookWithManager(mgr); err != nil {
-			logr.With(zap.Error(err)).Fatal("failed to setup webhook with manager")
+			logr.With(zap.Error(err)).Fatal("failed to setup webhook with manager for cassandracluster")
+			os.Exit(1)
+		}
+		if err = (&dbv1alpha1.CassandraBackup{}).SetupWebhookWithManager(mgr); err != nil {
+			logr.With(zap.Error(err)).Fatal("failed to setup webhook with manager for cassandrabackup")
+			os.Exit(1)
+		}
+		if err = (&dbv1alpha1.CassandraRestore{}).SetupWebhookWithManager(mgr); err != nil {
+			logr.With(zap.Error(err)).Fatal("failed to setup webhook with manager for cassandrarestore")
 			os.Exit(1)
 		}
 		dbv1alpha1.SetWebhookLogger(logr)

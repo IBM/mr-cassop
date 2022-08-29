@@ -344,7 +344,7 @@ func reaperVolumes(cc *dbv1alpha1.CassandraCluster) []v1.Volume {
 	return volume
 }
 
-func (r CassandraClusterReconciler) reaperInitialization(ctx context.Context, cc *dbv1alpha1.CassandraCluster, reaperClient reaper.ReaperClient) error {
+func (r *CassandraClusterReconciler) reaperInitialization(ctx context.Context, cc *dbv1alpha1.CassandraCluster, reaperClient reaper.ReaperClient) error {
 	seed := getSeedHostname(cc, cc.Spec.DCs[0].Name, 0, true)
 	clusterExists, err := reaperClient.ClusterExists(ctx)
 	if err != nil {

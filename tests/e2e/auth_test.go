@@ -113,7 +113,7 @@ CREATE TABLE e2e_tests.e2e_tests_table (
 				fmt.Sprintf("cqlsh -u %s -p \"%s\" -e \"DESCRIBE KEYSPACES\"", testAdminRole, testAdminPassword),
 			}
 			Eventually(func() (string, error) {
-				execResult, err := execPod(pod.Name, pod.Namespace, selectQueryCmd)
+				execResult, err := execPod(pod.Name, pod.Namespace, selectQueryCmd, "cassandra")
 				if err != nil {
 					return "", err
 				}
@@ -211,7 +211,7 @@ CREATE TABLE e2e_tests.e2e_tests_table (
 			}
 
 			Eventually(func() error {
-				_, err := execPod(pod.Name, pod.Namespace, cmd)
+				_, err := execPod(pod.Name, pod.Namespace, cmd, "cassandra")
 				return err
 			}, 3*time.Minute, 15*time.Second).ShouldNot(Succeed())
 
@@ -236,7 +236,7 @@ CREATE TABLE e2e_tests.e2e_tests_table (
 					"-c",
 					fmt.Sprintf("sysctl -n %s", key),
 				}
-				execResult, err := execPod(pod.Name, pod.Namespace, cmd)
+				execResult, err := execPod(pod.Name, pod.Namespace, cmd, "cassandra")
 				Expect(err).ToNot(HaveOccurred())
 				Expect(execResult.stderr).To(BeEmpty())
 				Expect(strings.TrimSpace(execResult.stdout)).To(Equal(value))
@@ -278,7 +278,7 @@ func testCQLLogin(cc *dbv1alpha1.CassandraCluster, podName, podNamespace, roleNa
 	}
 	stdout := ""
 	Eventually(func() error {
-		execResult, err := execPod(podName, podNamespace, cmd)
+		execResult, err := execPod(podName, podNamespace, cmd, "cassandra")
 		stdout = execResult.stdout
 		return err
 	}, 5*time.Minute, 15*time.Second).Should(Succeed())

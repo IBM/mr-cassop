@@ -30,6 +30,7 @@ func (r *CassandraClusterReconciler) defaultCassandraCluster(cc *dbv1alpha1.Cass
 
 	r.defaultCassandra(cc)
 	r.defaultProber(cc)
+	r.defaultIcarus(cc)
 	r.defaultReaper(cc)
 
 	if len(cc.Spec.Maintenance) > 0 {
@@ -162,6 +163,16 @@ func (r *CassandraClusterReconciler) defaultProber(cc *dbv1alpha1.CassandraClust
 		if _, err := time.ParseDuration(cc.Spec.Prober.ServiceMonitor.ScrapeInterval); err != nil {
 			cc.Spec.Prober.ServiceMonitor.ScrapeInterval = "30s"
 		}
+	}
+}
+
+func (r *CassandraClusterReconciler) defaultIcarus(cc *dbv1alpha1.CassandraCluster) {
+	if cc.Spec.Icarus.Image == "" {
+		cc.Spec.Icarus.Image = r.Cfg.DefaultIcarusImage
+	}
+
+	if cc.Spec.Icarus.ImagePullPolicy == "" {
+		cc.Spec.Icarus.ImagePullPolicy = v1.PullIfNotPresent
 	}
 }
 

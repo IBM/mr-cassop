@@ -122,7 +122,8 @@ var _ = JustAfterEach(func() {
 			showPodLogs(map[string]string{v1alpha1.CassandraClusterInstance: cc.Name}, cc.Namespace)
 		}
 
-		showClusterEvents()
+		writeClusterEvents()
+		GinkgoWriter.Println("Wrote logs to %s directory", debugLogsDir)
 	}
 })
 

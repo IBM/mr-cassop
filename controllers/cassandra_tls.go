@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"regexp"
@@ -93,23 +92,23 @@ func newTLSSecret(cc *dbv1alpha1.CassandraCluster, secretType tlsSecretType) *tl
 }
 
 func newTLSSecretRequiredFields(cc *dbv1alpha1.CassandraCluster, secretType tlsSecretType) ([]string, error) {
-	var tlsSecret dbv1alpha1.NodeTLSSecret
+	var nodeTLSSecret dbv1alpha1.NodeTLSSecret
 	switch secretType {
 	case clientNode:
-		tlsSecret = cc.Spec.Encryption.Client.NodeTLSSecret
+		nodeTLSSecret = cc.Spec.Encryption.Client.NodeTLSSecret
 	case serverNode:
-		tlsSecret = cc.Spec.Encryption.Server.NodeTLSSecret
+		nodeTLSSecret = cc.Spec.Encryption.Server.NodeTLSSecret
 	default:
 		return nil, errors.New(fmt.Sprintf("only node secrets should check required fields. secretType: %v", secretType))
 	}
 	return []string{
-		tlsSecret.CACrtFileKey,
-		tlsSecret.CrtFileKey,
-		tlsSecret.FileKey,
-		tlsSecret.KeystoreFileKey,
-		tlsSecret.TruststoreFileKey,
-		tlsSecret.KeystorePasswordKey,
-		tlsSecret.TruststorePasswordKey,
+		nodeTLSSecret.CACrtFileKey,
+		nodeTLSSecret.CrtFileKey,
+		nodeTLSSecret.FileKey,
+		nodeTLSSecret.KeystoreFileKey,
+		nodeTLSSecret.TruststoreFileKey,
+		nodeTLSSecret.KeystorePasswordKey,
+		nodeTLSSecret.TruststorePasswordKey,
 	}, nil
 }
 
@@ -130,30 +129,30 @@ func (r *CassandraClusterReconciler) validateTLSFields(cc *dbv1alpha1.CassandraC
 
 func (r *CassandraClusterReconciler) reconcileNodeTLSSecret(ctx context.Context, cc *dbv1alpha1.CassandraCluster, restartChecksum checksumContainer, secretType tlsSecretType) (*v1.Secret, error) {
 	secret := newTLSSecret(cc, secretType)
-	tlsSecret, err := r.getTLSSecret(ctx, cc, secret, false)
+	k8sTLSSecret, err := r.getTLSSecret(ctx, cc, secret, false)
 	if err != nil {
 		return nil, err
 	}
 
-	if err = r.validateTLSFields(cc, tlsSecret, secretType); err != nil {
+	if err = r.validateTLSFields(cc, k8sTLSSecret, secretType); err != nil {
 		return nil, errors.Wrapf(err, "failed to validate %s: %s fields", secret.fieldPath, *secret.secretName)
 	}
 
 	annotations := make(map[string]string)
 	annotations[dbv1alpha1.CassandraClusterInstance] = cc.Name
-	err = r.reconcileAnnotations(ctx, tlsSecret, annotations)
+	err = r.reconcileAnnotations(ctx, k8sTLSSecret, annotations)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to reconcile annotations for secret `%s`", tlsSecret.Name)
+		return nil, errors.Wrapf(err, "failed to reconcile annotations for secret `%s`", k8sTLSSecret.Name)
 	}
 
-	restartChecksum[secret.annotation] = fmt.Sprintf("%v", tlsSecret.Data)
-	return tlsSecret, nil
+	restartChecksum[secret.annotation] = fmt.Sprintf("%v", k8sTLSSecret.Data)
+	return k8sTLSSecret, nil
 }
 
 func (r *CassandraClusterReconciler) getTLSSecret(ctx context.Context, cc *dbv1alpha1.CassandraCluster, secret *tlsSecret, allowDefaulting bool) (*v1.Secret, error) {
-	tlsSecret := &v1.Secret{}
+	k8sTLSSecret := &v1.Secret{}
 	secretName := secret.secretName
-	err := r.Get(ctx, types.NamespacedName{Name: *secretName, Namespace: cc.Namespace}, tlsSecret)
+	err := r.Get(ctx, types.NamespacedName{Name: *secretName, Namespace: cc.Namespace}, k8sTLSSecret)
 	if err != nil && kerrors.IsNotFound(err) {
 		errMsg := fmt.Sprintf("%s: %s was not found", secret.fieldPath, *secretName)
 		if allowDefaulting {
@@ -164,7 +163,7 @@ func (r *CassandraClusterReconciler) getTLSSecret(ctx context.Context, cc *dbv1a
 	} else if err != nil {
 		return nil, errors.Wrapf(err, "failed to get secret: %s: %s", secret.fieldPath, *secretName)
 	}
-	return tlsSecret, nil
+	return k8sTLSSecret, nil
 }
 
 func (r *CassandraClusterReconciler) reconcileServerEncryption(ctx context.Context, cc *dbv1alpha1.CassandraCluster) error {
@@ -456,17 +455,17 @@ func (r *CassandraClusterReconciler) setupClientTLSFiles(ctx context.Context, cc
 		return errors.Wrapf(err, "failed to create directory: %s", names.OperatorClientTLSDir(cc))
 	}
 
-	err = ioutil.WriteFile(fmt.Sprintf("%s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.NodeTLSSecret.CACrtFileKey), clientTLSSecret.Data[cc.Spec.Encryption.Client.NodeTLSSecret.CACrtFileKey], 0600)
+	err = os.WriteFile(fmt.Sprintf("%s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.NodeTLSSecret.CACrtFileKey), clientTLSSecret.Data[cc.Spec.Encryption.Client.NodeTLSSecret.CACrtFileKey], 0600)
 	if err != nil {
 		return errors.Wrapf(err, "failed to write CA certificate into file %s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.NodeTLSSecret.CACrtFileKey)
 	}
 
-	err = ioutil.WriteFile(fmt.Sprintf("%s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.NodeTLSSecret.FileKey), clientTLSSecret.Data[cc.Spec.Encryption.Client.NodeTLSSecret.FileKey], 0600)
+	err = os.WriteFile(fmt.Sprintf("%s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.NodeTLSSecret.FileKey), clientTLSSecret.Data[cc.Spec.Encryption.Client.NodeTLSSecret.FileKey], 0600)
 	if err != nil {
 		return errors.Wrapf(err, "failed to write private key into file %s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.NodeTLSSecret.FileKey)
 	}
 
-	err = ioutil.WriteFile(fmt.Sprintf("%s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.NodeTLSSecret.CrtFileKey), clientTLSSecret.Data[cc.Spec.Encryption.Client.NodeTLSSecret.CrtFileKey], 0600)
+	err = os.WriteFile(fmt.Sprintf("%s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.NodeTLSSecret.CrtFileKey), clientTLSSecret.Data[cc.Spec.Encryption.Client.NodeTLSSecret.CrtFileKey], 0600)
 	if err != nil {
 		return errors.Wrapf(err, "failed to write certificate into file %s/%s", names.OperatorClientTLSDir(cc), cc.Spec.Encryption.Client.NodeTLSSecret.CrtFileKey)
 	}

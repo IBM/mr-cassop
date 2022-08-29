@@ -103,8 +103,7 @@ func (r *CassandraClusterReconciler) reconcileAnnotations(ctx context.Context, o
 	if currentAnnotations == nil {
 		object.SetAnnotations(annotations)
 	} else {
-		util.MergeMap(currentAnnotations, annotations)
-		object.SetAnnotations(currentAnnotations)
+		object.SetAnnotations(util.MergeMap(currentAnnotations, annotations))
 	}
 
 	err := r.Update(ctx, object)

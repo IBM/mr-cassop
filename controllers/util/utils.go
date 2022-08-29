@@ -3,16 +3,24 @@ package util
 import (
 	"crypto/sha1"
 	"fmt"
-	v1 "k8s.io/api/core/v1"
 	"math/rand"
 	"time"
+
+	v1 "k8s.io/api/core/v1"
 )
 
 func MergeMap(a, b map[string]string) map[string]string {
-	for k, v := range b {
-		a[k] = v
+	if a == nil && b == nil {
+		return nil
 	}
-	return a
+	res := make(map[string]string, len(a)+len(b))
+	for k, v := range a {
+		res[k] = v
+	}
+	for k, v := range b {
+		res[k] = v
+	}
+	return res
 }
 
 func Contains(s []string, str string) bool {

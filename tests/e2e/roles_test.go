@@ -48,7 +48,7 @@ var _ = Describe("user provided roles", func() {
 
 			stdout := ""
 			Eventually(func() error {
-				execResult, err := execPod(pod.Name, pod.Namespace, cmd)
+				execResult, err := execPod(pod.Name, pod.Namespace, cmd, "cassandra")
 				stdout = execResult.stdout
 				return err
 			}, 30*time.Second, 5*time.Second).Should(Succeed())
@@ -66,7 +66,7 @@ var _ = Describe("user provided roles", func() {
 			Expect(kubeClient.Update(ctx, rolesSecret)).To(Succeed())
 
 			Eventually(func() error {
-				_, err := execPod(pod.Name, pod.Namespace, cmd)
+				_, err := execPod(pod.Name, pod.Namespace, cmd, "cassandra")
 				return err
 			}, 30*time.Second, 5*time.Second).ShouldNot(Succeed())
 		})

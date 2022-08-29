@@ -17,6 +17,7 @@ proberImage: us.icr.io/cassandra-operator/prober:0.4.0 # this value will be upda
 jolokiaImage: us.icr.io/cassandra-operator/jolokia:0.4.0 # this value will be updated on next release in GHA
 cassandraImage: us.icr.io/cassandra-operator/cassandra:3.11.13-0.4.0 # this value will be updated on next release in GHA
 reaperImage: thelastpickle/cassandra-reaper:3.2.0
+icarusImage: us.icr.io/cassandra-operator/icarus:0.3.0
 clusterDashboards:
   enabled: []
   namespace: ""

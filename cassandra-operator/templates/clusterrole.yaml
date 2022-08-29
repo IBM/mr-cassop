@@ -160,6 +160,26 @@ rules:
 - apiGroups:
   - db.ibm.com
   resources:
+  - cassandrabackups
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db.ibm.com
+  resources:
+  - cassandrabackups/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db.ibm.com
+  resources:
   - cassandraclusters
   verbs:
   - create
@@ -173,6 +193,26 @@ rules:
   - db.ibm.com
   resources:
   - cassandraclusters/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - db.ibm.com
+  resources:
+  - cassandrarestores
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - db.ibm.com
+  resources:
+  - cassandrarestores/status
   verbs:
   - get
   - patch

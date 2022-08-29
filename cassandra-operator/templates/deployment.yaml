@@ -50,5 +50,7 @@ spec:
               value: {{ .Values.jolokiaImage | quote }}
             - name: DEFAULT_REAPER_IMAGE
               value: {{ .Values.reaperImage | quote }}
+            - name: DEFAULT_ICARUS_IMAGE
+              value: {{ .Values.icarusImage | quote }}
             - name: WEBHOOKS_ENABLED
               value: {{ .Values.admissionWebhooks.enabled | quote }}

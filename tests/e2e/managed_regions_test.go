@@ -161,7 +161,7 @@ func expectNumberOfNodes(podName, podNamespace, roleName, rolePassword string, e
 	}
 	var stdout, stderr string
 	Eventually(func() error {
-		execResult, err := execPod(podName, podNamespace, cmd)
+		execResult, err := execPod(podName, podNamespace, cmd, "cassandra")
 		stdout = execResult.stdout
 		stderr = execResult.stderr
 		return err

@@ -41,8 +41,6 @@ const (
 	CassandraDefaultPassword       = "cassandra"
 	CassandraOperatorAdminRole     = "admin-role"
 	CassandraOperatorAdminPassword = "admin-password"
-	CassandraOperatorJmxUsername   = "jmx-username"
-	CassandraOperatorJmxPassword   = "jmx-password"
 
 	CassandraOperatorInstance     = "operator"
 	CassandraOperatorInstanceName = "cassandra-operator"
@@ -62,6 +60,7 @@ const (
 	DatastaxPort    = 9103
 	ThriftPort      = 9160
 	InstaclustrPort = 9500
+	IcarusPort      = 4567
 
 	ReaperReplicasNumber     = 1
 	reaperRepairIntensityMin = 0.1
@@ -94,6 +93,7 @@ type CassandraClusterSpec struct {
 	SystemKeyspaces      SystemKeyspaces `json:"systemKeyspaces,omitempty"`
 	Ingress              Ingress         `json:"ingress,omitempty"`
 	ExternalRegions      ExternalRegions `json:"externalRegions,omitempty"`
+	Icarus               Icarus          `json:"icarus,omitempty"`
 	Prober               Prober          `json:"prober,omitempty"`
 	Reaper               *Reaper         `json:"reaper,omitempty"`
 	HostPort             HostPort        `json:"hostPort,omitempty"`
@@ -298,6 +298,13 @@ type Persistence struct {
 	CommitLogVolumeClaimSpec v1.PersistentVolumeClaimSpec `json:"commitLogVolumeClaimSpec,omitempty"`
 }
 
+type Icarus struct {
+	Image string `json:"image,omitempty"`
+	// +kubebuilder:validation:Enum=Always;Never;IfNotPresent
+	ImagePullPolicy v1.PullPolicy           `json:"imagePullPolicy,omitempty"`
+	Resources       v1.ResourceRequirements `json:"resources,omitempty"`
+}
+
 type Prober struct {
 	Image string `json:"image,omitempty"`
 	// +kubebuilder:validation:Enum=Always;Never;IfNotPresent
@@ -359,6 +366,7 @@ type SystemKeyspaceDC struct {
 // CassandraClusterStatus defines the observed state of CassandraCluster
 type CassandraClusterStatus struct {
 	MaintenanceState []Maintenance `json:"maintenanceState,omitempty"`
+	Ready            bool          `json:"ready,omitempty"`
 }
 
 // +kubebuilder:object:root=true

@@ -1,2 +1,3 @@
 resources:
 - bases/db.ibm.com_cassandraclusters.yaml
+- bases/db.ibm.com_cassandrabackups.yaml

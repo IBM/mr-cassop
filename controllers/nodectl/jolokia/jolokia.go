@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/ibm/cassandra-operator/api/v1alpha1"
@@ -92,7 +92,7 @@ func (j *Client) Post(ctx context.Context, jmxReq JMXRequest, ip string) (JMXRes
 	defer func() {
 		_ = resp.Body.Close()
 	}()
-	responseBody, err := ioutil.ReadAll(resp.Body)
+	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return JMXResponse{}, err
 	}

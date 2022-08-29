@@ -42,7 +42,7 @@ integration-tests:
 
 # Run e2e tests
 e2e-tests:
-	ginkgo -v --procs 11 --timeout=$(E2E_TIMEOUT) --always-emit-ginkgo-writer --progress --fail-fast ./tests/e2e/ -- \
+	ginkgo -v --procs 20 --timeout=$(E2E_TIMEOUT) --always-emit-ginkgo-writer --progress --fail-fast ./tests/e2e/ -- \
 		-test.v -test.timeout=$(E2E_TIMEOUT) \
 		-operatorNamespace=$(K8S_NAMESPACE) \
 		-imagePullSecret=$(IMAGE_PULL_SECRET) \
@@ -82,7 +82,7 @@ deploy: manifests kustomize
 # Generate manifests e.g. CRD, RBAC etc.
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role output:rbac:none paths="./..." output:crd:artifacts:config=config/crd/bases
-	kustomize build $(ROOT_DIR)config/crd > $(ROOT_DIR)cassandra-operator/crds/cassandracluster.yaml
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role output:rbac:none paths="./..." output:crd:artifacts:config=$(ROOT_DIR)cassandra-operator/crds
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=cassandra-operator paths="./..." output:crd:none output:rbac:stdout > $(ROOT_DIR)cassandra-operator/templates/clusterrole.yaml
 
 # Run go fmt against code
@@ -100,6 +100,7 @@ generate: controller-gen
 	mockgen -package=mocks -source=./controllers/prober/prober.go -destination=./controllers/mocks/mock_prober.go
 	mockgen -package=mocks -source=./controllers/reaper/reaper.go -destination=./controllers/mocks/mock_reaper.go
 	mockgen -package=mocks -source=./controllers/nodectl/nodectl.go -destination=./controllers/mocks/mock_nodectl.go
+	mockgen -package=mocks -source=./controllers/icarus/icarus.go -destination=./controllers/mocks/mock_icarus.go
 
 # Build the docker image
 docker-build:

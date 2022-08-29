@@ -94,7 +94,9 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 				}, mediumTimeout, mediumRetry).Should(Succeed())
 
 				By("Cassandra run command should be set correctly")
-				Expect(sts.Spec.Template.Spec.Containers[0].Args).To(BeEquivalentTo([]string{
+				cassandraContainer, found := getContainerByName(sts.Spec.Template.Spec, "cassandra")
+				Expect(found).To(BeTrue())
+				Expect(cassandraContainer.Args).To(BeEquivalentTo([]string{
 					"bash",
 					"-c",
 					fmt.Sprintf("rm -rf /var/lib/cassandra/data/system/peers*\n" +
@@ -125,6 +127,29 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 						"-Djava.security.auth.login.config=$CASSANDRA_HOME/conf/cassandra-jaas.config " +
 						"-Dcassandra.jmx.authorizer=org.apache.cassandra.auth.jmx.AuthorizationProxy"),
 				}))
+
+				icarusContainer, found := getContainerByName(sts.Spec.Template.Spec, "icarus")
+				Expect(found).To(BeTrue())
+				Expect(icarusContainer.Args).To(BeEquivalentTo([]string{"--jmx-credentials=/etc/cassandra-auth-config/icarus-jmx", "--jmx-client-auth=true"}))
+				Expect(icarusContainer.VolumeMounts).To(BeEquivalentTo([]v1.VolumeMount{
+					{
+						Name:             "data",
+						ReadOnly:         false,
+						MountPath:        "/var/lib/cassandra",
+						SubPath:          "",
+						MountPropagation: nil,
+						SubPathExpr:      "",
+					},
+					{
+						Name:             "auth-config",
+						ReadOnly:         false,
+						MountPath:        "/etc/cassandra-auth-config/",
+						SubPath:          "",
+						MountPropagation: nil,
+						SubPathExpr:      "",
+					},
+				}))
+
 				Expect(sts.Spec.Template.Spec.TopologySpreadConstraints).To(BeEquivalentTo([]v1.TopologySpreadConstraint{
 					{
 						TopologyKey:       v1.LabelTopologyZone,
@@ -291,6 +316,11 @@ var _ = Describe("prober, statefulsets and reaper", func() {
 			Eventually(func() []string {
 				return mockReaperClient.clusters
 			}, shortTimeout, shortRetry).Should(BeEquivalentTo([]string{cc.Name}))
+
+			Eventually(func() bool {
+				Expect(k8sClient.Get(ctx, types.NamespacedName{Name: cc.Name, Namespace: cc.Namespace}, cc)).To(Succeed())
+				return cc.Status.Ready
+			}).Should(BeTrue())
 		})
 	})
 })

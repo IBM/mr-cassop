@@ -6,6 +6,7 @@ on:
 env:
   GO_VERSION: 1.18
   HELM_VERSION: v3.9.2
+  ICARUS_VERSION: 2.0.4
   PYTHON_VERSION: 3.7 # required for helm tester
   IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
   IBM_CLOUD_REGION: us-south
@@ -59,7 +60,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        k8s: [1.20.2, 1.21.4, 1.22.1, 1.23.5, 1.24.2]
+        k8s: [1.20.2, 1.21.2, 1.22.1, 1.23.1, 1.24.2]
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -281,6 +282,56 @@ jobs:
         retention-days: 1
 
 
+  build-icarus:
+    runs-on: ubuntu-latest
+    needs: [run-unit-tests, run-integration-tests, validate-helm-charts]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Inject slug/short variables
+      uses: rlespinasse/github-slug-action@v4
+
+    - name: Modify GITHUB_REF_SLUG
+      run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
+
+    - name: Setup Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Authenticate to Docker Proxy Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ secrets.DOCKER_PROXY_REGISTRY }}
+        username: ${{ secrets.ARTIFACTORY_USER }}
+        password: ${{ secrets.ARTIFACTORY_PASS }}
+
+    - name: Build icarus image
+      uses: docker/build-push-action@v3
+      with:
+        file: ./icarus/Dockerfile
+        context: ./icarus
+        build-args: |
+          ICARUS_VERSION: ${{ env.ICARUS_VERSION }}
+          DOCKER_PROXY_REGISTRY=${{ secrets.DOCKER_PROXY_REGISTRY }}/
+        tags: us.icr.io/${{ env.ICR_NAMESPACE }}/icarus:${{ env.GITHUB_REF_SLUG }}
+        outputs: type=docker,dest=icarus.tar
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@0.6.2
+      with:
+        input: "icarus.tar"
+        exit-code: "1"
+        ignore-unfixed: true
+        severity: ${{ env.TRIVY_SEVERITY }}
+
+    - name: Upload jolokia image artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: icarus
+        path: icarus.tar
+        retention-days: 1
+
+
   validate-helm-charts:
     runs-on: ubuntu-latest
     steps:
@@ -337,7 +388,7 @@ jobs:
 
   push-images-for-e2e:
     if: "!contains(github.event.head_commit.message, 'e2e skip')"
-    needs: [build-operator, build-cassandra, build-prober, build-jolokia, validate-helm-charts]
+    needs: [build-operator, build-cassandra, build-prober, build-jolokia, build-icarus, validate-helm-charts]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -387,18 +438,25 @@ jobs:
       with:
         name: jolokia
 
+    - name: Download icarus image artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: icarus
+
     - name: Load container images
       run: |
         docker load -i cassandra-operator.tar
         docker load -i cassandra.tar
         docker load -i prober.tar
         docker load -i jolokia.tar
+        docker load -i icarus.tar
     - name: Push Images to ICR
       run: |
         docker push "us.icr.io/${{ env.ICR_NAMESPACE }}/cassandra-operator:$GITHUB_REF_SLUG"
         docker push "us.icr.io/${{ env.ICR_NAMESPACE }}/prober:$GITHUB_REF_SLUG"
         docker push "us.icr.io/${{ env.ICR_NAMESPACE }}/cassandra:$GITHUB_REF_SLUG"
         docker push "us.icr.io/${{ env.ICR_NAMESPACE }}/jolokia:$GITHUB_REF_SLUG"
+        docker push "us.icr.io/${{ env.ICR_NAMESPACE }}/icarus:$GITHUB_REF_SLUG"
 
   run-e2e-tests:
     needs: [push-images-for-e2e]
@@ -459,6 +517,7 @@ jobs:
             --set "proberImage=us.icr.io/${{ env.ICR_NAMESPACE }}/prober:$GITHUB_REF_SLUG" \
             --set "cassandraImage=us.icr.io/${{ env.ICR_NAMESPACE }}/cassandra:$GITHUB_REF_SLUG" \
             --set "jolokiaImage=us.icr.io/${{ env.ICR_NAMESPACE }}/jolokia:$GITHUB_REF_SLUG" \
+            --set "icarusImage=us.icr.io/${{ env.ICR_NAMESPACE }}/icarus:$GITHUB_REF_SLUG" \
             --set "logFormat=console" \
             --set "logLevel=debug" \
             --set "container.imagePullSecret=$IMAGE_PULL_SECRET"
@@ -492,16 +551,22 @@ jobs:
       run: helm uninstall cassandra-operator
     - name: Remove CassandraCluster CRD
       if: ${{ always() }}
-      run: kubectl delete -f cassandra-operator/crds/cassandracluster.yaml
+      run: kubectl delete -f cassandra-operator/crds/db.ibm.com_cassandraclusters.yaml
+    - name: Remove CassandraBackup CRD
+      if: ${{ always() }}
+      run: kubectl delete -f cassandra-operator/crds/db.ibm.com_cassandrabackups.yaml
+    - name: Remove CassandraRestore CRD
+      if: ${{ always() }}
+      run: kubectl delete -f cassandra-operator/crds/db.ibm.com_cassandrarestores.yaml
     # We have below logic bc when multiple tags exist for the same image digest within a repository, the ibmcloud cr image-rm command removes the underlying image and all its tags. See details: https://cloud.ibm.com/docs/container-registry-cli-plugin?topic=container-registry-cli-plugin-containerregcli#bx_cr_image_rm
     # We can also add a check if commit message contains `no_image_del` then skip the image deletion step
-    - name: Clenaup k8s namespace
+    - name: Cleanup k8s namespace
       if: ${{ always() }}
       run: kubectl delete namespace $IKS_NAMESPACE
     - name: Cleanup Images
       if: ${{ always() }}
       run: |
-        for image_name in cassandra-operator prober cassandra jolokia; do
+        for image_name in cassandra-operator prober cassandra jolokia icarus; do
           image_digest=$(ibmcloud cr image-list --restrict ${{ env.ICR_NAMESPACE }} --format "{{if and (eq .Repository \"us.icr.io/cassandra-operator/$image_name\") (eq .Tag \"$GITHUB_REF_SLUG\")}}{{.Digest}}{{end}}" --no-trunc)
           image_tags=$(ibmcloud cr image-digests --restrict ${{ env.ICR_NAMESPACE }} --format "{{if and (eq .Digest \"$image_digest\")}}{{.Tags}}{{end}}" | sed -e 's/\[//g' -e 's/\]//g')
           image_tags_arr=($image_tags)

@@ -2,42 +2,23 @@ package controllers
 
 import (
 	"context"
+
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/cql"
 	"github.com/ibm/cassandra-operator/controllers/events"
 	"github.com/pkg/errors"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 )
 
-func (r *CassandraClusterReconciler) reconcileAdminRole(ctx context.Context, cc *dbv1alpha1.CassandraCluster, allDCs []dbv1alpha1.DC) (cql.CqlClient, error) {
-	adminRoleSecret := &v1.Secret{}
-	err := r.Get(ctx, types.NamespacedName{Namespace: cc.Namespace, Name: cc.Spec.AdminRoleSecretName}, adminRoleSecret)
-	if err != nil {
-		return nil, err
-	}
-
-	err = r.reconcileAnnotations(ctx, adminRoleSecret, map[string]string{dbv1alpha1.CassandraClusterInstance: cc.Name})
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to reconcile annotations")
-	}
-
-	cassandraOperatorAdminRole := string(adminRoleSecret.Data[dbv1alpha1.CassandraOperatorAdminRole])
-	cassandraOperatorAdminPassword := string(adminRoleSecret.Data[dbv1alpha1.CassandraOperatorAdminPassword])
-
-	if cc.Spec.JMXAuth == jmxAuthenticationLocalFiles {
-		adminRoleSecret.Data[dbv1alpha1.CassandraOperatorJmxUsername] = []byte(cassandraOperatorAdminRole)
-		adminRoleSecret.Data[dbv1alpha1.CassandraOperatorJmxPassword] = []byte(cassandraOperatorAdminPassword)
-	}
-
-	r.Log.Debug("Establishing cql session with role " + cassandraOperatorAdminRole)
-	cqlClient, err := r.CqlClient(newCassandraConfig(cc, cassandraOperatorAdminRole, cassandraOperatorAdminPassword, r.Log))
+func (r *CassandraClusterReconciler) reconcileAdminRole(ctx context.Context, cc *dbv1alpha1.CassandraCluster, auth credentials, allDCs []dbv1alpha1.DC) (cql.CqlClient, error) {
+	r.Log.Debug("Establishing cql session with role " + auth.desiredRole)
+	cqlClient, err := r.CqlClient(newCassandraConfig(cc, auth.desiredRole, auth.desiredPassword, r.Log))
 	if err == nil { // operator admin role exists
 		if err = r.reconcileSystemAuthKeyspace(ctx, cc, cqlClient, allDCs); err != nil {
 			return nil, err
 		}
-
-		err = r.reconcileAdminSecrets(ctx, cc, adminRoleSecret.Data) //make sure the secrets have the correct credentials
+		auth.activeRole = auth.desiredRole
+		auth.activePassword = auth.desiredPassword
+		err = r.reconcileAdminSecrets(ctx, cc, auth) //make sure the secrets have the correct credentials
 		if err != nil {
 			return nil, err
 		}
@@ -52,14 +33,14 @@ func (r *CassandraClusterReconciler) reconcileAdminRole(ctx context.Context, cc 
 	defaultUserCQLClient.CloseSession()
 
 	r.Log.Info("The default admin role is in use. Going to create the secure role and delete the default...")
-	err = r.createAdminRoleInCassandra(ctx, cc, cassandraOperatorAdminRole, cassandraOperatorAdminPassword, allDCs)
+	err = r.createAdminRoleInCassandra(ctx, cc, auth.desiredRole, auth.desiredPassword, allDCs)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't create admin role")
 	}
 
-	r.Log.Debug("Establishing cql session with role " + cassandraOperatorAdminRole)
+	r.Log.Debug("Establishing cql session with role " + auth.desiredRole)
 	err = r.doWithRetry(func() error {
-		cqlClient, err = r.CqlClient(newCassandraConfig(cc, cassandraOperatorAdminRole, cassandraOperatorAdminPassword, r.Log))
+		cqlClient, err = r.CqlClient(newCassandraConfig(cc, auth.desiredRole, auth.desiredPassword, r.Log))
 		if err != nil {
 			return err
 		}
@@ -67,7 +48,9 @@ func (r *CassandraClusterReconciler) reconcileAdminRole(ctx context.Context, cc 
 	})
 
 	r.Events.Normal(cc, events.EventAdminRoleCreated, "secure admin role is created")
-	err = r.reconcileAdminSecrets(ctx, cc, adminRoleSecret.Data)
+	auth.activeRole = auth.desiredRole
+	auth.activePassword = auth.desiredPassword
+	err = r.reconcileAdminSecrets(ctx, cc, auth)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to update admin secrets with new password")
 	}
@@ -105,13 +88,13 @@ func (r *CassandraClusterReconciler) createAdminRoleInCassandra(ctx context.Cont
 	return nil
 }
 
-func (r *CassandraClusterReconciler) reconcileAdminSecrets(ctx context.Context, cc *dbv1alpha1.CassandraCluster, secretData map[string][]byte) error {
-	err := r.reconcileActiveAdminSecret(ctx, cc, secretData)
+func (r *CassandraClusterReconciler) reconcileAdminSecrets(ctx context.Context, cc *dbv1alpha1.CassandraCluster, auth credentials) error {
+	err := r.reconcileActiveAdminSecret(ctx, cc, auth)
 	if err != nil {
 		return errors.Wrap(err, "failed to update active admin secret")
 	}
 
-	if err = r.reconcileAdminAuthConfigSecret(ctx, cc, secretData); err != nil {
+	if err = r.reconcileAdminAuthConfigSecret(ctx, cc, auth); err != nil {
 		return errors.Wrap(err, "failed to reconcile admin auth secret")
 	}
 

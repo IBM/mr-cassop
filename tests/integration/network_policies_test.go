@@ -159,6 +159,10 @@ var _ = Describe("network policies", func() {
 								Port:     &intstr.IntOrString{IntVal: dbv1alpha1.IntraPort},
 								Protocol: &protocolTCP,
 							},
+							{
+								Port:     &intstr.IntOrString{IntVal: dbv1alpha1.IcarusPort},
+								Protocol: &protocolTCP,
+							},
 						},
 						From: []nwv1.NetworkPolicyPeer{
 							{
@@ -175,6 +179,10 @@ var _ = Describe("network policies", func() {
 						Ports: []nwv1.NetworkPolicyPort{
 							{
 								Port:     &intstr.IntOrString{IntVal: dbv1alpha1.CqlPort},
+								Protocol: &protocolTCP,
+							},
+							{
+								Port:     &intstr.IntOrString{IntVal: dbv1alpha1.IcarusPort},
 								Protocol: &protocolTCP,
 							},
 						},
@@ -254,6 +262,10 @@ var _ = Describe("network policies", func() {
 								Port:     &intstr.IntOrString{IntVal: dbv1alpha1.IntraPort},
 								Protocol: &protocolTCP,
 							},
+							{
+								Port:     &intstr.IntOrString{IntVal: dbv1alpha1.IcarusPort},
+								Protocol: &protocolTCP,
+							},
 						},
 						From: []nwv1.NetworkPolicyPeer{
 							{
@@ -283,6 +295,10 @@ var _ = Describe("network policies", func() {
 							},
 							{
 								Port:     &intstr.IntOrString{IntVal: dbv1alpha1.IntraPort},
+								Protocol: &protocolTCP,
+							},
+							{
+								Port:     &intstr.IntOrString{IntVal: dbv1alpha1.IcarusPort},
 								Protocol: &protocolTCP,
 							},
 						},

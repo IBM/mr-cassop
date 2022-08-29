@@ -151,6 +151,18 @@ func CassandraClientTLSNode(clusterName string) string {
 	return clusterName + "-client-tls-node"
 }
 
+func CassandraRole(clusterName string) string {
+	return clusterName + "-cassandra-role"
+}
+
+func CassandraRoleBinding(clusterName string) string {
+	return clusterName + "-cassandra-rolebinding"
+}
+
+func CassandraServiceAccount(clusterName string) string {
+	return clusterName + "-cassandra-serviceaccount"
+}
+
 func CassandraClusterNetworkPolicyName(clusterName string) string {
 	return clusterName + "-cassandra-cluster-policies"
 }

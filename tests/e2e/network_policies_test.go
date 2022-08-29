@@ -2,6 +2,8 @@ package e2e
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/gogo/protobuf/proto"
 	dbv1alpha1 "github.com/ibm/cassandra-operator/api/v1alpha1"
 	"github.com/ibm/cassandra-operator/controllers/labels"
@@ -10,12 +12,11 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("Network policies in multi-region cluster", func() {
+var _ = Describe("Network policies in multi-region cluster", Serial, func() {
 
 	ccName := "netpol-multi"
 	adminRoleName := ccName + "-admin-role"
@@ -149,21 +150,21 @@ var _ = Describe("Network policies in multi-region cluster", func() {
 
 			By("Cassandra shouldn't accept connections from external clients")
 
+			Eventually(func() error {
+				if _, err := execPod(testPodName, namespaceName1, []string{"bash", "-c", "ls"}, "test-container"); err != nil {
+					return err
+				}
+				return nil
+			}, time.Minute*1, time.Second*10).Should(Succeed())
+
 			cmd := []string{
 				"bash",
 				"-c",
 				fmt.Sprintf("cqlsh --connect-timeout 1 -u %s -p \"%s\" %s-cassandra-dc1.%s.svc.cluster.local", testAdminRole, testAdminPassword, ccName, namespaceName1),
 			}
 
-			Eventually(func() error {
-				if _, err := execPod(testPodName, namespaceName1, []string{"bash", "-c", "ls"}); err != nil {
-					return err
-				}
-				return nil
-			}, time.Minute*1, time.Second*10).Should(Succeed())
-
 			Eventually(func() string {
-				execResult, _ := execPod(testPodName, namespaceName1, cmd)
+				execResult, _ := execPod(testPodName, namespaceName1, cmd, "test-container")
 				return execResult.stderr
 			}, time.Minute*1, time.Second*10).Should(ContainSubstring("Connection error"))
 
@@ -176,7 +177,7 @@ var _ = Describe("Network policies in multi-region cluster", func() {
 			}
 
 			Eventually(func() string {
-				execResult, _ := execPod(testPodName, namespaceName1, cmd)
+				execResult, _ := execPod(testPodName, namespaceName1, cmd, "test-container")
 				return execResult.stderr
 			}, time.Minute*1, time.Second*10).Should(ContainSubstring("Connection timed out"))
 
@@ -189,7 +190,20 @@ var _ = Describe("Network policies in multi-region cluster", func() {
 			}
 
 			Eventually(func() string {
-				execResult, _ := execPod(testPodName, namespaceName1, cmd)
+				execResult, _ := execPod(testPodName, namespaceName1, cmd, "test-container")
+				return execResult.stderr
+			}, time.Minute*1, time.Second*10).Should(ContainSubstring("Connection timed out"))
+
+			By("Icarus shouldn't accept connections from external clients")
+
+			cmd = []string{
+				"bash",
+				"-c",
+				fmt.Sprintf("curl --show-error --connect-timeout 3 %s-cassandra-dc1.%s.svc.cluster.local:%d/operations", ccName, namespaceName1, dbv1alpha1.IcarusPort),
+			}
+
+			Eventually(func() string {
+				execResult, _ := execPod(testPodName, namespaceName1, cmd, "test-container")
 				return execResult.stderr
 			}, time.Minute*1, time.Second*10).Should(ContainSubstring("Connection timed out"))
 
@@ -199,7 +213,7 @@ var _ = Describe("Network policies in multi-region cluster", func() {
 			Expect(kubeClient.Update(ctx, testPod)).To(Succeed())
 
 			Eventually(func() error {
-				if _, err := execPod(testPodName, namespaceName1, []string{"bash", "-c", "ls"}); err != nil {
+				if _, err := execPod(testPodName, namespaceName1, []string{"bash", "-c", "ls"}, "test-container"); err != nil {
 					return err
 				}
 				return nil
@@ -215,6 +229,7 @@ var _ = Describe("Network policies in multi-region cluster", func() {
 					NamespaceSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{"kubernetes.io/metadata.name": namespaceName1},
 					},
+					Ports: []int32{dbv1alpha1.IcarusPort, dbv1alpha1.CqlPort},
 				},
 			}
 
@@ -227,12 +242,24 @@ var _ = Describe("Network policies in multi-region cluster", func() {
 			}
 
 			Eventually(func() (string, error) {
-				execResult, err := execPod(testPodName, namespaceName1, cmd)
+				execResult, err := execPod(testPodName, namespaceName1, cmd, "test-container")
 				if err != nil {
 					return "", err
 				}
 				return execResult.stdout, nil
 			}, time.Minute*1, time.Second*10).Should(ContainSubstring("system"))
+
+			By("Icarus should accept connections from external clients")
+			cmd = []string{
+				"bash",
+				"-c",
+				fmt.Sprintf("curl --show-error --connect-timeout 3 %s-cassandra-dc1.%s.svc.cluster.local:%d/operations", ccName, namespaceName1, dbv1alpha1.IcarusPort),
+			}
+
+			Eventually(func() string {
+				execResult, _ := execPod(testPodName, namespaceName1, cmd, "test-container")
+				return execResult.stdout
+			}, time.Minute*1, time.Second*10).Should(ContainSubstring("[ ]"))
 
 			By("Cassandra should accept connection for prometheus agent")
 			Expect(kubeClient.Get(ctx, types.NamespacedName{Name: testPodName, Namespace: namespaceName1}, testPod)).To(Succeed())
@@ -261,7 +288,7 @@ var _ = Describe("Network policies in multi-region cluster", func() {
 			}
 
 			Eventually(func() (string, error) {
-				execResult, err := execPod(testPodName, namespaceName1, cmd)
+				execResult, err := execPod(testPodName, namespaceName1, cmd, "test-container")
 				if err != nil {
 					return "", err
 				}

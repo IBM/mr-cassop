@@ -150,7 +150,7 @@ func checkBroadcastAddressOnAllPods(podList *v1.PodList, nodeList *v1.NodeList, 
 		for _, node := range nodeList.Items {
 			if node.Name == nodeName {
 				cassandraIP := util.GetNodeIP(addressType, node.Status.Addresses)
-				execResult, err := execPod(pod.Name, pod.Namespace, cmd)
+				execResult, err := execPod(pod.Name, pod.Namespace, cmd, "cassandra")
 				execResult.stdout = strings.TrimSuffix(execResult.stdout, "\n")
 				execResult.stdout = strings.TrimSpace(execResult.stdout)
 				Expect(err).ToNot(HaveOccurred())

@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 
@@ -94,7 +94,7 @@ func (r *reaperClient) ClusterExists(ctx context.Context) (bool, error) {
 		return false, err
 	}
 	defer resp.Body.Close()
-	b, _ := ioutil.ReadAll(resp.Body)
+	b, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 300 {
 		if resp.StatusCode == http.StatusNotFound {
 			return false, nil
@@ -119,7 +119,7 @@ func (r *reaperClient) AddCluster(ctx context.Context, seed string) error {
 	if err != nil {
 		return err
 	}
-	b, _ := ioutil.ReadAll(resp.Body)
+	b, _ := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if resp.StatusCode >= 300 {
 		if resp.StatusCode == http.StatusNotFound {
@@ -142,7 +142,7 @@ func (r *reaperClient) Clusters(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	b, _ := ioutil.ReadAll(resp.Body)
+	b, _ := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if resp.StatusCode >= 300 {
 		return nil, &requestFailedWithStatus{code: resp.StatusCode, message: string(b)}
@@ -194,7 +194,7 @@ func (r *reaperClient) DeleteCluster(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	b, _ := ioutil.ReadAll(resp.Body)
+	b, _ := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if resp.StatusCode >= 300 {
 		return &requestFailedWithStatus{code: resp.StatusCode, message: string(b)}
@@ -223,7 +223,7 @@ func (r *reaperClient) deleteRepairRun(ctx context.Context, repairRun RepairRun)
 	if err != nil {
 		return err
 	}
-	b, _ := ioutil.ReadAll(resp.Body)
+	b, _ := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if resp.StatusCode >= 300 {
 		return &requestFailedWithStatus{code: resp.StatusCode, message: string(b)}
