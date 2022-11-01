@@ -366,7 +366,7 @@ jobs:
       run: echo "::set-output name=tag::${GITHUB_REF##*/}"
 
     - name: Setup Helm
-      uses: azure/setup-helm@v3.3
+      uses: azure/setup-helm@v3.4
       with:
         version: ${{ env.HELM_VERSION }}
 
