@@ -1,0 +1,16 @@
+{{- range $i, $dashboard := .Values.clusterDashboards.enabled }}
+  {{- $dashPath := printf "dashboards/%s/*.json" $dashboard }}
+  {{- range $path, $data := $.Files.Glob $dashPath }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $.Release.Name }}-{{ $path | base | trimSuffix ".json" }}-grafana-dashboard
+  namespace: {{ if $.Values.clusterDashboards.namespace }} {{ $.Values.clusterDashboards.namespace }} {{ else }} {{ $.Release.Namespace }} {{ end }}
+  labels:
+    {{- toYaml $.Values.clusterDashboards.labels | nindent 4 }}
+data:
+  {{ $path | base }}: |-
+    {{- $.Files.Get $path | nindent 4 }}
+  {{- end }}
+{{- end }}

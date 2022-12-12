@@ -1,0 +1,220 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.2
+  creationTimestamp: null
+  name: cassandrarestores.db.ibm.com
+spec:
+  group: db.ibm.com
+  names:
+    kind: CassandraRestore
+    listKind: CassandraRestoreList
+    plural: cassandrarestores
+    singular: cassandrarestore
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: CassandraRestore is the Schema for the CassandraRestores API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              cassandraBackup:
+                type: string
+              cassandraCluster:
+                type: string
+              concurrentConnections:
+                description: number of threads used for download, there might be at
+                  most so many downloading threads at any given time, when not set,
+                  it defaults to 10
+                format: int64
+                minimum: 1
+                type: integer
+              dc:
+                description: Name of datacenter(s) against which restore will be done.
+                  It means that nodes in a different DC will not receive restore requests.
+                  Multiple dcs are separated by comma
+                type: string
+              entities:
+                description: database entities to backup, it might be either only
+                  keyspaces or only tables (from different keyspaces if needed), e.g.
+                  'k1,k2' if one wants to backup whole keyspaces and 'ks1.t1,ks2,t2'
+                  if one wants to backup tables. These formats can not be used together
+                  so 'k1,k2.t2' is invalid. If this field is empty, all keyspaces
+                  are backed up.
+                type: string
+              exactSchemaVersion:
+                description: flag saying if we indeed want a schema version of a running
+                  node match with schema version a snapshot is taken on. There might
+                  be cases when we want to restore a table for which its CQL schema
+                  has not changed, but it has changed for other table / keyspace but
+                  a schema for that node has changed by doing that.
+                type: boolean
+              import:
+                description: object used upon restoration, keyspace and table fields
+                  do not need to be set when restoration strategy type is IMPORT or
+                  HARDLINKS as this object will be initialised for each entities entry
+                  with right keyspace and table. 'sourceDir' property is used for
+                  pointing to a directory where we expect to find downloaded SSTables.
+                  This in turn means that all SSTables and other meta files will be
+                  downloaded into this directory (from which they will be fed to CFSMB).
+                  All other fields are taken from ColumnFamilyStoreMBean#importNewSSTables
+                properties:
+                  extendedVerify:
+                    type: boolean
+                  keepLevel:
+                    type: boolean
+                  keepRepaired:
+                    type: boolean
+                  noInvalidateCaches:
+                    type: boolean
+                  noVerify:
+                    type: boolean
+                  noVerifyTokens:
+                    type: boolean
+                  quick:
+                    type: boolean
+                type: object
+              insecure:
+                description: Relevant during upload to S3-like bucket only. If true,
+                  communication is done via HTTP instead of HTTPS. Defaults to false.
+                type: boolean
+              noDeleteDownloads:
+                description: flag saying if we should not delete downloaded SSTables
+                  from remote location, as part of CLEANUP phase, defaults to false
+                type: boolean
+              noDeleteTruncates:
+                description: flag saying if we should not delete truncated SSTables
+                  after they are imported, as part of CLEANUP phase, defaults to false
+                type: boolean
+              noDownloadData:
+                description: flag saying if we should not download data from remote
+                  location as we expect them to be there already, defaults to false,
+                  setting this to true has sense only in case noDeleteDownloads was
+                  set to true in previous restoration requests
+                type: boolean
+              rename:
+                additionalProperties:
+                  type: string
+                description: Map of key and values where keys and values are in format
+                  "keyspace.table", if key is "ks1.tb1" and value is "ks1.tb2", it
+                  means that upon restore, table ks1.tb1 will be restored into table
+                  ks1.tb2. This in practice means that table ks1.tb2 will be truncated
+                  and populated with data from ks1.tb1. The source table, ks1.tb1,
+                  will not be touched. It is expected that user knows that schema
+                  of both tables is compatible. There is not any check done in this
+                  regard.
+                type: object
+              resolveHostIdFromTopology:
+                description: if set to true, host id of node to restore will be resolved
+                  from remote topology file located in a bucket by translating it
+                  from provided nodeId of storageLocation field
+                type: boolean
+              retry:
+                properties:
+                  enabled:
+                    description: Defaults to false if not specified. If false, retry
+                      mechanism on upload / download operations in case they fail
+                      will not be used.
+                    type: boolean
+                  interval:
+                    description: Time gap between retries, linear strategy will have
+                      always this gap constant, exponential strategy will make the
+                      gap bigger exponentially (power of 2) on each attempt
+                    format: int64
+                    minimum: 1
+                    type: integer
+                  maxAttempts:
+                    description: Number of repetitions of an upload / download operation
+                      in case it fails before giving up completely.
+                    format: int64
+                    minimum: 1
+                    type: integer
+                  strategy:
+                    description: Strategy how retry should be driven, might be either
+                      'LINEAR' or 'EXPONENTIAL'
+                    enum:
+                    - LINEAR
+                    - EXPONENTIAL
+                    type: string
+                type: object
+              schemaVersion:
+                description: version of schema we want to restore from. Upon backup,
+                  a schema version is automatically appended to snapshot name and
+                  its manifest is uploaded under that name (plus timestamp at the
+                  end). In case we have two snapshots having same name, we might distinguish
+                  between them by this schema version. If schema version is not specified,
+                  we expect that there will be one and only one backup taken with
+                  respective snapshot name. This schema version has to match the version
+                  of a Cassandra nodes.
+                type: string
+              secretName:
+                description: Name of the secret from which credentials used for the
+                  communication to cloud storage providers are read. The secret from
+                  the backup spec is used when empty
+                type: string
+              skipBucketVerification:
+                description: Do not check the existence of a bucket. Some storage
+                  providers (e.g. S3) requires a special permissions to be able to
+                  list buckets or query their existence which might not be allowed.
+                  This flag will skip that check. Keep in mind that if that bucket
+                  does not exist, the whole backup operation will fail.
+                type: boolean
+              snapshotTag:
+                description: Name of the snapshot tag to restore. Can be used to manually
+                  set the snapshot tag. Retrieved from CassandraBackup if specified
+                type: string
+              storageLocation:
+                description: 'example: gcp://myBucket location of SSTables A value
+                  of the storageLocation property has to have exact format which is
+                  ''protocol://bucket-name protocol is either ''gcp'', ''s3'', ''azure'',
+                  ''minio'', ''ceph'' or ''oracle''. If empty, the value is retrieved
+                  from the CassandraBackup spec'
+                type: string
+              timeout:
+                description: number of hours to wait until restore is considered failed
+                  if not finished already
+                format: int64
+                minimum: 1
+                type: integer
+            required:
+            - cassandraCluster
+            type: object
+          status:
+            properties:
+              errors:
+                items:
+                  properties:
+                    message:
+                      type: string
+                    source:
+                      type: string
+                  type: object
+                type: array
+              progress:
+                type: integer
+              state:
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

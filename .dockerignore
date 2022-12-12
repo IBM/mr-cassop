@@ -1,0 +1,5 @@
+bin
+tests
+cassandra-operator
+.github
+docs

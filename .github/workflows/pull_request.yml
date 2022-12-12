@@ -1,0 +1,579 @@
+name: Pull Request Workflow
+
+on:
+  pull_request:
+
+env:
+  GO_VERSION: 1.18
+  HELM_VERSION: v3.9.2
+  ICARUS_VERSION: 2.0.4
+  PYTHON_VERSION: 3.7 # required for helm tester
+  IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
+  IBM_CLOUD_REGION: us-south
+  IBM_CLOUD_RG: icm
+  IKS_CLUSTER: icm-cassandra-ci
+  IKS_NAMESPACE: cassandra-operator-ci
+  ICR_NAMESPACE: cassandra-operator
+  ICR_USERNAME: ${{ secrets.ICR_USERNAME }}
+  ICR_PASSWORD: ${{ secrets.ICR_PASSWORD }}
+  IMAGE_PULL_SECRET: icm-coreeng-pull-secret
+  TRIVY_SEVERITY: CRITICAL
+
+jobs:
+
+  run-unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Setup Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Go Lint
+      uses: golangci/golangci-lint-action@v3
+      with:
+        args: --timeout=5m --enable exportloopref
+        skip-pkg-cache: true
+        skip-build-cache: true
+
+    - name: Get dependencies
+      run: go mod download
+
+    - name: Run operator unit tests
+      run: go test ./controllers/... -v -coverprofile=operator_unit.out -coverpkg=./...
+
+    - name: Run prober unit tests
+      run: |
+        cd ./prober
+        go test ./... -v -coverprofile=prober_unit.out -coverpkg=./...
+
+    - name: Get tests coverage
+      run: |
+        go tool cover -func=operator_unit.out | tail -n1 | awk "{print \"Operator unit tests coverage: \" \$3}"
+        go tool cover -func=prober_unit.out | tail -n1 | awk "{print \"Prober unit tests coverage: \" \$3}"
+
+  run-integration-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        k8s: [1.20.2, 1.21.2, 1.22.1, 1.23.1, 1.24.2]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Setup Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Setup Kubebuilder assets
+      run: |
+        curl -sSLo envtest-bins.tar.gz "https://storage.googleapis.com/kubebuilder-tools/kubebuilder-tools-$k8s-linux-amd64.tar.gz"
+        mkdir kubebuilder-$k8s
+        tar -C kubebuilder-$k8s/ --strip-components=1 -zvxf envtest-bins.tar.gz && rm -f envtest-bins.tar.gz
+        echo "KUBEBUILDER_ASSETS=$(pwd)/kubebuilder-$k8s/bin" >> $GITHUB_ENV
+        $(pwd)/kubebuilder-$k8s/bin/kube-apiserver --version
+      env:
+        k8s: ${{ matrix.k8s }}
+
+    - name: Get dependencies
+      run: go mod download
+
+    - name: Run integration tests
+      run: go test ./tests/integration -v -coverprofile=integration.out -coverpkg=./...
+
+    - name: Get tests coverage
+      run: |
+        go tool cover -func=integration.out | tail -n1 | awk "{print \"Integration tests coverage: \" \$3}"
+
+  build-operator:
+    runs-on: ubuntu-latest
+    needs: [run-unit-tests, run-integration-tests, validate-helm-charts]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Inject slug/short variables
+      uses: rlespinasse/github-slug-action@v4
+
+    - name: Modify GITHUB_REF_SLUG
+      run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
+
+    - name: Setup Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Authenticate to Docker Proxy Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ secrets.DOCKER_PROXY_REGISTRY }}
+        username: ${{ secrets.ARTIFACTORY_USER }}
+        password: ${{ secrets.ARTIFACTORY_PASS }}
+
+    - name: Build operator image
+      uses: docker/build-push-action@v3
+      with:
+        file: Dockerfile
+        build-args: |
+          VERSION=${{ env.GITHUB_REF_SLUG }}
+          DOCKER_PROXY_REGISTRY=${{ secrets.DOCKER_PROXY_REGISTRY }}/
+        tags: us.icr.io/${{ env.ICR_NAMESPACE }}/cassandra-operator:${{ env.GITHUB_REF_SLUG }}
+        outputs: type=docker,dest=cassandra-operator.tar
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@0.8.0
+      with:
+        input: "cassandra-operator.tar"
+        exit-code: "1"
+        ignore-unfixed: true
+        severity: ${{ env.TRIVY_SEVERITY }}
+
+    - name: Upload cassandra operator image artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: cassandra-operator
+        path: cassandra-operator.tar
+        retention-days: 1
+
+  build-cassandra:
+    runs-on: ubuntu-latest
+    needs: [run-unit-tests, run-integration-tests, validate-helm-charts]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Inject slug/short variables
+      uses: rlespinasse/github-slug-action@v4
+
+    - name: Modify GITHUB_REF_SLUG
+      run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
+
+    - name: Setup Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Authenticate to Docker Proxy Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ secrets.DOCKER_PROXY_REGISTRY }}
+        username: ${{ secrets.ARTIFACTORY_USER }}
+        password: ${{ secrets.ARTIFACTORY_PASS }}
+
+    - name: Build cassandra image
+      uses: docker/build-push-action@v3
+      with:
+        file: ./cassandra/Dockerfile
+        context: ./cassandra
+        tags: us.icr.io/${{ env.ICR_NAMESPACE }}/cassandra:${{ env.GITHUB_REF_SLUG }}
+        build-args: DOCKER_PROXY_REGISTRY=${{ secrets.DOCKER_PROXY_REGISTRY }}/
+        outputs: type=docker,dest=cassandra.tar
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@0.8.0
+      with:
+        input: "cassandra.tar"
+        exit-code: "1"
+        ignore-unfixed: true
+        severity: ${{ env.TRIVY_SEVERITY }}
+
+    - name: Upload cassandra image artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: cassandra
+        path: cassandra.tar
+        retention-days: 1
+
+  build-prober:
+    runs-on: ubuntu-latest
+    needs: [run-unit-tests, run-integration-tests, validate-helm-charts]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Inject slug/short variables
+      uses: rlespinasse/github-slug-action@v4
+
+    - name: Modify GITHUB_REF_SLUG
+      run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
+
+    - name: Setup Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Authenticate to Docker Proxy Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ secrets.DOCKER_PROXY_REGISTRY }}
+        username: ${{ secrets.ARTIFACTORY_USER }}
+        password: ${{ secrets.ARTIFACTORY_PASS }}
+
+    - name: Build prober image
+      uses: docker/build-push-action@v3
+      with:
+        file: ./prober/Dockerfile
+        context: ./prober
+        build-args: |
+          VERSION=${{ env.GITHUB_REF_SLUG }}
+          DOCKER_PROXY_REGISTRY=${{ secrets.DOCKER_PROXY_REGISTRY }}/
+        tags: us.icr.io/${{ env.ICR_NAMESPACE }}/prober:${{ env.GITHUB_REF_SLUG }}
+        outputs: type=docker,dest=prober.tar
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@0.8.0
+      with:
+        input: "prober.tar"
+        exit-code: "1"
+        ignore-unfixed: true
+        severity: ${{ env.TRIVY_SEVERITY }}
+
+    - name: Upload prober image artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: prober
+        path: prober.tar
+        retention-days: 1
+
+  build-jolokia:
+    runs-on: ubuntu-latest
+    needs: [run-unit-tests, run-integration-tests, validate-helm-charts]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Inject slug/short variables
+      uses: rlespinasse/github-slug-action@v4
+
+    - name: Modify GITHUB_REF_SLUG
+      run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
+
+    - name: Setup Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Authenticate to Docker Proxy Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ secrets.DOCKER_PROXY_REGISTRY }}
+        username: ${{ secrets.ARTIFACTORY_USER }}
+        password: ${{ secrets.ARTIFACTORY_PASS }}
+
+    - name: Build jolokia image
+      uses: docker/build-push-action@v3
+      with:
+        file: ./jolokia/Dockerfile
+        context: ./jolokia
+        build-args: DOCKER_PROXY_REGISTRY=${{ secrets.DOCKER_PROXY_REGISTRY }}/
+        tags: us.icr.io/${{ env.ICR_NAMESPACE }}/jolokia:${{ env.GITHUB_REF_SLUG }}
+        outputs: type=docker,dest=jolokia.tar
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@0.8.0
+      with:
+        input: "jolokia.tar"
+        exit-code: "1"
+        ignore-unfixed: true
+        severity: ${{ env.TRIVY_SEVERITY }}
+
+    - name: Upload jolokia image artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: jolokia
+        path: jolokia.tar
+        retention-days: 1
+
+
+  build-icarus:
+    runs-on: ubuntu-latest
+    needs: [run-unit-tests, run-integration-tests, validate-helm-charts]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Inject slug/short variables
+      uses: rlespinasse/github-slug-action@v4
+
+    - name: Modify GITHUB_REF_SLUG
+      run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
+
+    - name: Setup Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Authenticate to Docker Proxy Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ secrets.DOCKER_PROXY_REGISTRY }}
+        username: ${{ secrets.ARTIFACTORY_USER }}
+        password: ${{ secrets.ARTIFACTORY_PASS }}
+
+    - name: Build icarus image
+      uses: docker/build-push-action@v3
+      with:
+        file: ./icarus/Dockerfile
+        context: ./icarus
+        build-args: |
+          ICARUS_VERSION: ${{ env.ICARUS_VERSION }}
+          DOCKER_PROXY_REGISTRY=${{ secrets.DOCKER_PROXY_REGISTRY }}/
+        tags: us.icr.io/${{ env.ICR_NAMESPACE }}/icarus:${{ env.GITHUB_REF_SLUG }}
+        outputs: type=docker,dest=icarus.tar
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@0.8.0
+      with:
+        input: "icarus.tar"
+        exit-code: "1"
+        ignore-unfixed: true
+        severity: ${{ env.TRIVY_SEVERITY }}
+
+    - name: Upload jolokia image artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: icarus
+        path: icarus.tar
+        retention-days: 1
+
+
+  validate-helm-charts:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0 # ct needs history to compare
+
+    - name: Setup Helm
+      uses: azure/setup-helm@v3.4
+      with:
+        version: ${{ env.HELM_VERSION }}
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Setup chart-testing
+      uses: helm/chart-testing-action@v2.3.1
+
+    - name: Run chart-testing (list-changed)
+      id: list-changed
+      run: |
+        changed=$(ct list-changed --target-branch=main)
+        if [[ -n "$changed" ]]; then
+          echo "::set-output name=changed::true"
+        fi
+
+    - name: Run chart-testing (lint)
+      run: ct lint --target-branch=main --check-version-increment=false
+
+    - name: Download Pluto
+      uses: FairwindsOps/pluto/github-action@v5.11.2
+
+    - name: Scan for deprecated k8s APIs
+      run: helm template cassandra-operator/ | pluto detect -
+
+  check-docs:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Setup Node
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16
+    - name: Build docs website
+      run: |
+        npm -v
+        node -v
+        cd docs
+        npm ci
+        npm run build
+
+  push-images-for-e2e:
+    if: "!contains(github.event.head_commit.message, 'e2e skip')"
+    needs: [build-operator, build-cassandra, build-prober, build-jolokia, build-icarus, validate-helm-charts]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Inject slug/short variables
+      uses: rlespinasse/github-slug-action@v4
+
+    # We have below variable value replacement to prevent re-push of the image within branch during parallel workflows run
+    - name: Modify GITHUB_REF_SLUG
+      run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
+
+    - name: Install IBM Cloud CLI
+      run: |
+        curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
+        ibmcloud --version
+        ibmcloud config --check-version=false
+        ibmcloud plugin install -f container-registry
+    - name: Authenticate with IBM Cloud CLI
+      uses: nick-fields/retry@v2
+      id: retry
+      continue-on-error: false
+      with:
+        timeout_seconds: 60
+        max_attempts: 3
+        retry_on: error
+        command: |
+          ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RG" --quiet
+          ibmcloud cr region-set "$IBM_CLOUD_REGION"
+          ibmcloud cr login
+
+    - name: Download operator image artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: cassandra-operator
+
+    - name: Download cassandra image artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: cassandra
+
+    - name: Download prober image artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: prober
+
+    - name: Download jolokia image artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: jolokia
+
+    - name: Download icarus image artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: icarus
+
+    - name: Load container images
+      run: |
+        docker load -i cassandra-operator.tar
+        docker load -i cassandra.tar
+        docker load -i prober.tar
+        docker load -i jolokia.tar
+        docker load -i icarus.tar
+    - name: Push Images to ICR
+      run: |
+        docker push "us.icr.io/${{ env.ICR_NAMESPACE }}/cassandra-operator:$GITHUB_REF_SLUG"
+        docker push "us.icr.io/${{ env.ICR_NAMESPACE }}/prober:$GITHUB_REF_SLUG"
+        docker push "us.icr.io/${{ env.ICR_NAMESPACE }}/cassandra:$GITHUB_REF_SLUG"
+        docker push "us.icr.io/${{ env.ICR_NAMESPACE }}/jolokia:$GITHUB_REF_SLUG"
+        docker push "us.icr.io/${{ env.ICR_NAMESPACE }}/icarus:$GITHUB_REF_SLUG"
+
+  run-e2e-tests:
+    needs: [push-images-for-e2e]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Block Concurrent Executions for the Deployment
+      uses: softprops/turnstyle@v1
+      with:
+        poll-interval-seconds: 10
+        abort-after-seconds: 7200
+        same-branch-only: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Inject slug/short variables
+      uses: rlespinasse/github-slug-action@v4
+    - name: Modify GITHUB_REF_SLUG
+      run: echo "GITHUB_REF_SLUG=$GITHUB_REF_SLUG-${{ github.run_id }}" >> $GITHUB_ENV
+    - name: Install IBM Cloud CLI
+      run: |
+        curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
+        ibmcloud --version
+        ibmcloud config --check-version=false
+        ibmcloud plugin install -f kubernetes-service
+        ibmcloud plugin install -f container-registry
+    - name: Authenticate with IBM Cloud CLI
+      uses: nick-fields/retry@v2
+      id: retry
+      continue-on-error: false
+      with:
+        timeout_seconds: 60
+        max_attempts: 3
+        retry_on: error
+        command: |
+          ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RG" --quiet
+          ibmcloud cr region-set "$IBM_CLOUD_REGION"
+          ibmcloud cr login
+          ibmcloud ks cluster config --cluster $IKS_CLUSTER
+          kubectl config current-context
+          kubectl config set-context --current --namespace $IKS_NAMESPACE
+    - name: Setup k8s namespace
+      run: |
+        kubectl create namespace $IKS_NAMESPACE || true
+        kubectl create secret docker-registry icm-coreeng-pull-secret \
+          --docker-email=a@b.c \
+          --docker-username="$ICR_USERNAME" \
+          --docker-password="$ICR_PASSWORD" \
+          --docker-server=us.icr.io || true
+    - name: Deploy C* operator helm chart
+      uses: nick-fields/retry@v2
+      with:
+        timeout_seconds: 60
+        max_attempts: 3
+        retry_on: error
+        command: |
+          helm install cassandra-operator cassandra-operator \
+            --set "container.image=us.icr.io/${{ env.ICR_NAMESPACE }}/cassandra-operator:$GITHUB_REF_SLUG" \
+            --set "proberImage=us.icr.io/${{ env.ICR_NAMESPACE }}/prober:$GITHUB_REF_SLUG" \
+            --set "cassandraImage=us.icr.io/${{ env.ICR_NAMESPACE }}/cassandra:$GITHUB_REF_SLUG" \
+            --set "jolokiaImage=us.icr.io/${{ env.ICR_NAMESPACE }}/jolokia:$GITHUB_REF_SLUG" \
+            --set "icarusImage=us.icr.io/${{ env.ICR_NAMESPACE }}/icarus:$GITHUB_REF_SLUG" \
+            --set "logFormat=console" \
+            --set "logLevel=debug" \
+            --set "container.imagePullSecret=$IMAGE_PULL_SECRET"
+          kubectl rollout status deployment cassandra-operator
+    - name: C* operator deployment has failed, showing debug...
+      if: ${{ failure() }}
+      run: |
+        kubectl get deployments,po
+        kubectl describe pod -l operator=cassandra-operator
+        kubectl logs deployment/cassandra-operator --tail=20
+    - name: Set up Go with latest minor version 1.x
+      uses: actions/setup-go@v3
+      with:
+        go-version: ^1.18
+    - name: Get go dependencies
+      run: go mod download
+    - name: Install Ginkgo
+      run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.1.4
+    - name: Run e2e tests
+      id: e2e
+      run: make e2e-tests
+    - name: Upload logs artifact
+      if: ${{ always() && steps.e2e.outcome == 'failure' }}
+      uses: actions/upload-artifact@v3
+      with:
+        name: logs
+        path: /tmp/debug-logs/
+        retention-days: 7
+    - name: Uninstall C* operator helm chart
+      if: ${{ always() }}
+      run: helm uninstall cassandra-operator
+    - name: Remove CassandraCluster CRD
+      if: ${{ always() }}
+      run: kubectl delete -f cassandra-operator/crds/db.ibm.com_cassandraclusters.yaml
+    - name: Remove CassandraBackup CRD
+      if: ${{ always() }}
+      run: kubectl delete -f cassandra-operator/crds/db.ibm.com_cassandrabackups.yaml
+    - name: Remove CassandraRestore CRD
+      if: ${{ always() }}
+      run: kubectl delete -f cassandra-operator/crds/db.ibm.com_cassandrarestores.yaml
+    # We have below logic bc when multiple tags exist for the same image digest within a repository, the ibmcloud cr image-rm command removes the underlying image and all its tags. See details: https://cloud.ibm.com/docs/container-registry-cli-plugin?topic=container-registry-cli-plugin-containerregcli#bx_cr_image_rm
+    # We can also add a check if commit message contains `no_image_del` then skip the image deletion step
+    - name: Cleanup k8s namespace
+      if: ${{ always() }}
+      run: kubectl delete namespace $IKS_NAMESPACE
+    - name: Cleanup Images
+      if: ${{ always() }}
+      run: |
+        for image_name in cassandra-operator prober cassandra jolokia icarus; do
+          image_digest=$(ibmcloud cr image-list --restrict ${{ env.ICR_NAMESPACE }} --format "{{if and (eq .Repository \"us.icr.io/cassandra-operator/$image_name\") (eq .Tag \"$GITHUB_REF_SLUG\")}}{{.Digest}}{{end}}" --no-trunc)
+          image_tags=$(ibmcloud cr image-digests --restrict ${{ env.ICR_NAMESPACE }} --format "{{if and (eq .Digest \"$image_digest\")}}{{.Tags}}{{end}}" | sed -e 's/\[//g' -e 's/\]//g')
+          image_tags_arr=($image_tags)
+          echo "image tags: ${image_tags_arr[@]}, number: ${#image_tags_arr[@]}"
+          if (( ${#image_tags_arr[@]} > 1 )); then
+            ibmcloud cr image-untag "us.icr.io/${{ env.ICR_NAMESPACE }}/$image_name:$GITHUB_REF_SLUG"
+          else
+            ibmcloud cr image-rm "us.icr.io/${{ env.ICR_NAMESPACE }}/$image_name:$GITHUB_REF_SLUG"
+          fi
+        done

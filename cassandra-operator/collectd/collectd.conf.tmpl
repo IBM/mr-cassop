@@ -1,0 +1,118 @@
+TypesDB "{{collectdRoot}}/usr/share/collectd/types.db"
+PluginDir "{{collectdRoot}}/usr/lib/collectd"
+BaseDir "{{collectdRoot}}"
+
+Hostname "{{hostName}}"
+FQDNLookup false
+
+#Timeout needs to be high otherwise we can
+#cause a invalidation storm on large # of tables
+Interval 10
+Timeout 10
+ReadThreads 5
+WriteThreads 5
+WriteQueueLimitHigh 500000
+WriteQueueLimitLow  500000
+CollectInternalStats true
+
+LoadPlugin logfile
+<Plugin "logfile">
+  File "{{logDir}}/cassandra-collectd.log"
+  LogLevel "info"
+</Plugin>
+
+LoadPlugin write_scribe
+<Plugin "write_scribe">
+  ConfigFile "{{scribeConfigFile}}"
+  <File "{{logDir}}/cassandra-collectd.log">
+        Instance "collectd.log"
+  </File>
+
+  SocketFile "{{socketFile}}"
+</Plugin>
+
+LoadPlugin write_prometheus
+<Plugin write_prometheus>
+    Port "9103"
+</Plugin>
+
+LoadPlugin cpu
+
+LoadPlugin df
+<Plugin "df">
+  MountPoint "/var/lib/cassandra"
+  MountPoint "/"
+  IgnoreSelected "false"
+</Plugin>
+
+{{^isMac}}
+LoadPlugin vmem
+LoadPlugin numa
+LoadPlugin contextswitch
+LoadPlugin cpufreq
+LoadPlugin irq
+LoadPlugin protocols
+LoadPlugin ethstat
+{{/isMac}}
+
+LoadPlugin disk
+<Plugin "disk">
+  IgnoreSelected "false"
+</Plugin>
+
+LoadPlugin interface
+<Plugin "interface">
+  Interface "/^lo\d*$/"
+  Interface "/^docker.*/"
+  Interface "/^t(un|ap)\d*$/"
+  Interface "/^veth.*$/"
+  IgnoreSelected "true"
+</Plugin>
+
+LoadPlugin load
+LoadPlugin memory
+LoadPlugin swap
+LoadPlugin uptime
+LoadPlugin processes
+LoadPlugin tcpconns
+
+<Plugin "processes">
+  ProcessMatch "all" ".*"
+</Plugin>
+<Plugin "tcpconns">
+  ListeningPorts true
+</Plugin>
+
+LoadPlugin match_regex
+LoadPlugin target_set
+LoadPlugin target_replace
+#LoadPlugin ntpd
+
+PreCacheChain "PreCache"
+<Chain "PreCache">
+  <Rule "add_topology_tags">
+    <Match regex>
+      Plugin ".*"                   #Match all
+    </Match>
+
+    <Target "set">
+      MetaData "cluster" "{{cluster}}"
+      MetaData "dc" "{{dataCenter}}"
+      MetaData "rack" "{{rack}}"
+    </Target>
+  </Rule>
+
+  <Rule "add_series_tag">
+    <Match regex>
+      Plugin "^(cpu|interfaces|disk)$"
+    </Match>
+
+    <Target "set">
+      MetaData "insight_series" "1"
+    </Target>
+  </Rule>
+</Chain>
+
+
+Include "/etc/cassandra/collectd/*.conf"
+Include "{{collectdRoot}}/etc/collectd/*.conf"

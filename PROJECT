@@ -1,0 +1,17 @@
+domain: ibm.com
+layout: go.kubebuilder.io/v3
+repo: github.com/ibm/cassandra-operator
+resources:
+- domain: ibm.com
+  controller: true
+  group: db
+  kind: CassandraCluster
+  path: github.com/ibm/cassandra-operator/api/v1alpha1
+  version: v1alpha1
+  webhooks:
+    validation: true
+    webhookVersion: v1
+plugins:
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}
+version: "3"

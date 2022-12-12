@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cassandra-operator
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      operator: cassandra-operator
+  template:
+    metadata:
+      labels:
+        operator: cassandra-operator
+    spec:
+      {{- with .Values.container.imagePullSecret }}
+      imagePullSecrets:
+      - name:  {{ . | quote }}
+      {{- end }}
+      serviceAccountName: cassandra-operator
+      containers:
+        - name: cassandra-operator
+          image: "{{ .Values.container.image }}"
+          imagePullPolicy: {{ .Values.container.imagePullPolicy }}
+          resources:
+            {{- toYaml .Values.container.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              port: 8042
+              path: /readyz
+          ports:
+            - containerPort: 8329
+              name: metrics
+            - containerPort: 8042
+              name: readyz
+          env:
+            - name: NAMESPACE
+              value: {{ .Release.Namespace | quote }}
+            - name: LEADERELECTION_ENABLED
+              value: {{ if gt .Values.replicas 1.0 }}"true"{{ else }}"false"{{ end }}
+            - name: LOGLEVEL
+              value: {{ .Values.logLevel | quote }}
+            - name: LOGFORMAT
+              value: {{ .Values.logFormat | quote }}
+            - name: DEFAULT_CASSANDRA_IMAGE
+              value: {{ .Values.cassandraImage | quote }}
+            - name: DEFAULT_PROBER_IMAGE
+              value: {{ .Values.proberImage | quote }}
+            - name: DEFAULT_JOLOKIA_IMAGE
+              value: {{ .Values.jolokiaImage | quote }}
+            - name: DEFAULT_REAPER_IMAGE
+              value: {{ .Values.reaperImage | quote }}
+            - name: DEFAULT_ICARUS_IMAGE
+              value: {{ .Values.icarusImage | quote }}
+            - name: WEBHOOKS_ENABLED
+              value: {{ .Values.admissionWebhooks.enabled | quote }}

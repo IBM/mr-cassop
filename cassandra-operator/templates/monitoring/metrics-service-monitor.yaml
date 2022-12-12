@@ -1,0 +1,18 @@
+{{- if and .Values.monitoring.enabled .Values.monitoring.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Release.Name }}-metrics
+  namespace: {{ if .Values.monitoring.serviceMonitor.namespace }} {{ .Values.monitoring.serviceMonitor.namespace }} {{ else }} {{ .Release.Namespace }} {{ end }}
+  labels:
+  {{- toYaml .Values.monitoring.serviceMonitor.labels | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      operator: cassandra-operator
+  namespaceSelector:
+    matchNames: [{{ .Release.Namespace }}]
+  endpoints:
+    - port: metrics
+      interval: {{ .Values.monitoring.serviceMonitor.scrapeInterval }}
+{{- end }}

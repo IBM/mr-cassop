@@ -1,0 +1,99 @@
+apiVersion: db.ibm.com/v1alpha1
+kind: CassandraCluster
+metadata:
+  name: test-cluster
+spec:
+  imagePullSecretName: icm-coreeng-pull-secret
+  adminRoleSecretName: admin-role
+  cassandra:
+    imagePullPolicy: IfNotPresent
+    numSeeds: 2
+    logLevel: info
+    purgeGossip: false
+    persistence:
+      enabled: false
+      commitLogVolume: false
+      dataVolumeClaimSpec:
+        resources:
+          requests:
+            storage: 20Gi
+    zonesAsRacks: false
+    resources:
+      limits:
+        cpu: "1"
+        memory: 1.5Gi
+      requests:
+        memory: 1.5Gi
+        cpu: "1"
+    jvmOptions:
+    - -Xmx1024M
+    - -Xms1024M
+    monitoring:
+      enabled: true
+      agent: "instaclustr"
+      serviceMonitor:
+        enabled: true
+        scrapeInterval: 60s
+  cqlConfigMapLabelKey: cql-scripts
+  dcs:
+  - name: dc1
+    replicas: 3
+  - name: dc2
+    replicas: 3
+  prober:
+    logLevel: info
+    imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+    jolokia:
+      imagePullPolicy: IfNotPresent
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+    serviceMonitor:
+      enabled: true
+  reaper:
+    incrementalRepair: false
+    repairParallelism: "DATACENTER_AWARE"
+    imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        memory: 512Mi
+        cpu: "0.5"
+      limits:
+        memory: 512Mi
+        cpu: "0.5"
+    tolerations: []
+    nodeSelector: {}
+    repairIntensity: "1.0"
+    keyspace: reaper
+    repairSchedules:
+      enabled: false
+      repairs:
+      - keyspace: system_traces
+        tables: [events]
+        scheduleDaysBetween: 7
+        scheduleTriggerTime: "2020-11-15T14:00:00"
+        datacenters: [dc1]
+        repairThreadCount: 2
+        intensity: "1.0"
+        incrementalRepair: false
+        repairParallelism: "DATACENTER_AWARE"
+    serviceMonitor:
+      enabled: true
+      namespace: ""
+      labels: {}
+      scrapeInterval: 60s
+  hostPort:
+    enabled: false
+    useExternalHostIP: false # If set to false host internal ip will be used
+  encryption:
+    server:
+      internodeEncryption: dc
+    client:
+      enabled: true
+  networkPolicies:
+    enabled: false
