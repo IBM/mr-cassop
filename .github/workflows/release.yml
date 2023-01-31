@@ -74,7 +74,7 @@ jobs:
         password: ${{ env.ICR_PASSWORD }}
 
     - name: Build and push operator image
-      uses: docker/build-push-action@v3
+      uses: docker/build-push-action@v4
       with:
         push: true
         file: Dockerfile
@@ -141,7 +141,7 @@ jobs:
         password: ${{ env.ICR_PASSWORD }}
 
     - name: Build and push cassandra image
-      uses: docker/build-push-action@v3
+      uses: docker/build-push-action@v4
       with:
         push: true
         file: ./cassandra/Dockerfile
@@ -209,7 +209,7 @@ jobs:
         password: ${{ env.ICR_PASSWORD }}
 
     - name: Build and push prober image
-      uses: docker/build-push-action@v3
+      uses: docker/build-push-action@v4
       with:
         push: true
         file: ./prober/Dockerfile
@@ -276,7 +276,7 @@ jobs:
         password: ${{ env.ICR_PASSWORD }}
 
     - name: Build and push jolokia image
-      uses: docker/build-push-action@v3
+      uses: docker/build-push-action@v4
       with:
         push: true
         file: ./jolokia/Dockerfile
@@ -343,7 +343,7 @@ jobs:
         password: ${{ env.ICR_PASSWORD }}
 
     - name: Build and push icarus image
-      uses: docker/build-push-action@v3
+      uses: docker/build-push-action@v4
       with:
         push: true
         file: ./icarus/Dockerfile
